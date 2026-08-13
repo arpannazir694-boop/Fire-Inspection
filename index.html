@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fire Safety Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="neomorphic-report.css">
+</head>
+<body>
+<div id="appLoader" class="app-loader">
+  <div class="app-loader-inner">
+    <img src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png" alt="" class="app-loader-logo">
+    <div class="app-loader-spinner"></div>
+    <div class="app-loader-text">Loading&hellip;</div>
+  </div>
+</div>
+
+<div id="pdfModal" class="pdf-modal hidden">
+
+  <div class="pdf-box">
+
+    <div class="pdf-head">
+      <div class="pdf-title-block">
+        <span class="pdf-head-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
+          </svg>
+        </span>
+        <div>
+          <h3>Recent PDFs</h3>
+          <p>Browse, download or remove saved audit reports</p>
+        </div>
+      </div>
+
+      <div class="pdf-head-actions">
+        <span class="pdf-updated-at" id="pdfUpdatedAt"></span>
+        <button class="pdf-refresh-btn" id="pdfRefreshBtn" onclick="manualPdfRefresh()" title="Refresh now">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="pdf-close" onclick="closePdfModal()" title="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path
+              d="M18 6L6 18M6 6l12 12"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="pdf-toolbar">
+
+      <div class="pdf-search">
+
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path
+            d="M21 21l-4.35-4.35"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+          />
+          <circle
+            cx="11"
+            cy="11"
+            r="6"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+          />
+        </svg>
+
+        <input
+          type="text"
+          id="pdfSearch"
+          placeholder="Search by file or factory"
+        />
+
+      </div>
+
+      <input type="date" id="pdfFromDate">
+      <input type="date" id="pdfToDate">
+
+      <button class="pdf-filter-btn" onclick="filterPdfList()">
+
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path
+            d="M4 5h16l-6 7v6l-4 2v-8z"
+            fill="currentColor"
+          />
+        </svg>
+
+        Filter
+
+      </button>
+
+    </div>
+
+    <div class="pdf-table-head">
+
+      <div>PDF Name</div>
+      <div>Factory</div>
+      <div>Created On</div>
+      <div>Action</div>
+
+    </div>
+
+    <div id="pdfList"></div>
+
+
+
+  </div>
+
+</div>
+
+<div id="rptModal" class="rpt-modal hidden">
+  <div class="rpt-box">
+    <!-- Head -->
+    <div class="rpt-head">
+      <div class="rpt-title-block">
+        <div class="rpt-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <div>
+          <h3>Audit Report Dashboard</h3>
+          <p>Track audit status and follow-ups</p>
+        </div>
+      </div>
+      <div class="rpt-head-actions">
+        <span class="rpt-updated-at" id="rptUpdatedAt"></span>
+        <button class="rpt-refresh-btn" id="rptRefreshBtn" onclick="manualRptRefresh()" title="Refresh now">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="rpt-export-btn" onclick="exportRptExcel()" title="Export to Excel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </button>
+        <button class="rpt-close-btn" onclick="closeRptModal()" title="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="rpt-filters">
+      <div class="rpt-filter-group">
+        <label>Status Filter</label>
+        <select id="rptStatus">
+          <option value="all">All Status</option>
+          <option value="Pending">Pending</option>
+          <option value="Complete">Complete</option>
+        </select>
+      </div>
+      <div class="rpt-filter-group">
+        <label>Date From</label>
+        <input type="date" id="rptFromDate">
+      </div>
+      <div class="rpt-filter-group">
+        <label>Date To</label>
+        <input type="date" id="rptToDate">
+      </div>
+      <div class="rpt-filter-group">
+        <label>Month</label>
+        <select id="rptMonth"><option value="">All Months</option></select>
+      </div>
+      <div class="rpt-filter-actions">
+        <button class="rpt-apply-btn" onclick="applyRptFilter()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Apply Filter
+        </button>
+        <button class="rpt-reset-btn" onclick="resetRptFilter()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-total rpt-kpi-clickable" onclick="openRptKpiDrill('total')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('total');}">
+        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></div>
+        <div><div class="rpt-kpi-val" id="rptKpiTotal">0</div><div class="rpt-kpi-lbl">Total Records</div></div>
+      </div>
+      <div class="rpt-kpi rpt-kpi-pending rpt-kpi-clickable" onclick="openRptKpiDrill('pending')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('pending');}">
+        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><div class="rpt-kpi-val" id="rptKpiPending">0</div><div class="rpt-kpi-lbl">Pending</div></div>
+      </div>
+      <div class="rpt-kpi rpt-kpi-complete rpt-kpi-clickable" onclick="openRptKpiDrill('complete')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('complete');}">
+        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
+        <div><div class="rpt-kpi-val" id="rptKpiComplete">0</div><div class="rpt-kpi-lbl">Complete</div></div>
+      </div>
+      <div class="rpt-kpi rpt-kpi-elapsed rpt-kpi-clickable" onclick="openRptKpiDrill('elapsed')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('elapsed');}">
+        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div><div class="rpt-kpi-val" id="rptKpiElapsed">-</div><div class="rpt-kpi-lbl">Today Elapsed (Avg)</div></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="rpt-table-wrap">
+      <table class="rpt-table">
+        <thead>
+          <tr>
+            <th style="width:42px;">#</th>
+            <th onclick="sortRpt('isoDate')" data-col="isoDate">Audit Date <span class="sicon">&#x2195;</span></th>
+            <th onclick="sortRpt('unit')" data-col="unit">Unit <span class="sicon">&#x2195;</span></th>
+            <th onclick="sortRpt('location')" data-col="location">Location <span class="sicon">&#x2195;</span></th>
+            <th onclick="sortRpt('fileLink')" data-col="fileLink">Attached file Link <span class="sicon">&#x2195;</span></th>
+            <th onclick="sortRpt('remarks')" data-col="remarks">Remarks <span class="sicon">&#x2195;</span></th>
+            <th onclick="sortRpt('status')" data-col="status">STATUS <span class="sicon">&#x2195;</span></th>
+            <th style="width:70px;text-align:center;">Action</th>
+            <th onclick="sortRpt('actualDate')" data-col="actualDate">Actual Date <span class="sicon">&#x2195;</span></th>
+          </tr>
+        </thead>
+        <tbody id="rptTableBody">
+          <tr><td colspan="9" style="text-align:center;padding:30px;color:#6b7280;">No data loaded.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="rpt-footer">
+      <div class="rpt-showing" id="rptShowing">Showing 0 entries</div>
+      <div class="rpt-pages" id="rptPages"></div>
+    </div>
+  </div>
+</div>
+  <div id="dailyModal" class="daily-modal hidden">
+    <div class="daily-box">
+      <div class="daily-head">
+        <div class="daily-head-top">
+          <div class="daily-title-block">
+            <div class="daily-icon-wrap">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <h3 id="dailyModalTitle">Daily Task</h3>
+              <p>Sign in, log your floor round, sign out</p>
+            </div>
+          </div>
+          <div class="daily-head-actions">
+            <div class="daily-head-actions-row">
+              <button class="daily-mail-btn hidden" id="dailyMailBtn" type="button" onclick="openMailConfirm()" title="Mail Observation" aria-label="Mail Observation">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              </button>
+              <button class="daily-report-btn" id="dailyReportBtn" type="button" onclick="openDailyReportView()" title="Daily Task Report" aria-label="Daily Task Report">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+              </button>
+              <button class="daily-close-btn" type="button" onclick="closeDailyModal()" title="Close" aria-label="Close Daily Task">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+              <button class="daily-signout-icon-btn hidden" id="dailySignOutBtn" type="button" onclick="dailySignOut()" title="Sign Out" aria-label="Sign Out">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="daily-stats-row" id="dailyStatsRow">
+          <div class="daily-stat">
+            <span class="daily-stat-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V7a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v14"/><path d="M14 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v17"/><path d="M9 9h.01M9 13h.01M9 17h.01M17 7h.01M17 11h.01M17 15h.01"/></svg>
+            </span>
+            <span class="daily-stat-val" id="dailyStatFactories">–</span>
+            <span class="daily-stat-lbl">Factories visited today</span>
+          </div>
+          <div class="daily-stat">
+            <span class="daily-stat-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+            </span>
+            <span class="daily-stat-val" id="dailyStatTime">–</span>
+            <span class="daily-stat-lbl">Total time worked today</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="daily-body" id="dailyBodyMain">
+        <div class="daily-signin-wrap" id="dailySigninWrap">
+          <button class="daily-badge daily-badge-in" id="dailySignInBtn" type="button" onclick="dailySignIn()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In
+          </button>
+          <p class="daily-hint">Tap Sign In to start your floor round.</p>
+        </div>
+
+        <div class="daily-form hidden" id="dailyFormWrap">
+          <div class="daily-form-grid">
+            <div class="daily-field">
+              <label for="dailyUnit">Unit</label>
+              <select id="dailyUnit" data-type="factory">
+                <option value="">Select unit...</option>
+              </select>
+            </div>
+            <div class="daily-field">
+              <label for="dailyFloor">Floor</label>
+              <select id="dailyFloor">
+                <option value="">Select floor...</option>
+              </select>
+            </div>
+            <div class="daily-field daily-field-full">
+              <label for="dailyObservation">Observation Area</label>
+              <textarea id="dailyObservation" rows="3" placeholder="What did you observe on this round?"></textarea>
+            </div>
+            <div class="daily-field">
+              <label for="dailyPriority">Priority</label>
+              <select id="dailyPriority">
+                <option value="">Select priority...</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="daily-field">
+              <label>Attachments</label>
+              <div class="daily-attach-wrap">
+                <button type="button" class="daily-attach-trigger" id="dailyAttachTrigger" onclick="toggleDailyAttachMenu(event)">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  Add Attachment
+                </button>
+                <div class="daily-attach-menu hidden" id="dailyAttachMenu">
+                  <button type="button" onclick="triggerDailyAttachChoose()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    Choose Photo
+                  </button>
+                  <button type="button" onclick="triggerDailyAttachCamera()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Photo
+                  </button>
+                </div>
+                <input type="file" id="dailyAttachChooseInput" accept="image/*" multiple hidden onchange="handleDailyAttachFiles(event)">
+                <input type="file" id="dailyAttachCameraInput" accept="image/*" capture="environment" hidden onchange="handleDailyAttachFiles(event)">
+              </div>
+              <div class="daily-attach-list" id="dailyAttachList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="daily-report hidden" id="dailyReportView">
+        <div class="daily-report-toolbar">
+          <button class="daily-report-back" type="button" onclick="closeDailyReportView()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+          </button>
+          <input type="date" id="dailyRptFrom">
+          <input type="date" id="dailyRptTo">
+          <select id="dailyRptFactory">
+            <option value="">All Factories</option>
+          </select>
+          <button class="daily-report-apply" type="button" onclick="applyDailyReportFilter()">Apply</button>
+          <button class="daily-report-reset" type="button" onclick="resetDailyReportFilter()">Reset</button>
+          <button class="rpt-refresh-btn" id="dailyRptRefreshBtn" type="button" onclick="manualDailyReportRefresh()" title="Refresh now">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+
+          <div class="daily-report-export">
+            <button class="daily-export-btn daily-export-pdf" type="button" onclick="downloadDailyReportPdf()" title="Download PDF">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              PDF
+            </button>
+            <button class="daily-export-btn daily-export-excel" type="button" onclick="downloadDailyReportExcel()" title="Download Excel">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Excel
+            </button>
+          </div>
+        </div>
+
+        <div class="daily-report-kpis">
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('total')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('total');}">
+            <div class="daily-rpt-kpi-val" id="dailyRptKpiTotal">0</div>
+            <div class="daily-rpt-kpi-lbl">Total Visits</div>
+          </div>
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('factories')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('factories');}">
+            <div class="daily-rpt-kpi-val" id="dailyRptKpiFactories">0</div>
+            <div class="daily-rpt-kpi-lbl">Factories</div>
+          </div>
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('time')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('time');}">
+            <div class="daily-rpt-kpi-val" id="dailyRptKpiTime">00:00:00</div>
+            <div class="daily-rpt-kpi-lbl">Total Time</div>
+          </div>
+          <div class="daily-rpt-kpi daily-rpt-kpi-pending daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('pending')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('pending');}">
+            <div class="daily-rpt-kpi-val" id="dailyRptKpiPending">0</div>
+            <div class="daily-rpt-kpi-lbl">Action Pending</div>
+          </div>
+        </div>
+
+        <div class="daily-report-table-wrap">
+          <table class="daily-report-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Unit</th>
+                <th>Floor</th>
+                <th>Observation Area</th>
+                <th>Priority</th>
+                <th>Sign In</th>
+                <th>Sign Out</th>
+                <th>Duration</th>
+                <th>Attachments</th>
+                <th>Remarks</th>
+                <th>Action</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="dailyReportBody">
+              <tr><td colspan="12" style="text-align:center;padding:24px;color:#6b7280;">No data loaded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Mail Confirm Dialog ─────────────────────────────────────── -->
+  <!-- Scoped green theme for the mail confirm/compose UI + custom To/CC
+       multi-select widget. Kept inline here (rather than in style.css) so it
+       always applies regardless of what's already defined there. -->
+  <style>
+    /* ── Confirm & compose chrome: green theme ───────────────────────── */
+    .mail-confirm-icon-wrap { color: #16a34a; }
+    .mail-confirm-yes {
+      background: linear-gradient(135deg, #22c55e, #15803d) !important;
+      border-color: #15803d !important;
+    }
+    .mail-compose-header {
+      background: linear-gradient(135deg, #22c55e, #15803d) !important;
+    }
+    .mail-compose-logo-wrap { color: #ffffff; }
+    .mail-send-btn {
+      background: linear-gradient(135deg, #22c55e, #15803d) !important;
+      border-color: #15803d !important;
+    }
+    .mail-field-label { color: #15803d; }
+
+    /* ── To / CC multi-select widget ─────────────────────────────────── */
+    .mail-multiselect { position: relative; width: 100%; }
+    .mail-multiselect-trigger {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; gap: 8px; padding: 8px 12px; box-sizing: border-box;
+      border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4;
+      color: #14532d; font-size: 13.5px; font-family: inherit; cursor: pointer;
+      text-align: left;
+    }
+    .mail-multiselect-trigger:hover { border-color: #4ade80; }
+    .mail-multiselect-chips {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1;
+    }
+    .mail-multiselect-caret { flex-shrink: 0; color: #16a34a; }
+    .mail-multiselect-panel {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
+      background: #ffffff; border: 1px solid #bbf7d0; border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(21, 128, 61, 0.18);
+      max-height: 220px; overflow-y: auto; padding: 6px;
+    }
+    .mail-multiselect-panel.hidden { display: none; }
+    .mail-multiselect-option {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 6px; cursor: pointer; font-size: 13px; color: #1f2937;
+    }
+    .mail-multiselect-option:hover { background: #f0fdf4; }
+    .mail-multiselect-option input[type="checkbox"] {
+      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+      box-sizing: border-box !important;
+      flex: 0 0 16px !important;
+      width: 16px !important; height: 16px !important;
+      min-width: 16px !important; min-height: 16px !important;
+      max-width: 16px !important; max-height: 16px !important;
+      padding: 0 !important; margin: 0 !important;
+      border: 1.5px solid #86efac; border-radius: 4px; background: #ffffff;
+      cursor: pointer; position: relative; transition: background .15s ease, border-color .15s ease;
+    }
+    .mail-multiselect-option input[type="checkbox"]:checked {
+      background: #16a34a; border-color: #16a34a;
+    }
+    .mail-multiselect-option input[type="checkbox"]:checked::after {
+      content: ''; position: absolute; left: 4px; top: 1px;
+      width: 4px; height: 8px; border: solid #ffffff; border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .mail-multiselect-empty { padding: 10px; font-size: 13px; color: #9ca3af; }
+  </style>
+
+  <div class="mail-confirm-overlay hidden" id="mailConfirmOverlay" onclick="if(event.target===this)closeMailConfirm()">
+    <div class="mail-confirm-box">
+      <div class="mail-confirm-icon-wrap">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </div>
+      <h4 class="mail-confirm-title">Send Observation Mail?</h4>
+      <p class="mail-confirm-sub">Your observation details will be prepared as a mail.</p>
+      <div class="mail-confirm-btns">
+        <button class="mail-confirm-no" type="button" onclick="closeMailConfirm()">No, Cancel</button>
+        <button class="mail-confirm-yes" type="button" onclick="openMailCompose()">Yes, Compose</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Mail Compose Card ─────────────────────────────────────────── -->
+  <div class="mail-compose-overlay hidden" id="mailComposeOverlay" onclick="if(event.target===this)closeMailCompose()">
+    <div class="mail-compose-card">
+      <!-- Card Header -->
+      <div class="mail-compose-header">
+        <div class="mail-compose-header-left">
+          <div class="mail-compose-logo-wrap">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          </div>
+          <span class="mail-compose-header-title">New Message</span>
+        </div>
+        <div class="mail-compose-header-right">
+          <button class="mail-compose-minimize" type="button" onclick="closeMailCompose()" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mail Fields -->
+      <div class="mail-compose-fields">
+        <div class="mail-field-row">
+          <span class="mail-field-label">To</span>
+          <div class="mail-field-value-wrap" style="flex:1;">
+            <div class="mail-multiselect" id="mailToMultiselect">
+              <button type="button" class="mail-multiselect-trigger" id="mailToTrigger" onclick="toggleRecipientDropdown('to')">
+                <span class="mail-multiselect-chips" id="mailToChips">Loading recipients…</span>
+                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="mail-multiselect-panel hidden" id="mailToPanel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="mail-field-divider"></div>
+        <div class="mail-field-row">
+          <span class="mail-field-label">CC</span>
+          <div class="mail-field-value-wrap" style="flex:1;">
+            <div class="mail-multiselect" id="mailCcMultiselect">
+              <button type="button" class="mail-multiselect-trigger" id="mailCcTrigger" onclick="toggleRecipientDropdown('cc')">
+                <span class="mail-multiselect-chips" id="mailCcChips">None (optional)</span>
+                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="mail-multiselect-panel hidden" id="mailCcPanel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="mail-field-divider"></div>
+        <div class="mail-field-row">
+          <span class="mail-field-label">Subject</span>
+          <div class="mail-field-value-wrap" style="flex:1;">
+            <input class="mail-subject-input" id="mailSubjectInput" type="text" readonly>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mail Body -->
+      <div class="mail-compose-body-wrap">
+        <div class="mail-body-content" id="mailBodyContent">
+          <!-- dynamically filled -->
+        </div>
+      </div>
+
+      <!-- Mail Footer Actions -->
+      <div class="mail-compose-footer">
+        <div class="mail-compose-footer-left">
+          <span class="mail-footer-note">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            Sent securely via Fire Audit System
+          </span>
+        </div>
+        <div class="mail-compose-footer-right">
+          <button class="mail-send-btn" id="mailSendBtn" type="button" onclick="sendObservationMail()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="daily-kpi-drill hidden" id="kpiDrillModal" onclick="if(event.target===this) closeKpiDrill()">
+    <div class="daily-kpi-drill-box">
+      <div class="daily-kpi-drill-head">
+        <h4 id="kpiDrillTitle">Details</h4>
+        <button class="daily-close-btn" type="button" onclick="closeKpiDrill()" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="daily-kpi-drill-table-wrap">
+        <table class="daily-kpi-drill-table">
+          <thead id="kpiDrillHead"></thead>
+          <tbody id="kpiDrillBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="daily-stopwatch-float hidden" id="dailyStopwatchFloat" title="Daily Task in progress">
+    <span class="daily-stopwatch-dot"></span>
+    <span id="dailyStopwatchText">00:00:00</span>
+  </div>
+
+  <div class="header-more-overlay" id="headerMoreOverlay"></div>
+  <aside class="header-more-panel" id="headerMorePanel" aria-hidden="true">
+    <div class="header-more-panel-head">
+      <span>Menu</span>
+      <button type="button" class="header-more-close" id="headerMoreClose" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="header-more-status" id="statusPill" title="Connected">
+      <span class="status-dot"></span>
+      <span id="statusPillText">Connected</span>
+    </div>
+
+    <button class="header-more-item item-theme" id="themeToggle" type="button" aria-label="Toggle dark mode">
+      <span class="header-more-icon">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </span>
+      <span class="header-more-label">Dark mode</span>
+    </button>
+
+    <button class="header-more-item item-pdf" id="pdfBtn" type="button" aria-label="Recent PDFs">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="9" y1="13" x2="15" y2="13"></line>
+          <line x1="9" y1="17" x2="15" y2="17"></line>
+        </svg>
+      </span>
+      <span class="header-more-label">Recent PDFs</span>
+    </button>
+
+    <button class="header-more-item item-rpt" id="rptBtn" type="button" aria-label="Audit Status Dashboard">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      </span>
+      <span class="header-more-label">Audit Status Dashboard</span>
+    </button>
+
+    <button class="header-more-item item-daily" id="dailyBtn" type="button" aria-label="Daily Task">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+          <path d="M8 14l2 2 4-4"></path>
+        </svg>
+      </span>
+      <span class="header-more-label">Daily Task</span>
+    </button>
+
+    <button class="header-more-item item-daily-dashboard" id="dailyDashboardBtn" type="button" aria-label="Daily Tasks Dashboard">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+          <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+          <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+          <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+        </svg>
+      </span>
+      <span class="header-more-label">Daily Tasks Dashboard</span>
+    </button>
+  </aside>
+
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="logo-box">
+          <img src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png" alt="Company logo">
+        </div>
+        <div>
+
+          <h1>Fire safety inspection form</h1>
+          <p class="subtitle">A compact and efficient audit app designed for equipment inspection, emergency preparedness, electrical safety checks, compliance monitoring, risk observations, and final assessment reporting.</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+
+        <div class="header-controls">
+          <button class="more-toggle-btn" id="moreBtn" type="button" title="Menu" aria-label="Open menu" aria-haspopup="true" aria-expanded="false" aria-controls="headerMorePanel">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
+          </button>
+        </div>
+
+        <div class="company-ticker" id="companyTicker" aria-hidden="true">
+          <span id="companyTickerText"></span><span class="ticker-cursor">|</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="kpi-grid" aria-label="Live audit summary">
+      <div class="kpi-card">
+        <div class="kpi-label">Completed Fields</div>
+        <div class="kpi-value" id="kpiCompleted">0/0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Yes / No</div>
+        <div class="kpi-value" id="kpiYesNo">0/0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Attachments</div>
+        <div class="kpi-value" id="kpiAttachments">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Immediate Action</div>
+        <div class="kpi-value" id="kpiAction">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Forms Submitted</div>
+        <div class="kpi-value" id="kpiSubmitted">-</div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="side">
+        <div class="progress-wrap">
+          <div class="progress-head">
+            <span>Completion</span>
+            <span id="progressText">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+        </div>
+        <ul class="nav-list" id="sectionNav"></ul>
+      </aside>
+
+      <form id="auditForm">
+        <div id="sections"></div>
+
+        <section class="section" id="attachments-section">
+          <div class="section-title">
+            <h2>Attachments</h2>
+            <span class="section-count">Multiple files allowed</span>
+          </div>
+          <div class="section-body">
+            <div class="file-drop">
+              <input type="file" id="attachments" multiple>
+              <div>
+                <strong>Attach files</strong>
+                <span>Photos, PDF, reports, or any supporting documents select korun</span>
+              </div>
+            </div>
+            <div class="file-list" id="fileList"></div>
+          </div>
+        </section>
+
+        <div class="submit-panel">
+          <div>
+            <strong>Ready to submit?</strong>
+            <p>PLEASE MAKE SURE TO REVIEW EVERYTHING CAREFULLY BEFORE SUBMITTING THE FORM!</p>
+          </div>
+          <button class="submit-btn" id="submitBtn" type="submit">Submit Audit</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="main.js" defer></script>
+  
+</body>
+</html>
