@@ -3107,18 +3107,18 @@ body.dark .daily-mail-btn { color: #60a5fa; }
 .mail-confirm-icon-wrap {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
-  border-radius: 16px;
+  background: #eff6fc;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
-  color: #2563eb;
+  color: #0078D4;
 }
 
 body.dark .mail-confirm-icon-wrap {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
-  color: #93c5fd;
+  background: #1e3a5f;
+  color: #7ec3f7;
 }
 
 .mail-confirm-title {
@@ -3164,22 +3164,19 @@ body.dark .mail-confirm-icon-wrap {
 .mail-confirm-yes {
   flex: 1.4;
   padding: 11px 0;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid #0078D4;
+  border-radius: 4px;
+  background: #0078D4;
   color: #fff;
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
-  transition: all 0.18s ease;
+  transition: all 0.15s ease;
 }
 
 .mail-confirm-yes:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+  background: #106ebe;
 }
 
 .mail-confirm-yes:active {
@@ -3211,9 +3208,9 @@ body.dark .mail-confirm-icon-wrap {
   width: 100%;
   max-width: 580px;
   background: var(--panel);
-  border-radius: 16px;
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22), 0 12px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2), 0 8px 20px rgba(15, 23, 42, 0.1);
   border: 1px solid var(--line-subtle);
   display: flex;
   flex-direction: column;
@@ -3226,8 +3223,8 @@ body.dark .mail-confirm-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  padding: 10px 16px;
+  background: #0078D4;
   color: #fff;
   flex-shrink: 0;
 }
@@ -3510,24 +3507,21 @@ body.dark .mail-priority-low { background: #022c22; color: #6ee7b7; }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 10px 22px;
-  border: none;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  padding: 8px 20px;
+  border: 1px solid #0078D4;
+  border-radius: 3px;
+  background: #0078D4;
   color: #fff;
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   letter-spacing: 0.01em;
 }
 
 .mail-send-btn:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  background: #106ebe;
 }
 
 .mail-send-btn:active {
