@@ -429,49 +429,86 @@
        multi-select widget. Kept inline here (rather than in style.css) so it
        always applies regardless of what's already defined there. -->
   <style>
-    /* ── Confirm & compose chrome: green theme ───────────────────────── */
-    .mail-confirm-icon-wrap { color: #16a34a; }
+    /* ── Confirm & compose chrome: Outlook (Fluent) blue theme — flat, no gradients ── */
+    .mail-confirm-icon-wrap { color: #0078D4; background: #eff6fc !important; }
     .mail-confirm-yes {
-      background: linear-gradient(135deg, #22c55e, #15803d) !important;
-      border-color: #15803d !important;
+      background: #0078D4 !important;
+      border-color: #0078D4 !important;
+      box-shadow: none !important;
     }
-    .mail-compose-header {
-      background: linear-gradient(135deg, #22c55e, #15803d) !important;
-    }
-    .mail-compose-logo-wrap { color: #ffffff; }
-    .mail-send-btn {
-      background: linear-gradient(135deg, #22c55e, #15803d) !important;
-      border-color: #15803d !important;
-    }
-    .mail-field-label { color: #15803d; }
+    .mail-confirm-yes:hover { background: #106ebe !important; }
 
-    /* ── To / CC multi-select widget ─────────────────────────────────── */
+    .mail-compose-card { border-radius: 6px !important; }
+    .mail-compose-header {
+      background: #0078D4 !important;
+      padding: 10px 16px !important;
+    }
+    .mail-compose-logo-wrap {
+      background: #ffffff !important;
+      color: #0078D4 !important;
+      border-radius: 6px !important;
+      width: 32px !important;
+      height: 32px !important;
+    }
+    .mail-send-btn {
+      background: #0078D4 !important;
+      border-color: #0078D4 !important;
+      border-radius: 3px !important;
+      box-shadow: none !important;
+    }
+    .mail-send-btn:hover { background: #106ebe !important; }
+    .mail-field-label { color: #605e5c; }
+
+    /* ── Outlook-style faux ribbon strip (decorative, sits under header) ─── */
+    .mail-outlook-ribbon {
+      display: flex; align-items: center; gap: 4px;
+      padding: 6px 16px; background: #faf9f8;
+      border-bottom: 1px solid #edebe9; flex-shrink: 0;
+    }
+    .mail-outlook-ribbon .rib-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 4px; color: #3b3a39;
+      cursor: default; opacity: .85;
+    }
+    .mail-outlook-ribbon .rib-btn:hover { background: #f3f2f1; }
+    .mail-outlook-ribbon .rib-sep {
+      width: 1px; height: 18px; background: #e1dfdd; margin: 0 4px;
+    }
+    .mail-outlook-ribbon .rib-tag {
+      margin-left: auto; font-size: 11px; color: #a19f9d; font-weight: 500;
+      letter-spacing: .3px; text-transform: uppercase;
+    }
+
+    /* ── To / CC multi-select widget — Fluent flat field style ───────────── */
     .mail-multiselect { position: relative; width: 100%; }
     .mail-multiselect-trigger {
       display: flex; align-items: center; justify-content: space-between;
       width: 100%; gap: 8px; padding: 8px 12px; box-sizing: border-box;
-      border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4;
-      color: #14532d; font-size: 13.5px; font-family: inherit; cursor: pointer;
-      text-align: left;
+      border: 1px solid #e1dfdd; border-radius: 2px; background: #ffffff;
+      color: #201f1e; font-size: 13.5px; font-family: inherit; cursor: pointer;
+      text-align: left; transition: border-color .12s ease, box-shadow .12s ease;
     }
-    .mail-multiselect-trigger:hover { border-color: #4ade80; }
+    .mail-multiselect-trigger:hover { border-color: #0078D4; }
+    .mail-multiselect-trigger:focus-visible {
+      outline: none; border-color: #0078D4; box-shadow: 0 0 0 1px #0078D4;
+    }
     .mail-multiselect-chips {
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       flex: 1;
     }
-    .mail-multiselect-caret { flex-shrink: 0; color: #16a34a; }
+    .mail-multiselect-caret { flex-shrink: 0; color: #0078D4; }
     .mail-multiselect-panel {
-      position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
-      background: #ffffff; border: 1px solid #bbf7d0; border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(21, 128, 61, 0.18);
-      max-height: 220px; overflow-y: auto; padding: 6px;
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
+      background: #ffffff; border: 1px solid #e1dfdd; border-radius: 2px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      max-height: 220px; overflow-y: auto; padding: 4px;
     }
     .mail-multiselect-panel.hidden { display: none; }
     .mail-multiselect-option {
       display: flex; align-items: center; gap: 10px; padding: 8px 10px;
-      border-radius: 6px; cursor: pointer; font-size: 13px; color: #1f2937;
+      border-radius: 2px; cursor: pointer; font-size: 13px; color: #201f1e;
     }
-    .mail-multiselect-option:hover { background: #f0fdf4; }
+    .mail-multiselect-option:hover { background: #f3f2f1; }
     .mail-multiselect-option input[type="checkbox"] {
       -webkit-appearance: none; -moz-appearance: none; appearance: none;
       box-sizing: border-box !important;
@@ -480,19 +517,32 @@
       min-width: 16px !important; min-height: 16px !important;
       max-width: 16px !important; max-height: 16px !important;
       padding: 0 !important; margin: 0 !important;
-      border: 1.5px solid #86efac; border-radius: 4px; background: #ffffff;
+      border: 1.5px solid #8a8886; border-radius: 2px; background: #ffffff;
       cursor: pointer; position: relative; transition: background .15s ease, border-color .15s ease;
     }
     .mail-multiselect-option input[type="checkbox"]:checked {
-      background: #16a34a; border-color: #16a34a;
+      background: #0078D4; border-color: #0078D4;
     }
     .mail-multiselect-option input[type="checkbox"]:checked::after {
       content: ''; position: absolute; left: 4px; top: 1px;
       width: 4px; height: 8px; border: solid #ffffff; border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
-    .mail-multiselect-empty { padding: 10px; font-size: 13px; color: #9ca3af; }
+    .mail-multiselect-empty { padding: 10px; font-size: 13px; color: #a19f9d; }
+
+    /* ── Send button: paper-plane "flies away" while sending (surprise) ──── */
+    .mail-send-btn { position: relative; overflow: hidden; }
+    .mail-send-btn.sending svg {
+      animation: mail-plane-fly .85s ease-in-out infinite;
+    }
+    @keyframes mail-plane-fly {
+      0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      70%  { transform: translate(14px, -10px) rotate(18deg); opacity: 0.35; }
+      71%  { transform: translate(-14px, 10px) rotate(0deg); opacity: 0; }
+      100% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    }
   </style>
+
 
   <div class="mail-confirm-overlay hidden" id="mailConfirmOverlay" onclick="if(event.target===this)closeMailConfirm()">
     <div class="mail-confirm-box">
@@ -515,7 +565,12 @@
       <div class="mail-compose-header">
         <div class="mail-compose-header-left">
           <div class="mail-compose-logo-wrap">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+              <rect x="1" y="4" width="14" height="16" rx="1.5" fill="#0078D4"/>
+              <path d="M6 12a2.4 4.6 0 1 0 4.8 0 2.4 4.6 0 1 0 -4.8 0Z" fill="#ffffff"/>
+              <rect x="13.2" y="7" width="9.8" height="10" rx="1" fill="#106ebe"/>
+              <path d="M13.2 8.2l4.9 3.3 4.9-3.3" stroke="#ffffff" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
           <span class="mail-compose-header-title">New Message</span>
         </div>
@@ -524,6 +579,17 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
+      </div>
+
+      <!-- Decorative Outlook-style ribbon strip -->
+      <div class="mail-outlook-ribbon" aria-hidden="true">
+        <span class="rib-btn" title="Bold"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h7a3.5 3.5 0 0 1 0 7H6z"/><path d="M6 11h8a3.5 3.5 0 0 1 0 7H6z"/></svg></span>
+        <span class="rib-btn" title="Italic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="14" y1="4" x2="9" y2="20"/><line x1="17" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="7" y2="20"/></svg></span>
+        <span class="rib-btn" title="Underline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v7a6 6 0 0 0 12 0V4"/><line x1="5" y1="20" x2="19" y2="20"/></svg></span>
+        <span class="rib-sep"></span>
+        <span class="rib-btn" title="Attach"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span>
+        <span class="rib-btn" title="Insert signature"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+        <span class="rib-tag">Draft</span>
       </div>
 
       <!-- Mail Fields -->
