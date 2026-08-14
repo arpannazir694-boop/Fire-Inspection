@@ -1,4 +1,4 @@
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyh-_RvHVNDeTnmIhn6FFt0to_5D75mE1mBOp80Cc2RmRn7t65toNfC-vnYNdT4aN6v/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSoch1eeugGaOI7PJulODyApCIU_4tBfe-t6Nb4LorBsYgUc5qFjA/exec';
     // Apps Script can take several seconds to wake up and read Google Sheets.
     // Keep read requests below the browser's practical connection limit while
     // allowing enough time for a cold start or a larger report sheet.
