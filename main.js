@@ -2502,11 +2502,11 @@ async function openMailCompose() {
 
   // ── Priority badge (fully inline-styled — must survive being emailed) ─
   const priorityColors = {
-    High:   { bg: '#fee2e2', fg: '#b91c1c', dot: '#ef4444' },
-    Medium: { bg: '#fef3c7', fg: '#b45309', dot: '#f59e0b' },
-    Low:    { bg: '#d1fae5', fg: '#047857', dot: '#10b981' }
+    High:   { bg: '#fde7e9', fg: '#a4262c', dot: '#d13438' },
+    Medium: { bg: '#fff4ce', fg: '#7a5c00', dot: '#ffb900' },
+    Low:    { bg: '#dff6dd', fg: '#107c10', dot: '#107c10' }
   };
-  const pc = priorityColors[priority] || { bg: '#e5e7eb', fg: '#4b5563', dot: '#9ca3af' };
+  const pc = priorityColors[priority] || { bg: '#f3f2f1', fg: '#605e5c', dot: '#a19f9d' };
   const priorityHtml = priority
     ? `<span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${pc.bg};color:${pc.fg};">
          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${pc.dot};margin-right:6px;vertical-align:middle;"></span>${priority}
@@ -2526,68 +2526,74 @@ async function openMailCompose() {
       : '<em style="opacity:0.65">No observation entered yet.</em>';
 
     document.getElementById('mailBodyContent').innerHTML = `
-      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto;border-collapse:collapse;font-family:Calibri,Verdana,Geneva,sans-serif;background:#ffffff;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;margin:0 auto;border-collapse:collapse;font-family:'Segoe UI',Calibri,Arial,sans-serif;background:#ffffff;border:1px solid #d1d1d1;">
         <tr>
-          <td style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:14px 14px 0 0;padding:20px 24px;">
+          <td style="background:#0078D4;padding:18px 24px;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
               <tr>
-                <td style="width:60px;vertical-align:middle;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#ffffff;border-radius:10px;width:52px;height:52px;">
+                <td style="width:52px;vertical-align:middle;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#ffffff;width:44px;height:44px;">
                     <tr>
-                      <td align="center" valign="middle" style="width:52px;height:52px;">
-                        <img src="${MAIL_LOGO_URL}" alt="Trio Group" width="36" height="36" style="display:block;width:36px;height:36px;object-fit:contain;">
+                      <td align="center" valign="middle" style="width:44px;height:44px;">
+                        <img src="${MAIL_LOGO_URL}" alt="Trio Group" width="30" height="30" style="display:block;width:30px;height:30px;object-fit:contain;">
                       </td>
                     </tr>
                   </table>
                 </td>
                 <td style="vertical-align:middle;padding-left:14px;text-align:left;">
-                  <div style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:.2px;">Fire Safety Audit Observation</div>
-                  <div style="color:#dcfce7;font-size:11.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-top:4px;">Trio Group &middot; Fire Audit System</div>
+                  <div style="color:#ffffff;font-size:17px;font-weight:600;letter-spacing:.1px;">Fire Safety Audit Observation</div>
+                  <div style="color:#deecfb;font-size:11.5px;font-weight:400;letter-spacing:.3px;margin-top:3px;">Trio Group &middot; Fire Audit System</div>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
         <tr>
-          <td style="background:#ffffff;border:1px solid #bbf7d0;border-top:none;border-radius:0 0 14px 14px;padding:28px 26px;">
-            <p style="font-size:15px;font-weight:700;color:#1f2937;margin:0 0 12px;">Dear All,</p>
-            <p style="font-size:13.5px;color:#4b5563;line-height:1.7;margin:0 0 20px;">
-              Please find below the fire safety observation recorded during today&rsquo;s floor round.
-            </p>
+          <td style="background:#faf9f8;border-top:3px solid #0078D4;padding:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:26px 26px 22px;">
+                  <p style="font-size:14.5px;font-weight:600;color:#201f1e;margin:0 0 12px;">Dear All,</p>
+                  <p style="font-size:13.5px;color:#3b3a39;line-height:1.7;margin:0 0 20px;">
+                    Please find below the fire safety observation recorded during today&rsquo;s floor round.
+                  </p>
 
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #bbf7d0;margin-bottom:20px;">
-              <tr style="background:#f0fdf4;">
-                <td style="padding:11px 14px;font-size:12px;font-weight:700;color:#166534;width:130px;border-bottom:1px solid #bbf7d0;">Date &amp; Time</td>
-                <td style="padding:11px 14px;font-size:13px;color:#1f2937;border-bottom:1px solid #bbf7d0;">${dateStr}</td>
-              </tr>
-              <tr>
-                <td style="padding:11px 14px;font-size:12px;font-weight:700;color:#166534;border-bottom:1px solid #bbf7d0;">Unit / Factory</td>
-                <td style="padding:11px 14px;font-size:13px;color:#1f2937;border-bottom:1px solid #bbf7d0;">${unit || '—'}</td>
-              </tr>
-              <tr style="background:#f0fdf4;">
-                <td style="padding:11px 14px;font-size:12px;font-weight:700;color:#166534;border-bottom:1px solid #bbf7d0;">Floor</td>
-                <td style="padding:11px 14px;font-size:13px;color:#1f2937;border-bottom:1px solid #bbf7d0;">${floor || '—'}</td>
-              </tr>
-              <tr>
-                <td style="padding:11px 14px;font-size:12px;font-weight:700;color:#166534;">Priority</td>
-                <td style="padding:11px 14px;">${priorityHtml}</td>
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e1dfdd;margin-bottom:20px;background:#ffffff;">
+                    <tr style="background:#f3f2f1;">
+                      <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#605e5c;width:130px;border-bottom:1px solid #e1dfdd;">Date &amp; Time</td>
+                      <td style="padding:10px 14px;font-size:13px;color:#201f1e;border-bottom:1px solid #e1dfdd;">${dateStr}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#605e5c;border-bottom:1px solid #e1dfdd;">Unit / Factory</td>
+                      <td style="padding:10px 14px;font-size:13px;color:#201f1e;border-bottom:1px solid #e1dfdd;">${unit || '—'}</td>
+                    </tr>
+                    <tr style="background:#f3f2f1;">
+                      <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#605e5c;border-bottom:1px solid #e1dfdd;">Floor</td>
+                      <td style="padding:10px 14px;font-size:13px;color:#201f1e;border-bottom:1px solid #e1dfdd;">${floor || '—'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#605e5c;">Priority</td>
+                      <td style="padding:10px 14px;">${priorityHtml}</td>
+                    </tr>
+                  </table>
+
+                  <p style="font-size:11.5px;font-weight:600;color:#0078D4;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;">Observation</p>
+                  <div style="background:#ffffff;border:1px solid #e1dfdd;border-left:3px solid #0078D4;padding:14px 16px;font-size:13.5px;color:#201f1e;line-height:1.7;margin-bottom:22px;">
+                    ${observationHtml}
+                  </div>
+
+                  <p style="font-size:13px;color:#3b3a39;line-height:1.6;margin:0 0 24px;">
+                    Kindly take the necessary corrective action at the earliest.
+                  </p>
+
+                  <div style="border-top:1px solid #e1dfdd;padding-top:16px;font-size:12.5px;color:#605e5c;line-height:1.75;">
+                    Thanks &amp; Regards,<br>
+                    <strong style="color:#0078D4;font-size:13px;">Fire Audit System</strong><br>
+                    Trio Group
+                  </div>
+                </td>
               </tr>
             </table>
-
-            <p style="font-size:11.5px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.6px;margin:0 0 8px;">Observation</p>
-            <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;font-size:13.5px;color:#14532d;line-height:1.7;margin-bottom:22px;">
-              ${observationHtml}
-            </div>
-
-            <p style="font-size:13px;color:#4b5563;line-height:1.6;margin:0 0 24px;">
-              Kindly take the necessary corrective action at the earliest.
-            </p>
-
-            <div style="border-top:1px solid #bbf7d0;padding-top:16px;font-size:12.5px;color:#6b7280;line-height:1.75;">
-              Thanks &amp; Regards,<br>
-              <strong style="color:#15803d;font-size:13px;">Fire Audit System</strong><br>
-              Trio Group
-            </div>
           </td>
         </tr>
       </table>
@@ -2662,7 +2668,8 @@ async function sendObservationMail() {
   const originalLabel = sendBtn ? sendBtn.innerHTML : '';
   if (sendBtn) {
     sendBtn.disabled = true;
-    sendBtn.innerHTML = 'Sending…';
+    sendBtn.classList.add('sending');
+    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg> Sending…`;
   }
 
   try {
@@ -2697,6 +2704,7 @@ async function sendObservationMail() {
   } finally {
     if (sendBtn) {
       sendBtn.disabled = false;
+      sendBtn.classList.remove('sending');
       sendBtn.innerHTML = originalLabel;
     }
   }
