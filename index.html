@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <base target="_top">
   <meta charset="UTF-8">
@@ -8,242 +9,305 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://script.google.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"></noscript>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet">
+  </noscript>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="neomorphic-report.css">
 </head>
+
 <body>
-<div id="appLoader" class="app-loader">
-  <div class="app-loader-inner">
-    <img src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png" alt="" class="app-loader-logo">
-    <div class="app-loader-spinner"></div>
-    <div class="app-loader-text">Loading&hellip;</div>
+  <div id="appLoader" class="app-loader">
+    <div class="app-loader-inner">
+      <img
+        src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png"
+        alt="" class="app-loader-logo">
+      <div class="app-loader-spinner"></div>
+      <div class="app-loader-text">Loading&hellip;</div>
+    </div>
   </div>
-</div>
 
-<div id="pdfModal" class="pdf-modal hidden">
+  <div id="pdfModal" class="pdf-modal hidden">
 
-  <div class="pdf-box">
+    <div class="pdf-box">
 
-    <div class="pdf-head">
-      <div class="pdf-title-block">
-        <span class="pdf-head-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-            <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
-          </svg>
-        </span>
-        <div>
-          <h3>Recent PDFs</h3>
-          <p>Browse, download or remove saved audit reports</p>
+      <div class="pdf-head">
+        <div class="pdf-title-block">
+          <span class="pdf-head-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="9" y1="13" x2="15" y2="13" />
+              <line x1="9" y1="17" x2="15" y2="17" />
+            </svg>
+          </span>
+          <div>
+            <h3>Recent PDFs</h3>
+            <p>Browse, download or remove saved audit reports</p>
+          </div>
+        </div>
+
+        <div class="pdf-head-actions">
+          <span class="pdf-updated-at" id="pdfUpdatedAt"></span>
+          <button class="pdf-refresh-btn" id="pdfRefreshBtn" onclick="manualPdfRefresh()" title="Refresh now">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round" style="width:18px;height:18px;">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+          <button class="pdf-close" onclick="closePdfModal()" title="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <div class="pdf-head-actions">
-        <span class="pdf-updated-at" id="pdfUpdatedAt"></span>
-        <button class="pdf-refresh-btn" id="pdfRefreshBtn" onclick="manualPdfRefresh()" title="Refresh now">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-        <button class="pdf-close" onclick="closePdfModal()" title="Close">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path
-              d="M18 6L6 18M6 6l12 12"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
+      <div class="pdf-toolbar">
+
+        <div class="pdf-search">
+
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2" fill="none" />
           </svg>
+
+          <input type="text" id="pdfSearch" placeholder="Search by file or factory" />
+
+        </div>
+
+        <input type="date" id="pdfFromDate">
+        <input type="date" id="pdfToDate">
+
+        <button class="pdf-filter-btn" onclick="filterPdfList()">
+
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M4 5h16l-6 7v6l-4 2v-8z" fill="currentColor" />
+          </svg>
+
+          Filter
+
         </button>
-      </div>
-    </div>
-
-    <div class="pdf-toolbar">
-
-      <div class="pdf-search">
-
-        <svg viewBox="0 0 24 24" width="18" height="18">
-          <path
-            d="M21 21l-4.35-4.35"
-            stroke="currentColor"
-            stroke-width="2"
-            fill="none"
-            stroke-linecap="round"
-          />
-          <circle
-            cx="11"
-            cy="11"
-            r="6"
-            stroke="currentColor"
-            stroke-width="2"
-            fill="none"
-          />
-        </svg>
-
-        <input
-          type="text"
-          id="pdfSearch"
-          placeholder="Search by file or factory"
-        />
 
       </div>
 
-      <input type="date" id="pdfFromDate">
-      <input type="date" id="pdfToDate">
+      <div class="pdf-table-head">
 
-      <button class="pdf-filter-btn" onclick="filterPdfList()">
+        <div>PDF Name</div>
+        <div>Factory</div>
+        <div>Created On</div>
+        <div>Action</div>
 
-        <svg viewBox="0 0 24 24" width="18" height="18">
-          <path
-            d="M4 5h16l-6 7v6l-4 2v-8z"
-            fill="currentColor"
-          />
-        </svg>
+      </div>
 
-        Filter
+      <div id="pdfList"></div>
 
-      </button>
+
 
     </div>
-
-    <div class="pdf-table-head">
-
-      <div>PDF Name</div>
-      <div>Factory</div>
-      <div>Created On</div>
-      <div>Action</div>
-
-    </div>
-
-    <div id="pdfList"></div>
-
-
 
   </div>
 
-</div>
-
-<div id="rptModal" class="rpt-modal hidden">
-  <div class="rpt-box">
-    <!-- Head -->
-    <div class="rpt-head">
-      <div class="rpt-title-block">
-        <div class="rpt-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-          </svg>
+  <div id="rptModal" class="rpt-modal hidden">
+    <div class="rpt-box">
+      <!-- Head -->
+      <div class="rpt-head">
+        <div class="rpt-title-block">
+          <div class="rpt-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h3>Audit Report Dashboard</h3>
+            <p>Track audit status and follow-ups</p>
+          </div>
         </div>
-        <div>
-          <h3>Audit Report Dashboard</h3>
-          <p>Track audit status and follow-ups</p>
+        <div class="rpt-head-actions">
+          <span class="rpt-updated-at" id="rptUpdatedAt"></span>
+          <button class="rpt-refresh-btn" id="rptRefreshBtn" onclick="manualRptRefresh()" title="Refresh now">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round" style="width:19px;height:19px;">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+          <button class="rpt-export-btn" onclick="exportRptExcel()" title="Export to Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" style="width:20px;height:20px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+          </button>
+          <button class="rpt-close-btn" onclick="closeRptModal()" title="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
-      <div class="rpt-head-actions">
-        <span class="rpt-updated-at" id="rptUpdatedAt"></span>
-        <button class="rpt-refresh-btn" id="rptRefreshBtn" onclick="manualRptRefresh()" title="Refresh now">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-        <button class="rpt-export-btn" onclick="exportRptExcel()" title="Export to Excel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-        </button>
-        <button class="rpt-close-btn" onclick="closeRptModal()" title="Close">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-      </div>
-    </div>
 
-    <!-- Filters -->
-    <div class="rpt-filters">
-      <div class="rpt-filter-group">
-        <label>Status Filter</label>
-        <select id="rptStatus">
-          <option value="all">All Status</option>
-          <option value="Pending">Pending</option>
-          <option value="Complete">Complete</option>
-        </select>
+      <!-- Filters -->
+      <div class="rpt-filters">
+        <div class="rpt-filter-group">
+          <label>Status Filter</label>
+          <select id="rptStatus">
+            <option value="all">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Complete">Complete</option>
+          </select>
+        </div>
+        <div class="rpt-filter-group">
+          <label>Date From</label>
+          <input type="date" id="rptFromDate">
+        </div>
+        <div class="rpt-filter-group">
+          <label>Date To</label>
+          <input type="date" id="rptToDate">
+        </div>
+        <div class="rpt-filter-group">
+          <label>Month</label>
+          <select id="rptMonth">
+            <option value="">All Months</option>
+          </select>
+        </div>
+        <div class="rpt-filter-actions">
+          <button class="rpt-apply-btn" onclick="applyRptFilter()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Apply Filter
+          </button>
+          <button class="rpt-reset-btn" onclick="resetRptFilter()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 .49-3.6" />
+            </svg>
+            Reset
+          </button>
+        </div>
       </div>
-      <div class="rpt-filter-group">
-        <label>Date From</label>
-        <input type="date" id="rptFromDate">
-      </div>
-      <div class="rpt-filter-group">
-        <label>Date To</label>
-        <input type="date" id="rptToDate">
-      </div>
-      <div class="rpt-filter-group">
-        <label>Month</label>
-        <select id="rptMonth"><option value="">All Months</option></select>
-      </div>
-      <div class="rpt-filter-actions">
-        <button class="rpt-apply-btn" onclick="applyRptFilter()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          Apply Filter
-        </button>
-        <button class="rpt-reset-btn" onclick="resetRptFilter()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
-          Reset
-        </button>
-      </div>
-    </div>
 
-    <!-- KPI Cards -->
-    <div class="rpt-kpi-row">
-      <div class="rpt-kpi rpt-kpi-total rpt-kpi-clickable" onclick="openRptKpiDrill('total')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('total');}">
-        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></div>
-        <div><div class="rpt-kpi-val" id="rptKpiTotal">0</div><div class="rpt-kpi-lbl">Total Records</div></div>
+      <!-- KPI Cards -->
+      <div class="rpt-kpi-row">
+        <div class="rpt-kpi rpt-kpi-total rpt-kpi-clickable" onclick="openRptKpiDrill('total')" tabindex="0"
+          role="button"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('total');}">
+          <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+              stroke-linecap="round">
+              <rect x="8" y="2" width="8" height="4" rx="1" />
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <line x1="9" y1="12" x2="15" y2="12" />
+              <line x1="9" y1="16" x2="15" y2="16" />
+            </svg></div>
+          <div>
+            <div class="rpt-kpi-val" id="rptKpiTotal">0</div>
+            <div class="rpt-kpi-lbl">Total Records</div>
+          </div>
+        </div>
+        <div class="rpt-kpi rpt-kpi-pending rpt-kpi-clickable" onclick="openRptKpiDrill('pending')" tabindex="0"
+          role="button"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('pending');}">
+          <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+              stroke-linecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg></div>
+          <div>
+            <div class="rpt-kpi-val" id="rptKpiPending">0</div>
+            <div class="rpt-kpi-lbl">Pending</div>
+          </div>
+        </div>
+        <div class="rpt-kpi rpt-kpi-complete rpt-kpi-clickable" onclick="openRptKpiDrill('complete')" tabindex="0"
+          role="button"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('complete');}">
+          <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+              stroke-linecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg></div>
+          <div>
+            <div class="rpt-kpi-val" id="rptKpiComplete">0</div>
+            <div class="rpt-kpi-lbl">Complete</div>
+          </div>
+        </div>
+        <div class="rpt-kpi rpt-kpi-elapsed rpt-kpi-clickable" onclick="openRptKpiDrill('elapsed')" tabindex="0"
+          role="button"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('elapsed');}">
+          <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+              stroke-linecap="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg></div>
+          <div>
+            <div class="rpt-kpi-val" id="rptKpiElapsed">-</div>
+            <div class="rpt-kpi-lbl">Today Elapsed (Avg)</div>
+          </div>
+        </div>
       </div>
-      <div class="rpt-kpi rpt-kpi-pending rpt-kpi-clickable" onclick="openRptKpiDrill('pending')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('pending');}">
-        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div><div class="rpt-kpi-val" id="rptKpiPending">0</div><div class="rpt-kpi-lbl">Pending</div></div>
-      </div>
-      <div class="rpt-kpi rpt-kpi-complete rpt-kpi-clickable" onclick="openRptKpiDrill('complete')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('complete');}">
-        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
-        <div><div class="rpt-kpi-val" id="rptKpiComplete">0</div><div class="rpt-kpi-lbl">Complete</div></div>
-      </div>
-      <div class="rpt-kpi rpt-kpi-elapsed rpt-kpi-clickable" onclick="openRptKpiDrill('elapsed')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRptKpiDrill('elapsed');}">
-        <div class="rpt-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-        <div><div class="rpt-kpi-val" id="rptKpiElapsed">-</div><div class="rpt-kpi-lbl">Today Elapsed (Avg)</div></div>
-      </div>
-    </div>
 
-    <!-- Table -->
-    <div class="rpt-table-wrap">
-      <table class="rpt-table">
-        <thead>
-          <tr>
-            <th style="width:42px;">#</th>
-            <th onclick="sortRpt('isoDate')" data-col="isoDate">Audit Date <span class="sicon">&#x2195;</span></th>
-            <th onclick="sortRpt('unit')" data-col="unit">Unit <span class="sicon">&#x2195;</span></th>
-            <th onclick="sortRpt('location')" data-col="location">Location <span class="sicon">&#x2195;</span></th>
-            <th onclick="sortRpt('fileLink')" data-col="fileLink">Attached file Link <span class="sicon">&#x2195;</span></th>
-            <th onclick="sortRpt('remarks')" data-col="remarks">Remarks <span class="sicon">&#x2195;</span></th>
-            <th onclick="sortRpt('status')" data-col="status">STATUS <span class="sicon">&#x2195;</span></th>
-            <th style="width:70px;text-align:center;">Action</th>
-            <th onclick="sortRpt('actualDate')" data-col="actualDate">Actual Date <span class="sicon">&#x2195;</span></th>
-          </tr>
-        </thead>
-        <tbody id="rptTableBody">
-          <tr><td colspan="9" style="text-align:center;padding:30px;color:#6b7280;">No data loaded.</td></tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- Table -->
+      <div class="rpt-table-wrap">
+        <table class="rpt-table">
+          <thead>
+            <tr>
+              <th style="width:42px;">#</th>
+              <th onclick="sortRpt('isoDate')" data-col="isoDate">Audit Date <span class="sicon">&#x2195;</span></th>
+              <th onclick="sortRpt('unit')" data-col="unit">Unit <span class="sicon">&#x2195;</span></th>
+              <th onclick="sortRpt('location')" data-col="location">Location <span class="sicon">&#x2195;</span></th>
+              <th onclick="sortRpt('fileLink')" data-col="fileLink">Attached file Link <span
+                  class="sicon">&#x2195;</span></th>
+              <th onclick="sortRpt('remarks')" data-col="remarks">Remarks <span class="sicon">&#x2195;</span></th>
+              <th onclick="sortRpt('status')" data-col="status">STATUS <span class="sicon">&#x2195;</span></th>
+              <th style="width:70px;text-align:center;">Action</th>
+              <th onclick="sortRpt('actualDate')" data-col="actualDate">Actual Date <span class="sicon">&#x2195;</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="rptTableBody">
+            <tr>
+              <td colspan="9" style="text-align:center;padding:30px;color:#6b7280;">No data loaded.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-    <!-- Footer -->
-    <div class="rpt-footer">
-      <div class="rpt-showing" id="rptShowing">Showing 0 entries</div>
-      <div class="rpt-pages" id="rptPages"></div>
+      <!-- Footer -->
+      <div class="rpt-footer">
+        <div class="rpt-showing" id="rptShowing">Showing 0 entries</div>
+        <div class="rpt-pages" id="rptPages"></div>
+      </div>
     </div>
   </div>
-</div>
   <div id="dailyModal" class="daily-modal hidden">
     <div class="daily-box">
       <div class="daily-head">
         <div class="daily-head-top">
           <div class="daily-title-block">
             <div class="daily-icon-wrap">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
             <div>
@@ -253,17 +317,39 @@
           </div>
           <div class="daily-head-actions">
             <div class="daily-head-actions-row">
-              <button class="daily-mail-btn hidden" id="dailyMailBtn" type="button" onclick="openMailConfirm()" title="Mail Observation" aria-label="Mail Observation">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              <button class="daily-mail-btn hidden" id="dailyMailBtn" type="button" onclick="openMailConfirm()"
+                title="Mail Observation" aria-label="Mail Observation">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
               </button>
-              <button class="daily-report-btn" id="dailyReportBtn" type="button" onclick="openDailyReportView()" title="Daily Task Report" aria-label="Daily Task Report">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+              <button class="daily-report-btn" id="dailyReportBtn" type="button" onclick="openDailyReportView()"
+                title="Daily Task Report" aria-label="Daily Task Report">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="9" y1="13" x2="15" y2="13" />
+                  <line x1="9" y1="17" x2="15" y2="17" />
+                </svg>
               </button>
-              <button class="daily-close-btn" type="button" onclick="closeDailyModal()" title="Close" aria-label="Close Daily Task">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <button class="daily-close-btn" type="button" onclick="closeDailyModal()" title="Close"
+                aria-label="Close Daily Task">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
               </button>
-              <button class="daily-signout-icon-btn hidden" id="dailySignOutBtn" type="button" onclick="dailySignOut()" title="Sign Out" aria-label="Sign Out">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <button class="daily-signout-icon-btn hidden" id="dailySignOutBtn" type="button" onclick="dailySignOut()"
+                title="Sign Out" aria-label="Sign Out">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
               </button>
             </div>
           </div>
@@ -272,14 +358,24 @@
         <div class="daily-stats-row" id="dailyStatsRow">
           <div class="daily-stat">
             <span class="daily-stat-icon">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V7a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v14"/><path d="M14 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v17"/><path d="M9 9h.01M9 13h.01M9 17h.01M17 7h.01M17 11h.01M17 15h.01"/></svg>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18" />
+                <path d="M6 21V7a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v14" />
+                <path d="M14 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v17" />
+                <path d="M9 9h.01M9 13h.01M9 17h.01M17 7h.01M17 11h.01M17 15h.01" />
+              </svg>
             </span>
             <span class="daily-stat-val" id="dailyStatFactories">–</span>
             <span class="daily-stat-lbl">Factories visited today</span>
           </div>
           <div class="daily-stat">
             <span class="daily-stat-icon">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <polyline points="12 7 12 12 15.5 14" />
+              </svg>
             </span>
             <span class="daily-stat-val" id="dailyStatTime">–</span>
             <span class="daily-stat-lbl">Total time worked today</span>
@@ -290,7 +386,12 @@
       <div class="daily-body" id="dailyBodyMain">
         <div class="daily-signin-wrap" id="dailySigninWrap">
           <button class="daily-badge daily-badge-in" id="dailySignInBtn" type="button" onclick="dailySignIn()">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
             Sign In
           </button>
           <p class="daily-hint">Tap Sign In to start your floor round.</p>
@@ -326,22 +427,38 @@
             <div class="daily-field">
               <label>Attachments</label>
               <div class="daily-attach-wrap">
-                <button type="button" class="daily-attach-trigger" id="dailyAttachTrigger" onclick="toggleDailyAttachMenu(event)">
-                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <button type="button" class="daily-attach-trigger" id="dailyAttachTrigger"
+                  onclick="toggleDailyAttachMenu(event)">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
                   Add Attachment
                 </button>
                 <div class="daily-attach-menu hidden" id="dailyAttachMenu">
                   <button type="button" onclick="triggerDailyAttachChoose()">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
                     Choose Photo
                   </button>
                   <button type="button" onclick="triggerDailyAttachCamera()">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
                     Take Photo
                   </button>
                 </div>
-                <input type="file" id="dailyAttachChooseInput" accept="image/*" multiple hidden onchange="handleDailyAttachFiles(event)">
-                <input type="file" id="dailyAttachCameraInput" accept="image/*" capture="environment" hidden onchange="handleDailyAttachFiles(event)">
+                <input type="file" id="dailyAttachChooseInput" accept="image/*" multiple hidden
+                  onchange="handleDailyAttachFiles(event)">
+                <input type="file" id="dailyAttachCameraInput" accept="image/*" capture="environment" hidden
+                  onchange="handleDailyAttachFiles(event)">
               </div>
               <div class="daily-attach-list" id="dailyAttachList"></div>
             </div>
@@ -352,7 +469,11 @@
       <div class="daily-report hidden" id="dailyReportView">
         <div class="daily-report-toolbar">
           <button class="daily-report-back" type="button" onclick="closeDailyReportView()">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
             Back
           </button>
           <input type="date" id="dailyRptFrom">
@@ -362,36 +483,60 @@
           </select>
           <button class="daily-report-apply" type="button" onclick="applyDailyReportFilter()">Apply</button>
           <button class="daily-report-reset" type="button" onclick="resetDailyReportFilter()">Reset</button>
-          <button class="rpt-refresh-btn" id="dailyRptRefreshBtn" type="button" onclick="manualDailyReportRefresh()" title="Refresh now">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <button class="rpt-refresh-btn" id="dailyRptRefreshBtn" type="button" onclick="manualDailyReportRefresh()"
+            title="Refresh now">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round" style="width:18px;height:18px;">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
           </button>
 
           <div class="daily-report-export">
-            <button class="daily-export-btn daily-export-pdf" type="button" onclick="downloadDailyReportPdf()" title="Download PDF">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <button class="daily-export-btn daily-export-pdf" type="button" onclick="downloadDailyReportPdf()"
+              title="Download PDF">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
               PDF
             </button>
-            <button class="daily-export-btn daily-export-excel" type="button" onclick="downloadDailyReportExcel()" title="Download Excel">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <button class="daily-export-btn daily-export-excel" type="button" onclick="downloadDailyReportExcel()"
+              title="Download Excel">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
               Excel
             </button>
           </div>
         </div>
 
         <div class="daily-report-kpis">
-          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('total')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('total');}">
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('total')" tabindex="0"
+            role="button"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('total');}">
             <div class="daily-rpt-kpi-val" id="dailyRptKpiTotal">0</div>
             <div class="daily-rpt-kpi-lbl">Total Visits</div>
           </div>
-          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('factories')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('factories');}">
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('factories')" tabindex="0"
+            role="button"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('factories');}">
             <div class="daily-rpt-kpi-val" id="dailyRptKpiFactories">0</div>
             <div class="daily-rpt-kpi-lbl">Factories</div>
           </div>
-          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('time')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('time');}">
+          <div class="daily-rpt-kpi daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('time')" tabindex="0"
+            role="button"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('time');}">
             <div class="daily-rpt-kpi-val" id="dailyRptKpiTime">00:00:00</div>
             <div class="daily-rpt-kpi-lbl">Total Time</div>
           </div>
-          <div class="daily-rpt-kpi daily-rpt-kpi-pending daily-rpt-kpi-clickable" onclick="openDailyKpiDrill('pending')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('pending');}">
+          <div class="daily-rpt-kpi daily-rpt-kpi-pending daily-rpt-kpi-clickable"
+            onclick="openDailyKpiDrill('pending')" tabindex="0" role="button"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDailyKpiDrill('pending');}">
             <div class="daily-rpt-kpi-val" id="dailyRptKpiPending">0</div>
             <div class="daily-rpt-kpi-lbl">Action Pending</div>
           </div>
@@ -416,10 +561,1184 @@
               </tr>
             </thead>
             <tbody id="dailyReportBody">
-              <tr><td colspan="12" style="text-align:center;padding:24px;color:#6b7280;">No data loaded.</td></tr>
+              <tr>
+                <td colspan="12" style="text-align:center;padding:24px;color:#6b7280;">No data loaded.</td>
+              </tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC (Annual Maintenance Contract) Modal ─────────────────── -->
+  <div id="amcModal" class="amc-modal hidden" onclick="if(event.target===this)closeAmcModal()">
+    <div class="amc-box">
+      <div class="amc-head">
+        <div class="amc-title-block">
+          <div class="amc-icon-wrap">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          <div>
+            <h3>AMC (Annual Maintenance Contract)</h3>
+            <p>Equipment maintenance records, contract renewals &amp; service schedules</p>
+          </div>
+        </div>
+        <div class="amc-head-actions">
+          <button class="amc-close-btn" type="button" onclick="closeAmcModal()" title="Close" aria-label="Close AMC">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="amc-body">
+        <!-- ─── View 1: AMC Overview / 8 KPI Cards ─── -->
+        <div id="amcOverviewView">
+          <div class="amc-toolbar-info">
+            <div class="amc-toolbar-info-left">
+              <span class="amc-section-count-pill">8 Maintenance Categories</span>
+              <p class="amc-section-subtitle"></p>
+            </div>
+            <div class="amc-toolbar-info-right">
+              <button class="amc-global-add-btn" type="button" onclick="openAmcForm()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                + New AMC
+              </button>
+              <button class="amc-global-add-btn" type="button" onclick="openAmcReportModal()" style="background-color:#0f766e;" title="Open AMC Analytics, Servicing Delays & Pivot Table Report">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                  <line x1="2" y1="20" x2="22" y2="20"></line>
+                </svg>
+                Report &amp; Analysis
+              </button>
+              <button class="amc-refresh-btn" type="button" onclick="refreshAmcData()" title="Refresh AMC records">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                  stroke-linejoin="round" style="width:15px;height:15px;">
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Auto Alert & Warning Banner -->
+          <div id="amcAlertSummaryBar" class="amc-alert-summary hidden">
+            <div class="amc-alert-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div class="amc-alert-text" id="amcAlertText"></div>
+          </div>
+
+          <div class="amc-kpi-grid">
+            <!-- 1. Generator -->
+            <div class="amc-kpi-card amc-card-generator" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('Generator')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeGenerator">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Generator</h4>
+                <p class="amc-card-desc">DG Set, Power Backup &amp; Servicing</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 2. Fire -->
+            <div class="amc-kpi-card amc-card-fire" tabindex="0" role="button" onclick="openAmcCategoryDetail('Fire')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeFire">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Fire</h4>
+                <p class="amc-card-desc">Extinguishers, Hydrants &amp; Alarm Systems</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 3. Lift -->
+            <div class="amc-kpi-card amc-card-lift" tabindex="0" role="button" onclick="openAmcCategoryDetail('Lift')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                    <polyline points="7 10 10 7 13 10" />
+                    <polyline points="17 14 14 17 11 14" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeLift">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Lift</h4>
+                <p class="amc-card-desc">Elevators, Hoists &amp; Safety Inspection</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 4. Air Condition -->
+            <div class="amc-kpi-card amc-card-ac" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('Air Condition')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeAirCondition">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Air Condition</h4>
+                <p class="amc-card-desc">HVAC, Split &amp; Tower AC Servicing</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 5. Water Filter -->
+            <div class="amc-kpi-card amc-card-water" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('Water Filter')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeWaterFilter">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Water Filter</h4>
+                <p class="amc-card-desc">RO Plants, Dispensers &amp; Filter Cartridges</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 6. CCTV Camera -->
+            <div class="amc-kpi-card amc-card-cctv" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('CCTV Camera')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 7l-7 5 7 5V7z" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeCCTVCamera">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">CCTV Camera</h4>
+                <p class="amc-card-desc">Surveillance Cameras, NVR &amp; Storage</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 7. Sound System & intercom -->
+            <div class="amc-kpi-card amc-card-sound" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('Sound System & intercom')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeSoundSystem">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Sound System &amp; intercom</h4>
+                <p class="amc-card-desc">PA Systems, Speakers &amp; Communication</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+
+            <!-- 8. Solar Panel Maintenance -->
+            <div class="amc-kpi-card amc-card-solar" tabindex="0" role="button"
+              onclick="openAmcCategoryDetail('Solar Panel Maintenance')">
+              <div class="amc-card-top">
+                <div class="amc-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5" />
+                    <line x1="12" y1="1" x2="12" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="23" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                    <line x1="1" y1="12" x2="3" y2="12" />
+                    <line x1="21" y1="12" x2="23" y2="12" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                  </svg>
+                </div>
+                <span class="amc-badge" id="amcBadgeSolarPanel">0 Records</span>
+              </div>
+              <div class="amc-card-info">
+                <h4 class="amc-card-title">Solar Panel Maintenance</h4>
+                <p class="amc-card-desc">Rooftop Solar, Inverters &amp; Cleaning</p>
+              </div>
+              <div class="amc-card-footer">
+                <span class="amc-card-action">View Details <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── View 2: AMC Category Detail / Records View ─── -->
+        <div id="amcCategoryDetailView" class="amc-detail-view hidden">
+          <div class="amc-detail-head">
+            <div class="amc-detail-head-left">
+              <button class="amc-back-btn" type="button" onclick="closeAmcCategoryDetail()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
+                Back to Categories
+              </button>
+              <div class="amc-detail-title-wrap">
+                <h3 id="amcDetailCategoryTitle">Generator AMC</h3>
+                <span class="amc-detail-badge" id="amcDetailCountBadge">0 Records</span>
+              </div>
+            </div>
+            <div class="amc-detail-head-right">
+              <button class="amc-add-record-btn" type="button" onclick="openAmcFormFromDetail()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                + Add Contract / Service
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="amc-filters-bar">
+            <div class="amc-search-wrap">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input type="text" id="amcSearchInput" placeholder="Search by vendor, contact, remarks..."
+                oninput="applyAmcFilters()">
+            </div>
+            <select id="amcFilterUnit" onchange="applyAmcFilters()">
+              <option value="">All Units</option>
+            </select>
+            <select id="amcFilterFloor" onchange="applyAmcFilters()">
+              <option value="">All Floors</option>
+              <option value="1st Floor">1st Floor</option>
+              <option value="2nd Floor">2nd Floor</option>
+              <option value="3rd Floor">3rd Floor</option>
+              <option value="4th Floor">4th Floor</option>
+              <option value="All Floors">All Floors</option>
+            </select>
+            <select id="amcFilterStatus" onchange="applyAmcFilters()">
+              <option value="">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Expiring Soon">Contract Expiring Soon</option>
+              <option value="Expired">Contract Expired</option>
+              <option value="Service Due Soon">Service Due Soon</option>
+              <option value="Service Overdue">Service Overdue</option>
+            </select>
+            <button class="amc-filter-reset-btn" type="button" onclick="resetAmcFilters()"
+              title="Reset filters">Reset</button>
+          </div>
+
+          <!-- Table -->
+          <div class="amc-table-wrap">
+            <table class="amc-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th>Unit</th>
+                  <th>Floor</th>
+                  <th>Vendor &amp; Contact</th>
+                  <th>Contract Duration</th>
+                  <th>Frequency</th>
+                  <th>Last Serviced</th>
+                  <th>Next Due</th>
+                  <th>Status</th>
+                  <th>Documents</th>
+                  <th>Remarks</th>
+                  <th style="width:130px;text-align:center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="amcTableBody">
+                <tr>
+                  <td colspan="12" style="text-align:center;padding:32px;color:#6b7280;">No AMC records found. Click "+
+                    Add Contract / Service" to create one.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC Form Modal (Create / Edit Record) ───────────────────── -->
+  <div id="amcFormModal" class="amc-form-overlay hidden" onclick="if(event.target===this)closeAmcForm()">
+    <div class="amc-form-card">
+      <div class="amc-form-head">
+        <div class="amc-form-head-title">
+          <div class="amc-form-icon-wrap">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          <div>
+            <h3 id="amcFormModalTitle">New AMC Record</h3>
+            <p>Save contract details, service schedules, and document attachments</p>
+          </div>
+        </div>
+        <button class="amc-close-btn" type="button" onclick="closeAmcForm()" title="Close" aria-label="Close form">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form id="amcRecordForm" onsubmit="handleAmcFormSubmit(event)">
+        <input type="hidden" id="amcFormRowIndex" value="">
+        <input type="hidden" id="amcFormId" value="">
+
+        <div class="amc-form-body">
+          <div class="amc-form-grid">
+            <div class="amc-form-field">
+              <label for="amcFormCategory" class="required">Category</label>
+              <select id="amcFormCategory" required>
+                <option value="">Select category...</option>
+                <option value="Generator">Generator</option>
+                <option value="Fire">Fire</option>
+                <option value="Lift">Lift</option>
+                <option value="Air Condition">Air Condition</option>
+                <option value="Water Filter">Water Filter</option>
+                <option value="CCTV Camera">CCTV Camera</option>
+                <option value="Sound System & intercom">Sound System &amp; intercom</option>
+                <option value="Solar Panel Maintenance">Solar Panel Maintenance</option>
+              </select>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormUnit" class="required">Unit / Factory</label>
+              <select id="amcFormUnit" data-type="factory" required>
+                <option value="">Select unit...</option>
+              </select>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormFloor" class="required">Floor</label>
+              <select id="amcFormFloor" required>
+                <option value="">Select floor...</option>
+                <option value="1st Floor">1st Floor</option>
+                <option value="2nd Floor">2nd Floor</option>
+                <option value="3rd Floor">3rd Floor</option>
+                <option value="4th Floor">4th Floor</option>
+                <option value="All Floors">All Floors</option>
+              </select>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormVendor" class="required">Vendor / Agency Name</label>
+              <input type="text" id="amcFormVendor" placeholder="e.g. Voltas, Otis, Kirloskar..." required>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormContact">Contact Person &amp; Phone/Email</label>
+              <input type="text" id="amcFormContact" placeholder="e.g. Rahul Sharma (+91 98765 43210)">
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormStartDate">Contract Start Date</label>
+              <input type="date" id="amcFormStartDate" onchange="updateAmcStatusPreview()">
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormExpiryDate" class="required">Contract Expiry Date</label>
+              <input type="date" id="amcFormExpiryDate" required onchange="updateAmcStatusPreview()">
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormFrequency">Service Frequency</label>
+              <select id="amcFormFrequency" onchange="updateAmcStatusPreview()">
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Half-Yearly">Half-Yearly</option>
+                <option value="Annual" selected>Annual</option>
+                <option value="On-Call">On-Call</option>
+              </select>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormLastService">Last Service Date</label>
+              <input type="date" id="amcFormLastService" onchange="updateAmcStatusPreview()">
+              <span class="amc-field-hint">Also updates automatically whenever you log a service or breakdown visit
+                below.</span>
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormNextDue">Next Due Date</label>
+              <input type="date" id="amcFormNextDue" onchange="updateAmcStatusPreview()">
+              <span class="amc-field-hint">Auto-calculated from Last Service + Frequency if left blank.</span>
+            </div>
+
+            <div class="amc-form-field amc-form-field-full">
+              <label>Status <span class="amc-field-hint-inline">(auto-calculated — not editable)</span></label>
+              <div class="amc-status-preview" id="amcStatusPreview">
+                <span class="amc-status-pill status-active">Active</span>
+                <span class="amc-status-preview-text">Fill in the dates above to see the live status.</span>
+              </div>
+            </div>
+
+            <div class="amc-form-field amc-form-field-full">
+              <label for="amcFormRemarks">Scope of Work / Remarks</label>
+              <textarea id="amcFormRemarks" rows="2"
+                placeholder="e.g. Comprehensive AMC covering spare parts, quarterly inspection..."></textarea>
+            </div>
+
+            <div class="amc-form-field amc-form-field-full">
+              <label>Attachments (Agreement / Service Reports)</label>
+              <div class="amc-attach-drop">
+                <input type="file" id="amcFormAttachments" multiple accept="image/*,.pdf"
+                  onchange="handleAmcFileSelection(event)">
+                <div>
+                  <strong>Attach Agreement or Report Files</strong>
+                  <span>Select Photos or PDFs to upload</span>
+                </div>
+              </div>
+              <div class="amc-form-file-list" id="amcFormFileList"></div>
+            </div>
+          </div>
+
+          <!-- ─── Service / Breakdown Log (only visible once a record exists) ─── -->
+          <div class="amc-service-log-section hidden" id="amcServiceLogSection">
+            <div class="amc-service-log-header">
+              <h4>Service &amp; Breakdown History</h4>
+              <span class="amc-service-log-sub">Every visit logged here — routine or breakdown — auto-updates "Last
+                Service Date" and "Next Due Date" above.</span>
+            </div>
+
+            <div class="amc-service-log-timeline" id="amcServiceLogTimeline">
+              <p class="amc-service-log-empty">No visits logged yet.</p>
+            </div>
+
+            <div class="amc-service-log-form">
+              <div class="amc-service-log-form-grid">
+                <div class="amc-form-field">
+                  <label for="amcLogVisitDate" class="required">Visit Date</label>
+                  <input type="date" id="amcLogVisitDate">
+                </div>
+                <div class="amc-form-field">
+                  <label for="amcLogType">Type</label>
+                  <select id="amcLogType" onchange="syncAmcLogUpdateLastCheckbox()">
+                    <option value="Scheduled Service">Scheduled Service</option>
+                    <option value="Breakdown Repair">Breakdown Repair</option>
+                  </select>
+                </div>
+                <div class="amc-form-field">
+                  <label for="amcLogTechnician">Technician / Attended By</label>
+                  <input type="text" id="amcLogTechnician" placeholder="e.g. Rahul (Voltas)">
+                </div>
+                <div class="amc-form-field">
+                  <label for="amcLogCost">Cost (₹, optional)</label>
+                  <input type="number" id="amcLogCost" min="0" step="0.01" placeholder="0">
+                </div>
+                <div class="amc-form-field amc-form-field-full">
+                  <label for="amcLogDescription">Issue / Work Done</label>
+                  <textarea id="amcLogDescription" rows="2"
+                    placeholder="e.g. Breakdown - motor overheating, replaced bearing and tested."></textarea>
+                </div>
+                <div class="amc-form-field amc-form-field-full amc-log-checkbox-row">
+                  <label class="amc-checkbox-label">
+                    <input type="checkbox" id="amcLogUpdateLast" checked>
+                    Update "Last Service Date" &amp; auto-calculate next due date from this visit
+                  </label>
+                  <span class="amc-checkbox-hint">Checked automatically for Scheduled Service. For a Breakdown Repair this stays unchecked by default, so the next servicing date keeps counting from the last real service — not from the repair date — unless you tick it on purpose.</span>
+                </div>
+              </div>
+              <button type="button" class="amc-log-add-btn" id="amcLogAddBtn" onclick="handleAmcLogSubmit()">
+                + Log This Visit
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="amc-form-footer">
+          <button class="amc-form-cancel-btn" type="button" onclick="closeAmcForm()">Cancel</button>
+          <button class="amc-form-submit-btn" id="amcFormSubmitBtn" type="submit">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save Record
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── AMC Take Action & Comprehensive Details Modal ───────────── -->
+  <div id="amcActionModal" class="amc-form-overlay hidden" onclick="if(event.target===this)closeAmcActionModal()">
+    <div class="amc-action-card">
+      <div class="amc-action-head">
+        <div class="amc-action-head-left">
+          <div class="amc-action-icon-wrap" id="amcActionIconWrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="amc-action-title-row">
+              <h3 id="amcActionTitle">AMC Record Action</h3>
+              <span id="amcActionStatusBadge" class="amc-status-pill status-active">Active</span>
+            </div>
+            <p id="amcActionSubtitle">Manage equipment servicing, breakdown repairs, and contract details</p>
+          </div>
+        </div>
+        <button class="amc-close-btn" type="button" onclick="closeAmcActionModal()" title="Close" aria-label="Close action modal">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="amc-action-body">
+        <!-- Quick Summary & Details Card -->
+        <div class="amc-action-summary-card">
+          <div class="amc-action-summary-grid">
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Unit / Factory</span>
+              <strong class="amc-summary-val" id="amcSummaryUnit">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Floor</span>
+              <strong class="amc-summary-val" id="amcSummaryFloor">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Vendor &amp; Contact</span>
+              <strong class="amc-summary-val" id="amcSummaryVendor">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Frequency</span>
+              <strong class="amc-summary-val" id="amcSummaryFrequency">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Contract Expiry</span>
+              <strong class="amc-summary-val" id="amcSummaryExpiry">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Last Serviced</span>
+              <strong class="amc-summary-val" id="amcSummaryLastService">—</strong>
+            </div>
+            <div class="amc-summary-item">
+              <span class="amc-summary-label">Next Service Due</span>
+              <strong class="amc-summary-val" id="amcSummaryNextDue">—</strong>
+            </div>
+          </div>
+          
+          <div class="amc-summary-foot">
+            <div class="amc-summary-remarks">
+              <span class="amc-summary-label">Remarks:</span>
+              <span id="amcSummaryRemarks">—</span>
+            </div>
+            <div class="amc-summary-docs" id="amcSummaryDocs"></div>
+            <button type="button" class="amc-toggle-full-details-btn" id="amcToggleFullDetailsBtn" onclick="toggleAmcFullDetails()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span>View Full Details &amp; History</span>
+            </button>
+          </div>
+
+          <!-- Collapsible Full Details / Audit History -->
+          <div class="amc-full-details-panel hidden" id="amcFullDetailsPanel">
+            <div class="amc-full-details-header">
+              <h4>Complete Maintenance &amp; Service History</h4>
+              <div class="amc-full-details-header-right">
+                <span class="amc-full-details-count" id="amcFullHistoryCount">0 Visits</span>
+                <div class="amc-history-download-btns hidden" id="amcHistoryDownloadBtns">
+                  <button type="button" class="amc-history-download-icon-btn amc-history-download-excel"
+                    onclick="downloadAmcHistoryExcel()" title="Download as Excel (.xlsx)" aria-label="Download as Excel">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </button>
+                  <button type="button" class="amc-history-download-icon-btn amc-history-download-pdf"
+                    onclick="downloadAmcHistoryPdf()" title="Download as PDF" aria-label="Download as PDF">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="amc-full-history-timeline" id="amcFullHistoryTimeline">
+              <p class="amc-service-log-empty">Loading history…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Mode Tabs -->
+        <div class="amc-action-tabs-bar">
+          <button type="button" class="amc-tab-btn active" id="amcTabBtnService" onclick="switchAmcActionTab('service')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            <span>Log Routine Servicing</span>
+          </button>
+          <button type="button" class="amc-tab-btn" id="amcTabBtnBreakdown" onclick="switchAmcActionTab('breakdown')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span>Breakdown Repair</span>
+          </button>
+          <button type="button" class="amc-tab-btn" id="amcTabBtnRenew" onclick="switchAmcActionTab('renew')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            <span>Renew / Edit Contract</span>
+          </button>
+          <button type="button" class="amc-tab-btn amc-tab-danger" id="amcTabBtnDelete" onclick="switchAmcActionTab('delete')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Delete Record</span>
+          </button>
+        </div>
+
+        <!-- ── TAB 1: Routine Servicing Form ── -->
+        <div class="amc-tab-content" id="amcTabContentService">
+          <form id="amcServicingForm" onsubmit="handleAmcServicingActionSubmit(event)">
+            <input type="hidden" id="amcActionRecordId" value="">
+            <div class="amc-action-form-grid">
+              <div class="amc-form-field">
+                <label for="amcActionServiceDate" class="required">Service Date</label>
+                <input type="date" id="amcActionServiceDate" required onchange="calculateAmcNextServicePreview()">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionServiceTech">Technician / Engineer</label>
+                <input type="text" id="amcActionServiceTech" placeholder="e.g. Rahul Sharma (Voltas)">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionServiceCost">Cost (₹, optional)</label>
+                <input type="number" id="amcActionServiceCost" min="0" step="0.01" placeholder="0">
+              </div>
+              <div class="amc-form-field amc-form-field-full">
+                <label for="amcActionServiceDesc">Work Done / Checklist Remarks</label>
+                <textarea id="amcActionServiceDesc" rows="2" placeholder="e.g. Oil change, filter cleaning, wiring check done &amp; tested OK."></textarea>
+              </div>
+              
+              <!-- Real-time Dynamic Next Servicing Date Calculation Card -->
+              <div class="amc-calc-preview-card amc-form-field-full">
+                <div class="amc-calc-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                </div>
+                <div class="amc-calc-info">
+                  <strong>Automatic Next Servicing Schedule Calculation:</strong>
+                  <div id="amcCalcNextDueText">Selecting a Service Date will calculate the next due date based on the contract frequency.</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="amc-tab-actions">
+              <button type="submit" class="amc-action-save-btn btn-service" id="amcServiceSaveBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Save Routine Servicing &amp; Update Next Due Date
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── TAB 2: Breakdown Repair Form ── -->
+        <div class="amc-tab-content hidden" id="amcTabContentBreakdown">
+          <form id="amcBreakdownForm" onsubmit="handleAmcBreakdownActionSubmit(event)">
+            <div class="amc-breakdown-alert-notice">
+              <strong>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Emergency Breakdown / Unscheduled Maintenance
+              </strong>
+              <p>Log any mid-operation fault, issue resolution, parts replaced, or emergency repairs carried out on this equipment.</p>
+            </div>
+            <div class="amc-action-form-grid">
+              <div class="amc-form-field">
+                <label for="amcActionBreakdownDate" class="required">Breakdown / Repair Date</label>
+                <input type="date" id="amcActionBreakdownDate" required>
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionBreakdownTech">Attended By (Technician / Agency)</label>
+                <input type="text" id="amcActionBreakdownTech" placeholder="e.g. Emergency Tech Team">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionBreakdownCost">Repair / Parts Cost (₹)</label>
+                <input type="number" id="amcActionBreakdownCost" min="0" step="0.01" placeholder="0">
+              </div>
+              <div class="amc-form-field amc-form-field-full">
+                <label for="amcActionBreakdownDesc" class="required">Breakdown Reason &amp; Action Taken</label>
+                <textarea id="amcActionBreakdownDesc" rows="3" required placeholder="e.g. Motor tripped due to overload. Replaced capacitor and tested load capacity for 2 hours."></textarea>
+              </div>
+              <div class="amc-form-field amc-form-field-full amc-log-checkbox-row">
+                <label class="amc-checkbox-label">
+                  <input type="checkbox" id="amcActionBreakdownUpdateCycle">
+                  Also count this repair as the scheduled service &mdash; update "Last Service Date" &amp; recalculate the next due date from this repair visit
+                </label>
+                <span class="amc-checkbox-hint">Left unchecked, this breakdown is logged in the history but the next servicing date stays untouched, calculated from the actual last scheduled service — not from this repair.</span>
+              </div>
+            </div>
+            
+            <div class="amc-tab-actions">
+              <button type="submit" class="amc-action-save-btn btn-breakdown" id="amcBreakdownSaveBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Log Breakdown Repair Record
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── TAB 3: Renew / Edit Contract ── -->
+        <div class="amc-tab-content hidden" id="amcTabContentRenew">
+          <form id="amcRenewForm" onsubmit="handleAmcContractRenewalSubmit(event)">
+            <div class="amc-action-form-grid">
+              <div class="amc-form-field">
+                <label for="amcActionRenewVendor" class="required">Vendor / Agency</label>
+                <input type="text" id="amcActionRenewVendor" required>
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionRenewContact">Contact Person &amp; Phone/Email</label>
+                <input type="text" id="amcActionRenewContact">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionRenewFrequency">Service Frequency</label>
+                <select id="amcActionRenewFrequency">
+                  <option value="Monthly">Monthly</option>
+                  <option value="Quarterly">Quarterly</option>
+                  <option value="Half-Yearly">Half-Yearly</option>
+                  <option value="Annual">Annual</option>
+                  <option value="On-Call">On-Call</option>
+                </select>
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionRenewStartDate">Contract Start Date</label>
+                <input type="date" id="amcActionRenewStartDate">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionRenewExpiryDate" class="required">Contract Expiry Date</label>
+                <input type="date" id="amcActionRenewExpiryDate" required>
+              </div>
+              <div class="amc-form-field amc-form-field-full">
+                <label for="amcActionRenewRemarks">Scope of Work / Contract Remarks</label>
+                <textarea id="amcActionRenewRemarks" rows="2" placeholder="e.g. Comprehensive AMC renewed for 1 year covering all mechanical and electrical parts."></textarea>
+              </div>
+            </div>
+            
+            <div class="amc-tab-actions">
+              <button type="submit" class="amc-action-save-btn btn-renew" id="amcRenewSaveBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                Update &amp; Save Contract Details
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── TAB 4: Delete Record ── -->
+        <div class="amc-tab-content hidden" id="amcTabContentDelete">
+          <div class="amc-delete-warning-box">
+            <h4>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Delete this AMC Record
+            </h4>
+            <p>This will permanently remove this contract record and its associated history from the database. This action cannot be undone.</p>
+            <button type="button" class="amc-action-delete-confirm-btn" onclick="confirmDeleteFromActionModal()">
+              Yes, Permanently Delete This Record
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC Report & Analysis Modal Dashboard ─────────────────────── -->
+  <div id="amcReportModal" class="amc-report-modal hidden" onclick="if(event.target===this)closeAmcReportModal()">
+    <div class="amc-report-box">
+      <!-- Head -->
+      <div class="amc-report-head">
+        <div class="amc-report-title-block">
+          <div class="amc-report-icon-wrap">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+              <line x1="2" y1="20" x2="22" y2="20"></line>
+            </svg>
+          </div>
+          <div>
+            <h3>AMC Report &amp; Analytics Dashboard</h3>
+            <p>Servicing delay tracking, breakdown repair hotspots &amp; multi-dimensional pivot analysis</p>
+          </div>
+        </div>
+
+        <div class="amc-report-head-actions">
+          <span class="amc-report-updated-at" id="amcReportUpdatedAt"></span>
+          <button class="amc-report-head-btn" type="button" onclick="refreshAmcReportData()" title="Refresh Data">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+          <button class="amc-report-head-btn btn-excel" type="button" onclick="exportAmcAnalysisExcel()" title="Export full report to Excel (.xlsx)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="16" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Export Excel
+          </button>
+          <button class="amc-report-head-btn" type="button" onclick="printAmcAnalysisReport()" title="Print / PDF view">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print
+          </button>
+          <button class="amc-close-btn" type="button" onclick="closeAmcReportModal()" title="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="amc-report-body">
+        <!-- Top Executive KPI Summary Cards -->
+        <div class="amc-rpt-kpi-grid">
+          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('assets')" title="Click to view full asset &amp; contract breakdown" role="button" tabindex="0">
+            <div class="amc-rpt-kpi-left">
+              <div class="amc-rpt-kpi-icon icon-total">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              </div>
+              <div class="amc-rpt-kpi-info">
+                <span class="amc-rpt-kpi-label">Total AMC Assets</span>
+                <span class="amc-rpt-kpi-sub" id="amcRptActiveSub">0 Active Contracts</span>
+                <span class="amc-rpt-kpi-hint">View Breakdown &rarr;</span>
+              </div>
+            </div>
+            <h4 class="amc-rpt-kpi-val" id="amcRptTotalAssets">0</h4>
+          </div>
+
+          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('overdue')" title="Click to view servicing overdue &amp; due soon equipment list" role="button" tabindex="0">
+            <div class="amc-rpt-kpi-left">
+              <div class="amc-rpt-kpi-icon icon-delay">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="amc-rpt-kpi-info">
+                <span class="amc-rpt-kpi-label">Servicing Overdue</span>
+                <span class="amc-rpt-kpi-sub" id="amcRptDueSoonSub">0 Due Soon</span>
+                <span class="amc-rpt-kpi-hint hint-delay">View Delay Details &rarr;</span>
+              </div>
+            </div>
+            <h4 class="amc-rpt-kpi-val val-danger" id="amcRptOverdueCount">0</h4>
+          </div>
+
+          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('breakdowns')" title="Click to view all breakdown &amp; maintenance logs" role="button" tabindex="0">
+            <div class="amc-rpt-kpi-left">
+              <div class="amc-rpt-kpi-icon icon-breakdown">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="amc-rpt-kpi-info">
+                <span class="amc-rpt-kpi-label">Breakdowns Logged</span>
+                <span class="amc-rpt-kpi-sub" id="amcRptScheduledVisitsSub">0 Scheduled Visits</span>
+                <span class="amc-rpt-kpi-hint hint-breakdown">View Repair Logs &rarr;</span>
+              </div>
+            </div>
+            <h4 class="amc-rpt-kpi-val val-warning" id="amcRptBreakdownCount">0</h4>
+          </div>
+
+          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('spend')" title="Click to view expenditure &amp; cost analysis by category and vendor" role="button" tabindex="0">
+            <div class="amc-rpt-kpi-left">
+              <div class="amc-rpt-kpi-icon icon-cost">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+              </div>
+              <div class="amc-rpt-kpi-info">
+                <span class="amc-rpt-kpi-label">Total Repair / Spend</span>
+                <span class="amc-rpt-kpi-sub" id="amcRptExpiredContractsSub">0 Contracts Expired</span>
+                <span class="amc-rpt-kpi-hint hint-cost">View Spend Analysis &rarr;</span>
+              </div>
+            </div>
+            <h4 class="amc-rpt-kpi-val" id="amcRptTotalCost">₹0</h4>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="amc-rpt-filters-bar">
+          <div class="amc-rpt-filter-item">
+            <label>Unit / Factory</label>
+            <select id="amcRptFilterUnit" onchange="applyAmcReportFilters()">
+              <option value="">All Units</option>
+            </select>
+          </div>
+          <div class="amc-rpt-filter-item">
+            <label>Floor</label>
+            <select id="amcRptFilterFloor" onchange="applyAmcReportFilters()">
+              <option value="">All Floors</option>
+              <option value="1st Floor">1st Floor</option>
+              <option value="2nd Floor">2nd Floor</option>
+              <option value="3rd Floor">3rd Floor</option>
+              <option value="4th Floor">4th Floor</option>
+              <option value="All Floors">All Floors</option>
+            </select>
+          </div>
+          <div class="amc-rpt-filter-item">
+            <label>Category</label>
+            <select id="amcRptFilterCategory" onchange="applyAmcReportFilters()">
+              <option value="">All Categories</option>
+              <option value="Generator">Generator</option>
+              <option value="Fire">Fire</option>
+              <option value="Lift">Lift</option>
+              <option value="Air Condition">Air Condition</option>
+              <option value="Water Filter">Water Filter</option>
+              <option value="CCTV Camera">CCTV Camera</option>
+              <option value="Sound System & intercom">Sound System &amp; intercom</option>
+              <option value="Solar Panel Maintenance">Solar Panel Maintenance</option>
+            </select>
+          </div>
+          <div class="amc-rpt-filter-item">
+            <label>Status</label>
+            <select id="amcRptFilterStatus" onchange="applyAmcReportFilters()">
+              <option value="">All Statuses</option>
+              <option value="Overdue">Service Overdue</option>
+              <option value="Due Soon">Service Due Soon</option>
+              <option value="Expired">Contract Expired</option>
+              <option value="Expiring Soon">Contract Expiring Soon</option>
+              <option value="Active">Active / On Track</option>
+            </select>
+          </div>
+          <div class="amc-rpt-filter-search">
+            <label>Search</label>
+            <input type="text" id="amcRptSearchInput" placeholder="Filter vendor, remark, ID..." oninput="applyAmcReportFilters()">
+          </div>
+          <button type="button" class="amc-rpt-reset-btn" onclick="resetAmcReportFilters()">Reset</button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="amc-rpt-tabs-bar">
+          <button class="amc-rpt-tab-btn active" id="amcRptTabBtnPivot" type="button" onclick="switchAmcReportTab('pivot')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+            1. Multi-Dimension Pivot Matrix
+          </button>
+          <button class="amc-rpt-tab-btn" id="amcRptTabBtnDelays" type="button" onclick="switchAmcReportTab('delays')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            2. Servicing Delay Analysis
+          </button>
+          <button class="amc-rpt-tab-btn" id="amcRptTabBtnBreakdowns" type="button" onclick="switchAmcReportTab('breakdowns')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            3. Breakdown &amp; Repair Hotspots
+          </button>
+          <button class="amc-rpt-tab-btn" id="amcRptTabBtnVendors" type="button" onclick="switchAmcReportTab('vendors')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            4. Vendor Performance &amp; SLA
+          </button>
+        </div>
+
+        <!-- TAB CONTENTS -->
+        <!-- Tab 1: Pivot Matrix -->
+        <div class="amc-rpt-tab-content" id="amcRptTabContentPivot">
+          <div class="amc-pivot-controls">
+            <div class="amc-pivot-view-select">
+              <label>Pivot Grouping Dimension:</label>
+              <select id="amcPivotDimension" onchange="renderAmcPivotTable()">
+                <option value="unit_floor">Unit &amp; Floor vs AMC Category (Location Matrix)</option>
+                <option value="category_status">AMC Category vs Status &amp; Compliance</option>
+                <option value="vendor_category">Vendor vs AMC Category Coverage</option>
+              </select>
+            </div>
+            <span class="amc-pivot-legend">
+              <span class="legend-badge badge-overdue">Red: Overdue Service</span>
+              <span class="legend-badge badge-breakdown">Orange: Breakdown Repairs</span>
+              <span class="legend-badge badge-spend">Blue: Total Cost (₹)</span>
+            </span>
+          </div>
+          <div class="amc-pivot-table-wrap" id="amcPivotTableContainer">
+            <!-- Pivot table rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Servicing Delays -->
+        <div class="amc-rpt-tab-content hidden" id="amcRptTabContentDelays">
+          <div class="amc-delay-cards-row" id="amcDelayCardsRow">
+            <!-- Dynamic stats for >60d, 30-60d, <30d -->
+          </div>
+          <div class="amc-pivot-table-wrap" id="amcDelaysTableContainer">
+            <!-- Delays table rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Breakdown Hotspots -->
+        <div class="amc-rpt-tab-content hidden" id="amcRptTabContentBreakdowns">
+          <div class="amc-breakdown-summary-row" id="amcBreakdownSummaryRow">
+            <!-- Breakdown hotspot cards -->
+          </div>
+          <div class="amc-pivot-table-wrap" id="amcBreakdownsTableContainer">
+            <!-- Breakdown table rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Tab 4: Vendor Performance -->
+        <div class="amc-rpt-tab-content hidden" id="amcRptTabContentVendors">
+          <div class="amc-pivot-table-wrap" id="amcVendorsTableContainer">
+            <!-- Vendor table rendered by JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC KPI Drill-Down Analysis Modal ─────────────────────────────── -->
+  <div id="amcKpiDrillModal" class="amc-drill-modal hidden" onclick="if(event.target===this)closeAmcKpiDrillModal()">
+    <div class="amc-drill-box">
+      <div class="amc-drill-head">
+        <div class="amc-drill-title-block">
+          <div class="amc-drill-icon-wrap" id="amcDrillIconWrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <div>
+            <h3 id="amcDrillTitle">KPI Breakdown &amp; Analysis</h3>
+            <p id="amcDrillSubtitle">Detailed explanation and data breakdown for selected KPI</p>
+          </div>
+        </div>
+        <div class="amc-drill-head-actions">
+          <button type="button" class="amc-drill-head-btn btn-excel" onclick="exportAmcDrilldownExcel()" title="Export this drilldown view to Excel">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+          </button>
+          <button class="amc-close-btn" type="button" onclick="closeAmcKpiDrillModal()" title="Close" aria-label="Close KPI drilldown">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="amc-drill-toolbar">
+        <div class="amc-drill-search-box">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="amcDrillSearchInput" placeholder="Filter this breakdown table..." oninput="filterAmcDrilldownTable()">
+        </div>
+        <div class="amc-drill-stats" id="amcDrillStatsText">Showing all records</div>
+      </div>
+
+      <div class="amc-drill-body" id="amcDrillBodyContainer">
+        <!-- Dynamic Drilldown Pivot / List Table -->
       </div>
     </div>
   </div>
@@ -430,19 +1749,30 @@
        always applies regardless of what's already defined there. -->
   <style>
     /* ── Confirm & compose chrome: Outlook (Fluent) blue theme — flat, no gradients ── */
-    .mail-confirm-icon-wrap { color: #0078D4; background: #eff6fc !important; }
+    .mail-confirm-icon-wrap {
+      color: #0078D4;
+      background: #eff6fc !important;
+    }
+
     .mail-confirm-yes {
       background: #0078D4 !important;
       border-color: #0078D4 !important;
       box-shadow: none !important;
     }
-    .mail-confirm-yes:hover { background: #106ebe !important; }
 
-    .mail-compose-card { border-radius: 6px !important; }
+    .mail-confirm-yes:hover {
+      background: #106ebe !important;
+    }
+
+    .mail-compose-card {
+      border-radius: 6px !important;
+    }
+
     .mail-compose-header {
       background: #0078D4 !important;
       padding: 10px 16px !important;
     }
+
     .mail-compose-logo-wrap {
       background: #ffffff !important;
       color: #0078D4 !important;
@@ -450,96 +1780,221 @@
       width: 32px !important;
       height: 32px !important;
     }
+
     .mail-send-btn {
       background: #0078D4 !important;
       border-color: #0078D4 !important;
       border-radius: 3px !important;
       box-shadow: none !important;
     }
-    .mail-send-btn:hover { background: #106ebe !important; }
-    .mail-field-label { color: #605e5c; }
+
+    .mail-send-btn:hover {
+      background: #106ebe !important;
+    }
+
+    .mail-field-label {
+      color: #605e5c;
+    }
 
     /* ── Outlook-style faux ribbon strip (decorative, sits under header) ─── */
     .mail-outlook-ribbon {
-      display: flex; align-items: center; gap: 4px;
-      padding: 6px 16px; background: #faf9f8;
-      border-bottom: 1px solid #edebe9; flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 16px;
+      background: #faf9f8;
+      border-bottom: 1px solid #edebe9;
+      flex-shrink: 0;
     }
+
     .mail-outlook-ribbon .rib-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px; border-radius: 4px; color: #3b3a39;
-      cursor: default; opacity: .85;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      color: #3b3a39;
+      cursor: default;
+      opacity: .85;
     }
-    .mail-outlook-ribbon .rib-btn:hover { background: #f3f2f1; }
+
+    .mail-outlook-ribbon .rib-btn:hover {
+      background: #f3f2f1;
+    }
+
     .mail-outlook-ribbon .rib-sep {
-      width: 1px; height: 18px; background: #e1dfdd; margin: 0 4px;
+      width: 1px;
+      height: 18px;
+      background: #e1dfdd;
+      margin: 0 4px;
     }
+
     .mail-outlook-ribbon .rib-tag {
-      margin-left: auto; font-size: 11px; color: #a19f9d; font-weight: 500;
-      letter-spacing: .3px; text-transform: uppercase;
+      margin-left: auto;
+      font-size: 11px;
+      color: #a19f9d;
+      font-weight: 500;
+      letter-spacing: .3px;
+      text-transform: uppercase;
     }
 
     /* ── To / CC multi-select widget — Fluent flat field style ───────────── */
-    .mail-multiselect { position: relative; width: 100%; }
+    .mail-multiselect {
+      position: relative;
+      width: 100%;
+    }
+
     .mail-multiselect-trigger {
-      display: flex; align-items: center; justify-content: space-between;
-      width: 100%; gap: 8px; padding: 8px 12px; box-sizing: border-box;
-      border: 1px solid #e1dfdd; border-radius: 2px; background: #ffffff;
-      color: #201f1e; font-size: 13.5px; font-family: inherit; cursor: pointer;
-      text-align: left; transition: border-color .12s ease, box-shadow .12s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 8px;
+      padding: 8px 12px;
+      box-sizing: border-box;
+      border: 1px solid #e1dfdd;
+      border-radius: 2px;
+      background: #ffffff;
+      color: #201f1e;
+      font-size: 13.5px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .12s ease, box-shadow .12s ease;
     }
-    .mail-multiselect-trigger:hover { border-color: #0078D4; }
+
+    .mail-multiselect-trigger:hover {
+      border-color: #0078D4;
+    }
+
     .mail-multiselect-trigger:focus-visible {
-      outline: none; border-color: #0078D4; box-shadow: 0 0 0 1px #0078D4;
+      outline: none;
+      border-color: #0078D4;
+      box-shadow: 0 0 0 1px #0078D4;
     }
+
     .mail-multiselect-chips {
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       flex: 1;
     }
-    .mail-multiselect-caret { flex-shrink: 0; color: #0078D4; }
+
+    .mail-multiselect-caret {
+      flex-shrink: 0;
+      color: #0078D4;
+    }
+
     .mail-multiselect-panel {
-      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
-      background: #ffffff; border: 1px solid #e1dfdd; border-radius: 2px;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 40;
+      background: #ffffff;
+      border: 1px solid #e1dfdd;
+      border-radius: 2px;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-      max-height: 220px; overflow-y: auto; padding: 4px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px;
     }
-    .mail-multiselect-panel.hidden { display: none; }
+
+    .mail-multiselect-panel.hidden {
+      display: none;
+    }
+
     .mail-multiselect-option {
-      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
-      border-radius: 2px; cursor: pointer; font-size: 13px; color: #201f1e;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #201f1e;
     }
-    .mail-multiselect-option:hover { background: #f3f2f1; }
+
+    .mail-multiselect-option:hover {
+      background: #f3f2f1;
+    }
+
     .mail-multiselect-option input[type="checkbox"] {
-      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
       box-sizing: border-box !important;
       flex: 0 0 16px !important;
-      width: 16px !important; height: 16px !important;
-      min-width: 16px !important; min-height: 16px !important;
-      max-width: 16px !important; max-height: 16px !important;
-      padding: 0 !important; margin: 0 !important;
-      border: 1.5px solid #8a8886; border-radius: 2px; background: #ffffff;
-      cursor: pointer; position: relative; transition: background .15s ease, border-color .15s ease;
+      width: 16px !important;
+      height: 16px !important;
+      min-width: 16px !important;
+      min-height: 16px !important;
+      max-width: 16px !important;
+      max-height: 16px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: 1.5px solid #8a8886;
+      border-radius: 2px;
+      background: #ffffff;
+      cursor: pointer;
+      position: relative;
+      transition: background .15s ease, border-color .15s ease;
     }
+
     .mail-multiselect-option input[type="checkbox"]:checked {
-      background: #0078D4; border-color: #0078D4;
+      background: #0078D4;
+      border-color: #0078D4;
     }
+
     .mail-multiselect-option input[type="checkbox"]:checked::after {
-      content: ''; position: absolute; left: 4px; top: 1px;
-      width: 4px; height: 8px; border: solid #ffffff; border-width: 0 2px 2px 0;
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border: solid #ffffff;
+      border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
-    .mail-multiselect-empty { padding: 10px; font-size: 13px; color: #a19f9d; }
+
+    .mail-multiselect-empty {
+      padding: 10px;
+      font-size: 13px;
+      color: #a19f9d;
+    }
 
     /* ── Send button: paper-plane "flies away" while sending (surprise) ──── */
-    .mail-send-btn { position: relative; overflow: hidden; }
+    .mail-send-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
     .mail-send-btn.sending svg {
       animation: mail-plane-fly .85s ease-in-out infinite;
     }
+
     @keyframes mail-plane-fly {
-      0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-      70%  { transform: translate(14px, -10px) rotate(18deg); opacity: 0.35; }
-      71%  { transform: translate(-14px, 10px) rotate(0deg); opacity: 0; }
-      100% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+      }
+
+      70% {
+        transform: translate(14px, -10px) rotate(18deg);
+        opacity: 0.35;
+      }
+
+      71% {
+        transform: translate(-14px, 10px) rotate(0deg);
+        opacity: 0;
+      }
+
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+      }
     }
   </style>
 
@@ -547,7 +2002,11 @@
   <div class="mail-confirm-overlay hidden" id="mailConfirmOverlay" onclick="if(event.target===this)closeMailConfirm()">
     <div class="mail-confirm-box">
       <div class="mail-confirm-icon-wrap">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        </svg>
       </div>
       <h4 class="mail-confirm-title">Send Observation Mail?</h4>
       <p class="mail-confirm-sub">Your observation details will be prepared as a mail.</p>
@@ -566,29 +2025,55 @@
         <div class="mail-compose-header-left">
           <div class="mail-compose-logo-wrap">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-              <rect x="1" y="4" width="14" height="16" rx="1.5" fill="#0078D4"/>
-              <path d="M6 12a2.4 4.6 0 1 0 4.8 0 2.4 4.6 0 1 0 -4.8 0Z" fill="#ffffff"/>
-              <rect x="13.2" y="7" width="9.8" height="10" rx="1" fill="#106ebe"/>
-              <path d="M13.2 8.2l4.9 3.3 4.9-3.3" stroke="#ffffff" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="1" y="4" width="14" height="16" rx="1.5" fill="#0078D4" />
+              <path d="M6 12a2.4 4.6 0 1 0 4.8 0 2.4 4.6 0 1 0 -4.8 0Z" fill="#ffffff" />
+              <rect x="13.2" y="7" width="9.8" height="10" rx="1" fill="#106ebe" />
+              <path d="M13.2 8.2l4.9 3.3 4.9-3.3" stroke="#ffffff" stroke-width="1" fill="none" stroke-linecap="round"
+                stroke-linejoin="round" />
             </svg>
           </div>
           <span class="mail-compose-header-title">New Message</span>
         </div>
         <div class="mail-compose-header-right">
-          <button class="mail-compose-minimize" type="button" onclick="closeMailCompose()" title="Close" aria-label="Close">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <button class="mail-compose-minimize" type="button" onclick="closeMailCompose()" title="Close"
+            aria-label="Close">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
       </div>
 
       <!-- Decorative Outlook-style ribbon strip -->
       <div class="mail-outlook-ribbon" aria-hidden="true">
-        <span class="rib-btn" title="Bold"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h7a3.5 3.5 0 0 1 0 7H6z"/><path d="M6 11h8a3.5 3.5 0 0 1 0 7H6z"/></svg></span>
-        <span class="rib-btn" title="Italic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="14" y1="4" x2="9" y2="20"/><line x1="17" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="7" y2="20"/></svg></span>
-        <span class="rib-btn" title="Underline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v7a6 6 0 0 0 12 0V4"/><line x1="5" y1="20" x2="19" y2="20"/></svg></span>
+        <span class="rib-btn" title="Bold"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 4h7a3.5 3.5 0 0 1 0 7H6z" />
+            <path d="M6 11h8a3.5 3.5 0 0 1 0 7H6z" />
+          </svg></span>
+        <span class="rib-btn" title="Italic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="14" y1="4" x2="9" y2="20" />
+            <line x1="17" y1="4" x2="10" y2="4" />
+            <line x1="14" y1="20" x2="7" y2="20" />
+          </svg></span>
+        <span class="rib-btn" title="Underline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 4v7a6 6 0 0 0 12 0V4" />
+            <line x1="5" y1="20" x2="19" y2="20" />
+          </svg></span>
         <span class="rib-sep"></span>
-        <span class="rib-btn" title="Attach"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span>
-        <span class="rib-btn" title="Insert signature"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+        <span class="rib-btn" title="Attach"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg></span>
+        <span class="rib-btn" title="Insert signature"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg></span>
         <span class="rib-tag">Draft</span>
       </div>
 
@@ -598,9 +2083,13 @@
           <span class="mail-field-label">To</span>
           <div class="mail-field-value-wrap" style="flex:1;">
             <div class="mail-multiselect" id="mailToMultiselect">
-              <button type="button" class="mail-multiselect-trigger" id="mailToTrigger" onclick="toggleRecipientDropdown('to')">
+              <button type="button" class="mail-multiselect-trigger" id="mailToTrigger"
+                onclick="toggleRecipientDropdown('to')">
                 <span class="mail-multiselect-chips" id="mailToChips">Loading recipients…</span>
-                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
               <div class="mail-multiselect-panel hidden" id="mailToPanel"></div>
             </div>
@@ -611,9 +2100,13 @@
           <span class="mail-field-label">CC</span>
           <div class="mail-field-value-wrap" style="flex:1;">
             <div class="mail-multiselect" id="mailCcMultiselect">
-              <button type="button" class="mail-multiselect-trigger" id="mailCcTrigger" onclick="toggleRecipientDropdown('cc')">
+              <button type="button" class="mail-multiselect-trigger" id="mailCcTrigger"
+                onclick="toggleRecipientDropdown('cc')">
                 <span class="mail-multiselect-chips" id="mailCcChips">None (optional)</span>
-                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg class="mail-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
               <div class="mail-multiselect-panel hidden" id="mailCcPanel"></div>
             </div>
@@ -639,13 +2132,21 @@
       <div class="mail-compose-footer">
         <div class="mail-compose-footer-left">
           <span class="mail-footer-note">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4m0 4h.01" />
+            </svg>
             Sent securely via Fire Audit System
           </span>
         </div>
         <div class="mail-compose-footer-right">
           <button class="mail-send-btn" id="mailSendBtn" type="button" onclick="sendObservationMail()">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z" />
+              <path d="M22 2 11 13" />
+            </svg>
             Send
           </button>
         </div>
@@ -658,7 +2159,11 @@
       <div class="daily-kpi-drill-head">
         <h4 id="kpiDrillTitle">Details</h4>
         <button class="daily-close-btn" type="button" onclick="closeKpiDrill()" title="Close" aria-label="Close">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
       <div class="daily-kpi-drill-table-wrap">
@@ -680,7 +2185,8 @@
     <div class="header-more-panel-head">
       <span>Menu</span>
       <button type="button" class="header-more-close" id="headerMoreClose" aria-label="Close menu">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -694,7 +2200,8 @@
 
     <button class="header-more-item item-theme" id="themeToggle" type="button" aria-label="Toggle dark mode">
       <span class="header-more-icon">
-        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
           <line x1="12" y1="1" x2="12" y2="3"></line>
           <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -705,7 +2212,8 @@
           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
-        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       </span>
@@ -714,7 +2222,8 @@
 
     <button class="header-more-item item-pdf" id="pdfBtn" type="button" aria-label="Recent PDFs">
       <span class="header-more-icon">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
           <line x1="9" y1="13" x2="15" y2="13"></line>
@@ -726,7 +2235,8 @@
 
     <button class="header-more-item item-rpt" id="rptBtn" type="button" aria-label="Audit Status Dashboard">
       <span class="header-more-icon">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="20" x2="18" y2="10"></line>
           <line x1="12" y1="20" x2="12" y2="4"></line>
           <line x1="6" y1="20" x2="6" y2="14"></line>
@@ -737,7 +2247,8 @@
 
     <button class="header-more-item item-daily" id="dailyBtn" type="button" aria-label="Daily Task">
       <span class="header-more-icon">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2"></rect>
           <line x1="16" y1="2" x2="16" y2="6"></line>
           <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -748,9 +2259,11 @@
       <span class="header-more-label">Daily Task</span>
     </button>
 
-    <button class="header-more-item item-daily-dashboard" id="dailyDashboardBtn" type="button" aria-label="Daily Tasks Dashboard">
+    <button class="header-more-item item-daily-dashboard" id="dailyDashboardBtn" type="button"
+      aria-label="Daily Tasks Dashboard">
       <span class="header-more-icon">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
           <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
           <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
@@ -759,24 +2272,54 @@
       </span>
       <span class="header-more-label">Daily Tasks Dashboard</span>
     </button>
+
+    <button class="header-more-item item-amc" id="amcBtn" type="button" aria-label="AMC (Annual Maintenance Contract)">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+          </path>
+        </svg>
+      </span>
+      <span class="header-more-label">AMC</span>
+    </button>
+
+    <button class="header-more-item item-amc-report" id="amcReportBtn" type="button" aria-label="AMC Report & Analysis">
+      <span class="header-more-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+          <line x1="2" y1="20" x2="22" y2="20"></line>
+        </svg>
+      </span>
+      <span class="header-more-label">AMC Report &amp; Analysis</span>
+    </button>
   </aside>
 
   <main class="shell">
     <header class="topbar">
       <div class="brand-lockup">
         <div class="logo-box">
-          <img src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png" alt="Company logo">
+          <img
+            src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png"
+            alt="Company logo">
         </div>
         <div>
 
           <h1>Fire Safety Inspection Form</h1>
-          <p class="subtitle">A compact and efficient audit app designed for equipment inspection, emergency preparedness, electrical safety checks, compliance monitoring, risk observations, and final assessment reporting.</p>
+          <p class="subtitle">A compact and efficient audit app designed for equipment inspection, emergency
+            preparedness, electrical safety checks, compliance monitoring, risk observations, and final assessment
+            reporting.</p>
         </div>
       </div>
       <div class="hero-actions">
 
         <div class="header-controls">
-          <button class="more-toggle-btn" id="moreBtn" type="button" title="Menu" aria-label="Open menu" aria-haspopup="true" aria-expanded="false" aria-controls="headerMorePanel">
+          <button class="more-toggle-btn" id="moreBtn" type="button" title="Menu" aria-label="Open menu"
+            aria-haspopup="true" aria-expanded="false" aria-controls="headerMorePanel">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
               <circle cx="12" cy="5" r="2"></circle>
               <circle cx="12" cy="12" r="2"></circle>
@@ -861,10 +2404,107 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Print-only AMC KPI Summary (populated by printAmcAnalysisReport in main.js) -->
+  <div id="amcKpiPrintArea" class="amc-kpi-print-area">
+    <div class="amc-kpi-print-header">
+      <img
+        src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png"
+        alt="" class="amc-kpi-print-logo">
+      <div>
+        <h1>AMC KPI Summary</h1>
+        <p id="amcKpiPrintDate"></p>
+      </div>
+    </div>
+    <div class="amc-kpi-print-grid">
+      <div class="amc-kpi-print-card">
+        <span class="amc-kpi-print-label">Total AMC Assets</span>
+        <span class="amc-kpi-print-value" id="amcKpiPrintTotalAssets">0</span>
+        <span class="amc-kpi-print-sub" id="amcKpiPrintActiveSub">0 Active Contracts</span>
+      </div>
+      <div class="amc-kpi-print-card">
+        <span class="amc-kpi-print-label">Servicing Overdue</span>
+        <span class="amc-kpi-print-value amc-kpi-print-danger" id="amcKpiPrintOverdue">0</span>
+        <span class="amc-kpi-print-sub" id="amcKpiPrintDueSoon">0 Due Soon</span>
+      </div>
+      <div class="amc-kpi-print-card">
+        <span class="amc-kpi-print-label">Breakdowns Logged</span>
+        <span class="amc-kpi-print-value amc-kpi-print-warning" id="amcKpiPrintBreakdowns">0</span>
+        <span class="amc-kpi-print-sub" id="amcKpiPrintScheduled">0 Scheduled Visits</span>
+      </div>
+      <div class="amc-kpi-print-card">
+        <span class="amc-kpi-print-label">Total Repair / Spend</span>
+        <span class="amc-kpi-print-value" id="amcKpiPrintCost">₹0</span>
+        <span class="amc-kpi-print-sub" id="amcKpiPrintExpired">0 Contracts Expired</span>
+      </div>
+    </div>
+    <div class="amc-kpi-print-footer-note">Generated from the Fire Safety Audit &mdash; AMC Report &amp; Analysis dashboard.</div>
+
+    <div class="amc-kpi-print-section">
+      <h2>AMC Master Equipment &amp; Contract Records</h2>
+      <table class="amc-kpi-print-table">
+        <thead>
+          <tr>
+            <th>Record ID</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>Floor</th>
+            <th>Vendor</th>
+            <th>Start Date</th>
+            <th>Expiry Date</th>
+            <th>Frequency</th>
+            <th>Last Service</th>
+            <th>Next Due</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="amcPrintMasterBody"></tbody>
+      </table>
+    </div>
+
+    <div class="amc-kpi-print-section amc-kpi-print-break">
+      <h2>Servicing Delay &amp; Overdue Report</h2>
+      <table class="amc-kpi-print-table">
+        <thead>
+          <tr>
+            <th>Unit</th>
+            <th>Floor</th>
+            <th>Category</th>
+            <th>Vendor</th>
+            <th>Last Serviced</th>
+            <th>Next Due</th>
+            <th>Days Overdue</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="amcPrintDelayBody"></tbody>
+      </table>
+    </div>
+
+    <div class="amc-kpi-print-section amc-kpi-print-break">
+      <h2>Breakdown &amp; Emergency Repair Logs</h2>
+      <table class="amc-kpi-print-table">
+        <thead>
+          <tr>
+            <th>Visit Date</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>Floor</th>
+            <th>Vendor</th>
+            <th>Technician</th>
+            <th>Cost (&#8377;)</th>
+            <th>Issue Description</th>
+          </tr>
+        </thead>
+        <tbody id="amcPrintBreakdownBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="main.js" defer></script>
-  
+
 </body>
+
 </html>
