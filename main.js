@@ -1,192 +1,192 @@
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSoch1eeugGaOI7PJulODyApCIU_4tBfe-t6Nb4LorBsYgUc5qFjA/exec';
-    // Apps Script can take several seconds to wake up and read Google Sheets.
-    // Keep read requests below the browser's practical connection limit while
-    // allowing enough time for a cold start or a larger report sheet.
-    const READ_REQUEST_TIMEOUT_MS = 30000;
-    const today = formatLocalDate(new Date());
-    const yesNo = ['YES', 'NO'];
-    const floors = ['1st', '2nd', '3rd', '4th', '5th', 'OUTSIDE', 'ALL'];
-    const locations = ['KASBA', 'BANTALA','SEALDAH'];
-    const statuses = ['Good', 'Average', 'Poor'];
-    const savedTheme = localStorage.getItem('fireAuditTheme');
-    let downloadFrame;
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxsqXXzxakM7t-4SyMIWVVdrskDSMc4AbQVLEk8s2HIUlskM0bCK49BUEF5u_DDtroq/exec';
+// Apps Script can take several seconds to wake up and read Google Sheets.
+// Keep read requests below the browser's practical connection limit while
+// allowing enough time for a cold start or a larger report sheet.
+const READ_REQUEST_TIMEOUT_MS = 30000;
+const today = formatLocalDate(new Date());
+const yesNo = ['YES', 'NO'];
+const floors = ['1st', '2nd', '3rd', '4th', '5th', 'OUTSIDE', 'ALL'];
+const locations = ['KASBA', 'BANTALA', 'SEALDAH'];
+const statuses = ['Good', 'Average', 'Poor'];
+const savedTheme = localStorage.getItem('fireAuditTheme');
+let downloadFrame;
 
-    const state = {
-      factories: [],
-      extinguisherTypes: [],
-      submittedCount: 0
-    };
+const state = {
+  factories: [],
+  extinguisherTypes: [],
+  submittedCount: 0
+};
 
-    const sections = [
+const sections = [
+  {
+    id: 'basicDetails',
+    title: 'Basic Details',
+    fields: [
+      field('factoryName', 'Factory Name', 'factory', { required: true }),
+      field('location', 'Location', locations, { required: true }),
+      field('auditDate', 'Audit Date', 'date', { required: true, defaultToday: true }),
+      field('inspectorName', 'Inspector Name', 'text', { required: true }),
+      field('department', 'Department', 'text')
+    ]
+  },
+  {
+    id: 'fireEquipmentAvailability',
+    title: 'Fire Equipment Availability',
+    items: [
+      item('fireExtinguishersAvailable', 'Fire extinguishers available?', [
+        field('floor', 'Floor', floors),
+        field('quantity', 'Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
       {
-        id: 'basicDetails',
-        title: 'Basic Details',
+        key: 'typesOfExtinguishers',
+        question: 'Types of extinguishers',
+        noAvailability: true,
         fields: [
-          field('factoryName', 'Factory Name', 'factory', { required: true }),
-          field('location', 'Location', locations, { required: true }),
-          field('auditDate', 'Audit Date', 'date', { required: true, defaultToday: true }),
-          field('inspectorName', 'Inspector Name', 'text', { required: true }),
-          field('department', 'Department', 'text')
+          field('type', 'Extinguisher Type', 'extinguisher'),
+          field('expiredDate', 'Expired Date', 'date', { defaultToday: true })
         ]
       },
-      {
-        id: 'fireEquipmentAvailability',
-        title: 'Fire Equipment Availability',
-        items: [
-          item('fireExtinguishersAvailable', 'Fire extinguishers available?', [
-            field('floor', 'Floor', floors),
-            field('quantity', 'Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          {
-            key: 'typesOfExtinguishers',
-            question: 'Types of extinguishers',
-            noAvailability: true,
-            fields: [
-              field('type', 'Extinguisher Type', 'extinguisher'),
-              field('expiredDate', 'Expired Date', 'date', { defaultToday: true })
-            ]
-          },
-          item('fireHydrantSystemAvailable', 'Fire hydrant system available?', [
-            field('floor', 'Floor', floors),
-            field('quantity', 'Quantity', 'number'),
-            field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('sprinklerSystemInstalledWorking', 'Sprinkler system installed or working?', [
-            field('floor', 'Floor', floors),
-            field('installedQuantity', 'Installed Quantity', 'number'),
-            field('workingQuantity', 'Working Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('fireAlarmSystemInstalledWorking', 'Fire alarm system installed or working?', [
-            field('floor', 'Floor', floors),
-            field('installedQuantity', 'Installed Quantity', 'number'),
-            field('workingQuantity', 'Working Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('emergencyExitSignsAvailable', 'Emergency exit signs available?', [
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('smokeDetectorsInstalledWorking', 'Smoke Detectors installed or working?', [
-            field('floor', 'Floor', floors),
-            field('installedQuantity', 'Installed Quantity', 'number'),
-            field('workingQuantity', 'Working Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('firePumpInstalledWorking', 'Fire Pump installed or working?', [
-            field('installedQuantity', 'Installed Quantity', 'number'),
-            field('workingQuantity', 'Working Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('hosePipeChecked', 'Hose Pipe checked (pressure, leakage, coupling, etc.)?', [
-            field('floor', 'Floor', floors),
-            field('installedQuantity', 'Installed Quantity', 'number'),
-            field('checkedQuantity', 'Checked Quantity', 'number'),
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ]),
-          item('waterReserveTankChecked', 'Water reserve/tank checked (level, pump, leakage, etc.)?', [
-            field('remarks', 'Remarks', 'textarea', { always: true })
-          ])
-        ]
-      },
-      {
-        id: 'emergencyPreparedness',
-        title: 'Emergency Preparedness',
-        items: [
-          item('emergencyExitsClearlyMarked', 'Emergency Exits clearly marked?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('exitDoorsUnlocked', 'Exit doors unlocked during working hours?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('emergencyLightingAvailable', 'Emergency lighting available?', [field('floor', 'Floor', floors), field('installedQuantity', 'Installed Quantity', 'number'), field('checkedQuantity', 'Checked Quantity', 'number'), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('assemblyPointDefined', 'Assembly point defined?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('fireDrillLastSixMonths', 'Fire drill conducted in last 6 months?', [field('remarks', 'Remarks', 'textarea', { always: true })])
-        ]
-      },
-      {
-        id: 'electricalSafety',
-        title: 'Electrical Safety',
-        items: [
-          item('electricalPanelsMaintained', 'Electrical panels properly maintained?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('firePanelChecked', 'Fire panel checked (alarm, indicators, battery, etc.)?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('noLooseWiring', 'No loose wiring?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('overloadingAvoided', 'Overloading avoided?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('earthingSystemAvailable', 'Earthing system available?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('regularElectricalInspectionDone', 'Regular electrical inspection done?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })])
-        ]
-      },
-      {
-        id: 'storageHousekeeping',
-        title: 'Storage & Housekeeping',
-        items: [
-          item('flammableMaterialsStoredSafely', 'Flammable materials store safely?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('noObstructionInWalkways', 'No obstruction in walkways?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('buildingExternalCommonAreaChecked', 'Building external/common area checked (color, maintenance, cleanliness, etc.)?', [field('remarks', 'Remarks', 'textarea', { always: true })])
-        ]
-      },
-      {
-        id: 'trainingAwareness',
-        title: 'Training & Awareness',
-        items: [
-          item('employeesTrainedFireSafety', 'Employees trained in fire safety?', [field('floor', 'Floor', floors), field('lastTrainedDate', 'Last Trained Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('fireExtinguisherUsageTraining', 'Fire extinguishers usage training given?', [field('floor', 'Floor', floors), field('lastTrainedDate', 'Last Trained Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('safetyInstructionsDisplayed', 'Safety instructions displayed?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('fireSafetyOfficerAppointed', 'Fire safety officer appointed?', [field('remarks', 'Remarks', 'textarea', { always: true })])
-        ]
-      },
-      {
-        id: 'complianceDocumentation',
-        title: 'Compliance & Documentation',
-        items: [
-          item('fireLicenseAvailableValid', 'Fire license available and valid?', [field('fromDate', 'From Date', 'date', { defaultToday: true }), field('toDate', 'To Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('nocFromFireDepartment', 'NOC from fire department?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('maintenanceRecordAvailable', 'Maintenance record available?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
-          item('incidentRegisterMaintained', 'Incident register maintained?', [field('remarks', 'Remarks', 'textarea', { always: true })])
-        ]
-      },
-      {
-        id: 'riskObservation',
-        title: 'Risk Observation',
-        fields: [
-          field('fireHazardsIdentified', 'Any fire hazards identified?', yesNo),
-          field('highRiskAreas', 'High risk areas', 'textarea', { full: true }),
-          field('suggestionForImprovement', 'Suggestion for improvement', 'textarea', { full: true })
-        ]
-      },
-      {
-        id: 'finalAssessment',
-        title: 'Final Assessment',
-        fields: [
-          field('overallStatus', 'Overall Fire Safety status', statuses, { required: true }),
-          field('immediateActionRequired', 'Immediate action required?', yesNo, { required: true })
-        ]
-      }
-    ];
+      item('fireHydrantSystemAvailable', 'Fire hydrant system available?', [
+        field('floor', 'Floor', floors),
+        field('quantity', 'Quantity', 'number'),
+        field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('sprinklerSystemInstalledWorking', 'Sprinkler system installed or working?', [
+        field('floor', 'Floor', floors),
+        field('installedQuantity', 'Installed Quantity', 'number'),
+        field('workingQuantity', 'Working Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('fireAlarmSystemInstalledWorking', 'Fire alarm system installed or working?', [
+        field('floor', 'Floor', floors),
+        field('installedQuantity', 'Installed Quantity', 'number'),
+        field('workingQuantity', 'Working Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('emergencyExitSignsAvailable', 'Emergency exit signs available?', [
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('smokeDetectorsInstalledWorking', 'Smoke Detectors installed or working?', [
+        field('floor', 'Floor', floors),
+        field('installedQuantity', 'Installed Quantity', 'number'),
+        field('workingQuantity', 'Working Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('firePumpInstalledWorking', 'Fire Pump installed or working?', [
+        field('installedQuantity', 'Installed Quantity', 'number'),
+        field('workingQuantity', 'Working Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('hosePipeChecked', 'Hose Pipe checked (pressure, leakage, coupling, etc.)?', [
+        field('floor', 'Floor', floors),
+        field('installedQuantity', 'Installed Quantity', 'number'),
+        field('checkedQuantity', 'Checked Quantity', 'number'),
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ]),
+      item('waterReserveTankChecked', 'Water reserve/tank checked (level, pump, leakage, etc.)?', [
+        field('remarks', 'Remarks', 'textarea', { always: true })
+      ])
+    ]
+  },
+  {
+    id: 'emergencyPreparedness',
+    title: 'Emergency Preparedness',
+    items: [
+      item('emergencyExitsClearlyMarked', 'Emergency Exits clearly marked?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('exitDoorsUnlocked', 'Exit doors unlocked during working hours?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('emergencyLightingAvailable', 'Emergency lighting available?', [field('floor', 'Floor', floors), field('installedQuantity', 'Installed Quantity', 'number'), field('checkedQuantity', 'Checked Quantity', 'number'), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('assemblyPointDefined', 'Assembly point defined?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('fireDrillLastSixMonths', 'Fire drill conducted in last 6 months?', [field('remarks', 'Remarks', 'textarea', { always: true })])
+    ]
+  },
+  {
+    id: 'electricalSafety',
+    title: 'Electrical Safety',
+    items: [
+      item('electricalPanelsMaintained', 'Electrical panels properly maintained?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('firePanelChecked', 'Fire panel checked (alarm, indicators, battery, etc.)?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('noLooseWiring', 'No loose wiring?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('overloadingAvoided', 'Overloading avoided?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('earthingSystemAvailable', 'Earthing system available?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('regularElectricalInspectionDone', 'Regular electrical inspection done?', [field('lastCheckedDate', 'Last Checked Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })])
+    ]
+  },
+  {
+    id: 'storageHousekeeping',
+    title: 'Storage & Housekeeping',
+    items: [
+      item('flammableMaterialsStoredSafely', 'Flammable materials store safely?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('noObstructionInWalkways', 'No obstruction in walkways?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('buildingExternalCommonAreaChecked', 'Building external/common area checked (color, maintenance, cleanliness, etc.)?', [field('remarks', 'Remarks', 'textarea', { always: true })])
+    ]
+  },
+  {
+    id: 'trainingAwareness',
+    title: 'Training & Awareness',
+    items: [
+      item('employeesTrainedFireSafety', 'Employees trained in fire safety?', [field('floor', 'Floor', floors), field('lastTrainedDate', 'Last Trained Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('fireExtinguisherUsageTraining', 'Fire extinguishers usage training given?', [field('floor', 'Floor', floors), field('lastTrainedDate', 'Last Trained Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('safetyInstructionsDisplayed', 'Safety instructions displayed?', [field('floor', 'Floor', floors), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('fireSafetyOfficerAppointed', 'Fire safety officer appointed?', [field('remarks', 'Remarks', 'textarea', { always: true })])
+    ]
+  },
+  {
+    id: 'complianceDocumentation',
+    title: 'Compliance & Documentation',
+    items: [
+      item('fireLicenseAvailableValid', 'Fire license available and valid?', [field('fromDate', 'From Date', 'date', { defaultToday: true }), field('toDate', 'To Date', 'date', { defaultToday: true }), field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('nocFromFireDepartment', 'NOC from fire department?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('maintenanceRecordAvailable', 'Maintenance record available?', [field('remarks', 'Remarks', 'textarea', { always: true })]),
+      item('incidentRegisterMaintained', 'Incident register maintained?', [field('remarks', 'Remarks', 'textarea', { always: true })])
+    ]
+  },
+  {
+    id: 'riskObservation',
+    title: 'Risk Observation',
+    fields: [
+      field('fireHazardsIdentified', 'Any fire hazards identified?', yesNo),
+      field('highRiskAreas', 'High risk areas', 'textarea', { full: true }),
+      field('suggestionForImprovement', 'Suggestion for improvement', 'textarea', { full: true })
+    ]
+  },
+  {
+    id: 'finalAssessment',
+    title: 'Final Assessment',
+    fields: [
+      field('overallStatus', 'Overall Fire Safety status', statuses, { required: true }),
+      field('immediateActionRequired', 'Immediate action required?', yesNo, { required: true })
+    ]
+  }
+];
 
-    function field(key, label, type, options = {}) {
-      return { key, label, type, ...options };
-    }
+function field(key, label, type, options = {}) {
+  return { key, label, type, ...options };
+}
 
-    function item(key, question, fields) {
-      return { key, question, fields, availability: true };
-    }
+function item(key, question, fields) {
+  return { key, question, fields, availability: true };
+}
 
-    function render() {
-      const container = document.getElementById('sections');
-      const nav = document.getElementById('sectionNav');
-      container.innerHTML = sections.map((section, index) => renderSection(section, index)).join('');
-      nav.innerHTML = sections.map((section, index) => `
+function render() {
+  const container = document.getElementById('sections');
+  const nav = document.getElementById('sectionNav');
+  container.innerHTML = sections.map((section, index) => renderSection(section, index)).join('');
+  nav.innerHTML = sections.map((section, index) => `
         <li><a href="#${section.id}"><span class="nav-index">${index + 1}</span>${escapeHtml(section.title)}</a></li>
       `).join('');
-      attachConditionalHandlers();
-      attachProgressHandlers();
-    }
+  attachConditionalHandlers();
+  attachProgressHandlers();
+}
 
-    function renderSection(section, index) {
-      const content = section.items
-        ? section.items.map(itemConfig => renderItem(section.id, itemConfig)).join('')
-        : `<div class="grid">${section.fields.map(itemField => renderField(section.id, itemField)).join('')}</div>`;
+function renderSection(section, index) {
+  const content = section.items
+    ? section.items.map(itemConfig => renderItem(section.id, itemConfig)).join('')
+    : `<div class="grid">${section.fields.map(itemField => renderField(section.id, itemField)).join('')}</div>`;
 
-      const count = section.items ? `${section.items.length} checkpoints` : `${section.fields.length} fields`;
-      return `
+  const count = section.items ? `${section.items.length} checkpoints` : `${section.fields.length} fields`;
+  return `
         <section class="section" id="${section.id}">
           <div class="section-title">
             <h2>${escapeHtml(section.title)}</h2>
@@ -195,11 +195,11 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSo
           <div class="section-body">${content}</div>
         </section>
       `;
-    }
+}
 
-    function renderItem(sectionId, itemConfig) {
-      if (itemConfig.noAvailability) {
-      return `
+function renderItem(sectionId, itemConfig) {
+  if (itemConfig.noAvailability) {
+    return `
         <article class="audit-item">
           <div class="item-head">
             <p class="question">${escapeHtml(itemConfig.question)}</p>
@@ -209,9 +209,9 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSo
             </div>
           </article>
         `;
-      }
+  }
 
-      return `
+  return `
         <article class="audit-item" data-item="${sectionId}.${itemConfig.key}">
           <div class="item-head">
             <p class="question">${escapeHtml(itemConfig.question)}</p>
@@ -222,682 +222,739 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSo
           </div>
         </article>
       `;
-    }
+}
 
-    function renderField(sectionId, itemField, itemKey = '', compact = false) {
-      const path = itemKey ? `${sectionId}.${itemKey}.${itemField.key}` : `${sectionId}.${itemField.key}`;
-      const classes = ['field'];
-      if (compact) classes.push('compact');
-      if (itemField.full || itemField.type === 'textarea') classes.push('full');
-      if (!itemField.full && itemField.type !== 'textarea' && !compact) classes.push('span-2');
-      const conditionalAttr = itemKey && !itemField.always && itemField.key !== 'available' ? ' data-conditional="true"' : '';
-      const required = itemField.required ? ' required' : '';
-      const labelClass = itemField.required ? ' class="required"' : '';
+function renderField(sectionId, itemField, itemKey = '', compact = false) {
+  const path = itemKey ? `${sectionId}.${itemKey}.${itemField.key}` : `${sectionId}.${itemField.key}`;
+  const classes = ['field'];
+  if (compact) classes.push('compact');
+  if (itemField.full || itemField.type === 'textarea') classes.push('full');
+  if (!itemField.full && itemField.type !== 'textarea' && !compact) classes.push('span-2');
+  const conditionalAttr = itemKey && !itemField.always && itemField.key !== 'available' ? ' data-conditional="true"' : '';
+  const required = itemField.required ? ' required' : '';
+  const labelClass = itemField.required ? ' class="required"' : '';
 
-      return `
+  return `
         <div class="${classes.join(' ')}"${conditionalAttr}>
           <label${labelClass} for="${path}">${escapeHtml(itemField.label)}</label>
           ${renderControl(path, itemField, required)}
         </div>
       `;
-    }
+}
 
-    function renderControl(path, itemField, required) {
-      if (Array.isArray(itemField.type)) {
-        return renderSelect(path, itemField.type, required);
-      }
+function renderControl(path, itemField, required) {
+  if (Array.isArray(itemField.type)) {
+    return renderSelect(path, itemField.type, required);
+  }
 
-      if (itemField.type === 'factory') {
-        return renderSelect(path, state.factories, required, 'Select factory', 'factory');
-      }
+  if (itemField.type === 'factory') {
+    return renderSelect(path, state.factories, required, 'Select factory', 'factory');
+  }
 
-      if (itemField.type === 'extinguisher') {
-        return renderMultiSelect(path, state.extinguisherTypes, required, 'extinguisher');
-      }
+  if (itemField.type === 'extinguisher') {
+    return renderMultiSelect(path, state.extinguisherTypes, required, 'extinguisher');
+  }
 
-      if (itemField.type === 'textarea') {
-        return `<textarea id="${path}" name="${path}" placeholder="Write details here"${required}></textarea>`;
-      }
+  if (itemField.type === 'textarea') {
+    return `<textarea id="${path}" name="${path}" placeholder="Write details here"${required}></textarea>`;
+  }
 
-      if (itemField.type === 'number') {
-        return `<input id="${path}" name="${path}" type="number" inputmode="numeric" min="0" step="1" placeholder="0"${required}>`;
-      }
+  if (itemField.type === 'number') {
+    return `<input id="${path}" name="${path}" type="number" inputmode="numeric" min="0" step="1" placeholder="0"${required}>`;
+  }
 
-      if (itemField.type === 'date') {
-        const value = itemField.defaultToday ? ` value="${today}"` : '';
-        return `<input id="${path}" name="${path}" type="date"${value}${required}>`;
-      }
+  if (itemField.type === 'date') {
+    const value = itemField.defaultToday ? ` value="${today}"` : '';
+    return `<input id="${path}" name="${path}" type="date"${value}${required}>`;
+  }
 
-      return `<input id="${path}" name="${path}" type="text" autocomplete="off"${required}>`;
-    }
+  return `<input id="${path}" name="${path}" type="text" autocomplete="off"${required}>`;
+}
 
-    function renderSelect(path, options, required, placeholder = 'Select', dataType = '') {
-      const optionHtml = options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
-      const typeAttr = dataType ? ` data-type="${dataType}"` : '';
-      return `<select id="${path}" name="${path}"${typeAttr}${required}><option value="">${placeholder}</option>${optionHtml}</select>`;
-    }
+function renderSelect(path, options, required, placeholder = 'Select', dataType = '') {
+  const optionHtml = options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
+  const typeAttr = dataType ? ` data-type="${dataType}"` : '';
+  return `<select id="${path}" name="${path}"${typeAttr}${required}><option value="">${placeholder}</option>${optionHtml}</select>`;
+}
 
-    function renderMultiSelect(path, options, required, dataType = '') {
-      const size = Math.min(Math.max(options.length, 3), 7);
-      const optionHtml = options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
-      const typeAttr = dataType ? ` data-type="${dataType}"` : '';
-      return `<select id="${path}" name="${path}[]" multiple size="${size}"${typeAttr}${required}>${optionHtml}</select><span class="multi-select-hint">Hold Ctrl (Windows) or âŒ˜ Cmd (Mac) to select multiple types</span>`;
-    }
+function renderMultiSelect(path, options, required, dataType = '') {
+  const size = Math.min(Math.max(options.length, 3), 7);
+  const optionHtml = options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
+  const typeAttr = dataType ? ` data-type="${dataType}"` : '';
+  return `<select id="${path}" name="${path}[]" multiple size="${size}"${typeAttr}${required}>${optionHtml}</select><span class="multi-select-hint">Hold Ctrl (Windows) or âŒ˜ Cmd (Mac) to select multiple types</span>`;
+}
 
-    function attachConditionalHandlers() {
-      document.querySelectorAll('[data-item]').forEach(itemEl => {
-        const select = itemEl.querySelector('select[name$=".available"]');
-        const conditionalFields = itemEl.querySelectorAll('[data-conditional="true"]');
-        const update = () => {
-          const show = select.value === 'YES';
-          conditionalFields.forEach(fieldEl => fieldEl.classList.toggle('is-hidden', !show));
-        };
-        select.addEventListener('change', update);
-        update();
-      });
-    }
+function attachConditionalHandlers() {
+  document.querySelectorAll('[data-item]').forEach(itemEl => {
+    const select = itemEl.querySelector('select[name$=".available"]');
+    const conditionalFields = itemEl.querySelectorAll('[data-conditional="true"]');
+    const update = () => {
+      const show = select.value === 'YES';
+      conditionalFields.forEach(fieldEl => fieldEl.classList.toggle('is-hidden', !show));
+    };
+    select.addEventListener('change', update);
+    update();
+  });
+}
 
-    function attachProgressHandlers() {
-      const inputs = [...document.querySelectorAll('input:not([type="file"]), select, textarea')];
-      const update = () => {
-        const visibleInputs = inputs.filter(input => input.offsetParent !== null);
-        const filled = visibleInputs.filter(input => String(input.value || '').trim()).length;
-        const percent = visibleInputs.length ? Math.round((filled / visibleInputs.length) * 100) : 0;
-        document.getElementById('progressText').textContent = `${percent}%`;
-        document.getElementById('progressBar').style.width = `${percent}%`;
-        updateKpis(visibleInputs, filled);
-      };
-      inputs.forEach(input => input.addEventListener('input', update));
-      inputs.forEach(input => input.addEventListener('change', update));
-      update();
-    }
+function attachProgressHandlers() {
+  const inputs = [...document.querySelectorAll('input:not([type="file"]), select, textarea')];
+  const update = () => {
+    const visibleInputs = inputs.filter(input => input.offsetParent !== null);
+    const filled = visibleInputs.filter(input => String(input.value || '').trim()).length;
+    const percent = visibleInputs.length ? Math.round((filled / visibleInputs.length) * 100) : 0;
+    document.getElementById('progressText').textContent = `${percent}%`;
+    document.getElementById('progressBar').style.width = `${percent}%`;
+    updateKpis(visibleInputs, filled);
+  };
+  inputs.forEach(input => input.addEventListener('input', update));
+  inputs.forEach(input => input.addEventListener('change', update));
+  update();
+}
 
-    function animateKpiValue(el, newText) {
-      if (!el) return;
-      const oldText = el.textContent.trim();
-      if (oldText === newText) return;
+function animateKpiValue(el, newText) {
+  if (!el) return;
+  const oldText = el.textContent.trim();
+  if (oldText === newText) return;
 
-      const newNums = (newText.match(/\d+/g) || []).map(Number);
-      const oldNums = (oldText.match(/\d+/g) || []).map(Number);
-      const sameShape = newNums.length && newNums.length === oldNums.length &&
-        oldText.replace(/\d+/g, '#') === newText.replace(/\d+/g, '#');
+  const newNums = (newText.match(/\d+/g) || []).map(Number);
+  const oldNums = (oldText.match(/\d+/g) || []).map(Number);
+  const sameShape = newNums.length && newNums.length === oldNums.length &&
+    oldText.replace(/\d+/g, '#') === newText.replace(/\d+/g, '#');
 
-      el.classList.remove('kpi-pulse');
-      void el.offsetWidth; // restart animation
-      el.classList.add('kpi-pulse');
+  el.classList.remove('kpi-pulse');
+  void el.offsetWidth; // restart animation
+  el.classList.add('kpi-pulse');
 
-      if (!sameShape) {
-        el.textContent = newText;
+  if (!sameShape) {
+    el.textContent = newText;
+    return;
+  }
+
+  const parts = newText.split(/\d+/);
+  const duration = 400;
+  const start = performance.now();
+
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    let result = parts[0];
+    newNums.forEach((target, i) => {
+      const from = oldNums[i];
+      const val = Math.round(from + (target - from) * eased);
+      result += val + (parts[i + 1] ?? '');
+    });
+    el.textContent = result;
+    if (t < 1) requestAnimationFrame(frame);
+    else el.textContent = newText;
+  }
+  requestAnimationFrame(frame);
+}
+
+function updateKpis(visibleInputs, filled) {
+  const yesNoSelects = visibleInputs.filter(input => {
+    if (input.tagName !== 'SELECT') return false;
+    return [...input.options].some(option => option.value === 'YES') && [...input.options].some(option => option.value === 'NO');
+  });
+  const yesCount = yesNoSelects.filter(input => input.value === 'YES').length;
+  const noCount = yesNoSelects.filter(input => input.value === 'NO').length;
+  const actionValue = document.querySelector('[name="finalAssessment.immediateActionRequired"]')?.value || '-';
+  const attachmentCount = document.getElementById('attachments')?.files.length || 0;
+
+  animateKpiValue(document.getElementById('kpiCompleted'), `${filled}/${visibleInputs.length}`);
+  animateKpiValue(document.getElementById('kpiYesNo'), `${yesCount}/${noCount}`);
+  animateKpiValue(document.getElementById('kpiAttachments'), `${attachmentCount}`);
+  const actionEl = document.getElementById('kpiAction');
+  if (actionEl && actionEl.textContent.trim() !== (actionValue || '-')) {
+    actionEl.textContent = actionValue || '-';
+    actionEl.classList.remove('kpi-pulse');
+    void actionEl.offsetWidth;
+    actionEl.classList.add('kpi-pulse');
+  }
+}
+
+function initTheme() {
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark');
+  }
+  updateThemeButton();
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('fireAuditTheme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    updateThemeButton();
+  });
+}
+
+function updateThemeButton() {
+  const isDark = document.body.classList.contains('dark');
+  const themeBtn = document.getElementById('themeToggle');
+  if (themeBtn) {
+    themeBtn.setAttribute('title', isDark ? 'Switch to Light mode' : 'Switch to Dark mode');
+    themeBtn.setAttribute('aria-label', isDark ? 'Switch to Light mode' : 'Switch to Dark mode');
+  }
+}
+
+function initHeaderMorePanel() {
+  const moreBtn = document.getElementById('moreBtn');
+  const panel = document.getElementById('headerMorePanel');
+  const overlay = document.getElementById('headerMoreOverlay');
+  const closeBtn = document.getElementById('headerMoreClose');
+  if (!moreBtn || !panel || !overlay) return;
+
+  function openPanel() {
+    panel.classList.add('open');
+    overlay.classList.add('visible');
+    panel.setAttribute('aria-hidden', 'false');
+    moreBtn.setAttribute('aria-expanded', 'true');
+    moreBtn.classList.add('active');
+  }
+
+  function closePanel() {
+    panel.classList.remove('open');
+    overlay.classList.remove('visible');
+    panel.setAttribute('aria-hidden', 'true');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    moreBtn.classList.remove('active');
+  }
+
+  moreBtn.addEventListener('click', () => {
+    panel.classList.contains('open') ? closePanel() : openPanel();
+  });
+  overlay.addEventListener('click', closePanel);
+  if (closeBtn) closeBtn.addEventListener('click', closePanel);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const amcActionModal = document.getElementById('amcActionModal');
+      if (amcActionModal && !amcActionModal.classList.contains('hidden')) {
+        closeAmcActionModal();
         return;
       }
-
-      const parts = newText.split(/\d+/);
-      const duration = 400;
-      const start = performance.now();
-
-      function frame(now) {
-        const t = Math.min(1, (now - start) / duration);
-        const eased = 1 - Math.pow(1 - t, 3);
-        let result = parts[0];
-        newNums.forEach((target, i) => {
-          const from = oldNums[i];
-          const val = Math.round(from + (target - from) * eased);
-          result += val + (parts[i + 1] ?? '');
-        });
-        el.textContent = result;
-        if (t < 1) requestAnimationFrame(frame);
-        else el.textContent = newText;
+      const amcFormModal = document.getElementById('amcFormModal');
+      if (amcFormModal && !amcFormModal.classList.contains('hidden')) {
+        closeAmcForm();
+        return;
       }
-      requestAnimationFrame(frame);
-    }
-
-    function updateKpis(visibleInputs, filled) {
-      const yesNoSelects = visibleInputs.filter(input => {
-        if (input.tagName !== 'SELECT') return false;
-        return [...input.options].some(option => option.value === 'YES') && [...input.options].some(option => option.value === 'NO');
-      });
-      const yesCount = yesNoSelects.filter(input => input.value === 'YES').length;
-      const noCount = yesNoSelects.filter(input => input.value === 'NO').length;
-      const actionValue = document.querySelector('[name="finalAssessment.immediateActionRequired"]')?.value || '-';
-      const attachmentCount = document.getElementById('attachments')?.files.length || 0;
-
-      animateKpiValue(document.getElementById('kpiCompleted'), `${filled}/${visibleInputs.length}`);
-      animateKpiValue(document.getElementById('kpiYesNo'), `${yesCount}/${noCount}`);
-      animateKpiValue(document.getElementById('kpiAttachments'), `${attachmentCount}`);
-      const actionEl = document.getElementById('kpiAction');
-      if (actionEl && actionEl.textContent.trim() !== (actionValue || '-')) {
-        actionEl.textContent = actionValue || '-';
-        actionEl.classList.remove('kpi-pulse');
-        void actionEl.offsetWidth;
-        actionEl.classList.add('kpi-pulse');
+      const amcDetailView = document.getElementById('amcCategoryDetailView');
+      if (amcDetailView && !amcDetailView.classList.contains('hidden')) {
+        closeAmcCategoryDetail();
+        return;
       }
+      if (panel.classList.contains('open')) closePanel();
+      const amcModal = document.getElementById('amcModal');
+      if (amcModal && !amcModal.classList.contains('hidden')) closeAmcModal();
     }
+  });
 
-    function initTheme() {
-      if (savedTheme === 'dark') {
-        document.body.classList.add('dark');
-      }
-      updateThemeButton();
-      document.getElementById('themeToggle').addEventListener('click', () => {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('fireAuditTheme', document.body.classList.contains('dark') ? 'dark' : 'light');
-        updateThemeButton();
-      });
+  // Close the panel once an action item is chosen (opens its own modal/view)
+  ['pdfBtn', 'rptBtn', 'dailyBtn', 'dailyDashboardBtn', 'amcBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', closePanel);
+  });
+}
+
+function updateGreeting() {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greetingEl = document.getElementById('greetingText');
+  const dateEl = document.getElementById('currentDateTime');
+  if (greetingEl) greetingEl.textContent = greeting;
+  if (dateEl) dateEl.textContent = now.toLocaleString('en-IN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+async function loadDropdowns() {
+  const statusPill = document.getElementById('statusPill');
+  const syncStatus = document.getElementById('syncStatus');
+  try {
+    const data = await serverCall('getDropdownData');
+    if (!data || data.error) throw new Error((data && data.error) || 'Empty dropdown response.');
+    state.factories = data.factories || [];
+    state.extinguisherTypes = data.extinguisherTypes || [];
+    if (statusPill) {
+      statusPill.setAttribute('title', 'Connected');
+      const txt = document.getElementById('statusPillText');
+      if (txt) txt.textContent = 'Connected';
     }
-
-    function updateThemeButton() {
-      const isDark = document.body.classList.contains('dark');
-      const themeBtn = document.getElementById('themeToggle');
-      if (themeBtn) {
-        themeBtn.setAttribute('title', isDark ? 'Switch to Light mode' : 'Switch to Dark mode');
-        themeBtn.setAttribute('aria-label', isDark ? 'Switch to Light mode' : 'Switch to Dark mode');
-      }
+    if (syncStatus) syncStatus.textContent = 'Connected';
+    // Update only factory dropdowns silently after data loads
+    updateFactoryDropdowns();
+  } catch (error) {
+    console.error('Could not load dropdown data:', error);
+    if (statusPill) {
+      statusPill.setAttribute('title', 'Manual mode');
+      const txt = document.getElementById('statusPillText');
+      if (txt) txt.textContent = 'Manual mode';
     }
+    if (syncStatus) syncStatus.textContent = 'Manual mode';
+    showToast(`Dropdown data could not be loaded: ${error.message || error}`, true);
+  }
+}
 
-    function initHeaderMorePanel() {
-      const moreBtn = document.getElementById('moreBtn');
-      const panel = document.getElementById('headerMorePanel');
-      const overlay = document.getElementById('headerMoreOverlay');
-      const closeBtn = document.getElementById('headerMoreClose');
-      if (!moreBtn || !panel || !overlay) return;
+async function loadSubmitCount() {
+  const el = document.getElementById('kpiSubmitted');
+  try {
+    const data = await fetchJson(bustCache(`${WEB_APP_URL}?action=submitCount`), {}, READ_REQUEST_TIMEOUT_MS);
+    state.submittedCount = data.count || 0;
+    animateKpiValue(el, `${state.submittedCount}`);
+  } catch (error) {
+    if (el) el.textContent = '-';
+  }
+}
 
-      function openPanel() {
-        panel.classList.add('open');
-        overlay.classList.add('visible');
-        panel.setAttribute('aria-hidden', 'false');
-        moreBtn.setAttribute('aria-expanded', 'true');
-        moreBtn.classList.add('active');
-      }
+function updateFactoryDropdowns() {
+  document.querySelectorAll('select[data-type="factory"]').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Select factory...</option>' +
+      state.factories.map(f => `<option value="${f}"${f === cur ? ' selected' : ''}>${f}</option>`).join('');
+  });
+  document.querySelectorAll('select[data-type="extinguisher"]').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Select type...</option>' +
+      state.extinguisherTypes.map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${t}</option>`).join('');
+  });
+}
 
-      function closePanel() {
-        panel.classList.remove('open');
-        overlay.classList.remove('visible');
-        panel.setAttribute('aria-hidden', 'true');
-        moreBtn.setAttribute('aria-expanded', 'false');
-        moreBtn.classList.remove('active');
-      }
+function fetchWithTimeout(resource, options = {}, ms = READ_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  return fetch(resource, { cache: 'no-store', ...options, signal: controller.signal })
+    .finally(() => clearTimeout(id));
+}
 
-      moreBtn.addEventListener('click', () => {
-        panel.classList.contains('open') ? closePanel() : openPanel();
-      });
-      overlay.addEventListener('click', closePanel);
-      if (closeBtn) closeBtn.addEventListener('click', closePanel);
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
-      });
+// Apps Script /exec GET responses are aggressively cached by the browser
+// (and sometimes by Google's edge), so a URL that worked once can quietly
+// keep returning a stale/cached result on reopen. Appending a changing
+// param forces a fresh request every time.
+function bustCache(url) {
+  return url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+}
 
-      // Close the panel once an action item is chosen (opens its own modal/view)
-      ['pdfBtn', 'rptBtn', 'dailyBtn', 'dailyDashboardBtn'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('click', closePanel);
-      });
+// Fetches JSON from the backend. Throws a clear error (instead of hanging
+// or silently failing) if the request times out, the server errors, or
+// the response isn't valid JSON (e.g. the deployed Apps Script is stale
+// and doGet() fell through to returning the full HTML app page).
+async function fetchJson(url, options = {}, ms = READ_REQUEST_TIMEOUT_MS) {
+  let response;
+  try {
+    response = await fetchWithTimeout(url, options, ms);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Check your connection or the Apps Script deployment.');
     }
+    throw new Error('Network error: ' + (err.message || err));
+  }
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Server returned ${response.status}. ${text.slice(0, 200)}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    // The most common cause: the live deployment doesn't match the code
+    // (e.g. a new "version" wasn't deployed after editing Code.gs), so
+    // doGet() fell through and returned the HTML app page instead of JSON.
+    throw new Error('Server did not return valid data. The Apps Script deployment may be out of date — redeploy a new version (Deploy > Manage deployments > Edit > New version).');
+  }
+}
 
-    function updateGreeting() {
-      const now = new Date();
-      const hour = now.getHours();
-      const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      const greetingEl = document.getElementById('greetingText');
-      const dateEl = document.getElementById('currentDateTime');
-      if (greetingEl) greetingEl.textContent = greeting;
-      if (dateEl) dateEl.textContent = now.toLocaleString('en-IN', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+// The Apps Script /exec URL normally works with fetch(). Some browsers or
+// corporate networks block its cross-origin redirect, though. This GET-only
+// JSONP fallback keeps dropdowns available without changing the form API.
+function fetchJsonp(url, ms = READ_REQUEST_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `fireAuditJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement('script');
+    const cleanup = () => {
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Dropdown request timed out.'));
+    }, ms);
+    window[callbackName] = data => {
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Dropdown request was blocked by the Apps Script deployment.'));
+    };
+    script.src = bustCache(`${url}${url.includes('?') ? '&' : '?'}callback=${encodeURIComponent(callbackName)}`);
+    document.head.appendChild(script);
+  });
+}
+
+async function serverCall(functionName, payload) {
+  if (window.google && google.script && google.script.run) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)[functionName](payload);
+    });
+  }
+
+  if (functionName === 'getDropdownData') {
+    const dropdownUrl = `${WEB_APP_URL}?action=dropdowns`;
+    try {
+      return await fetchJson(bustCache(dropdownUrl), {}, READ_REQUEST_TIMEOUT_MS);
+    } catch (error) {
+      // Only use JSONP for a network/CORS style failure. A valid server
+      // error should still be shown rather than hidden by a second request.
+      if (!/^Network error:|timed out/i.test(String(error && error.message))) throw error;
+      return fetchJsonp(dropdownUrl, READ_REQUEST_TIMEOUT_MS);
     }
+  }
 
-    async function loadDropdowns() {
-      const statusPill = document.getElementById('statusPill');
-      const syncStatus = document.getElementById('syncStatus');
-      try {
-        const data = await serverCall('getDropdownData');
-        if (!data || data.error) throw new Error((data && data.error) || 'Empty dropdown response.');
-        state.factories = data.factories || [];
-        state.extinguisherTypes = data.extinguisherTypes || [];
-        if (statusPill) {
-          statusPill.setAttribute('title', 'Connected');
-          const txt = document.getElementById('statusPillText');
-          if (txt) txt.textContent = 'Connected';
-        }
-        if (syncStatus) syncStatus.textContent = 'Connected';
-        // Update only factory dropdowns silently after data loads
-        updateFactoryDropdowns();
-      } catch (error) {
-        console.error('Could not load dropdown data:', error);
-        if (statusPill) {
-          statusPill.setAttribute('title', 'Manual mode');
-          const txt = document.getElementById('statusPillText');
-          if (txt) txt.textContent = 'Manual mode';
-        }
-        if (syncStatus) syncStatus.textContent = 'Manual mode';
-        showToast(`Dropdown data could not be loaded: ${error.message || error}`, true);
-      }
-    }
+  // Requests carrying photo attachments (main audit form or Daily Task
+  // sign-out) take much longer server-side: each attachment gets
+  // base64-decoded and written to Drive with a sharing call. A single
+  // photo comfortably finishes in 15s, but several photos can easily
+  // take 30-60s+, so those calls get a longer timeout instead of
+  // failing with a false "timed out" error while the backend is still
+  // working.
+  const hasAttachments = Array.isArray(payload && payload.attachments) && payload.attachments.length > 0;
+  const timeoutMs = hasAttachments ? Math.min(120000, 15000 + payload.attachments.length * 20000) : 15000;
 
-    async function loadSubmitCount() {
-      const el = document.getElementById('kpiSubmitted');
-      try {
-        const data = await fetchJson(bustCache(`${WEB_APP_URL}?action=submitCount`), {}, READ_REQUEST_TIMEOUT_MS);
-        state.submittedCount = data.count || 0;
-        animateKpiValue(el, `${state.submittedCount}`);
-      } catch (error) {
-        if (el) el.textContent = '-';
-      }
-    }
+  return fetchJson(WEB_APP_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+  }, timeoutMs);
+}
 
-    function updateFactoryDropdowns() {
-      document.querySelectorAll('select[data-type="factory"]').forEach(sel => {
-        const cur = sel.value;
-        sel.innerHTML = '<option value="">Select factory...</option>' +
-          state.factories.map(f => `<option value="${f}"${f===cur?' selected':''}>${f}</option>`).join('');
-      });
-      document.querySelectorAll('select[data-type="extinguisher"]').forEach(sel => {
-        const cur = sel.value;
-        sel.innerHTML = '<option value="">Select type...</option>' +
-          state.extinguisherTypes.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
-      });
-    }
-
-    function fetchWithTimeout(resource, options = {}, ms = READ_REQUEST_TIMEOUT_MS) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), ms);
-      return fetch(resource, { cache: 'no-store', ...options, signal: controller.signal })
-        .finally(() => clearTimeout(id));
-    }
-
-    // Apps Script /exec GET responses are aggressively cached by the browser
-    // (and sometimes by Google's edge), so a URL that worked once can quietly
-    // keep returning a stale/cached result on reopen. Appending a changing
-    // param forces a fresh request every time.
-    function bustCache(url) {
-      return url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
-    }
-
-    // Fetches JSON from the backend. Throws a clear error (instead of hanging
-    // or silently failing) if the request times out, the server errors, or
-    // the response isn't valid JSON (e.g. the deployed Apps Script is stale
-    // and doGet() fell through to returning the full HTML app page).
-    async function fetchJson(url, options = {}, ms = READ_REQUEST_TIMEOUT_MS) {
-      let response;
-      try {
-        response = await fetchWithTimeout(url, options, ms);
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          throw new Error('Request timed out. Check your connection or the Apps Script deployment.');
-        }
-        throw new Error('Network error: ' + (err.message || err));
-      }
-      const text = await response.text();
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}. ${text.slice(0, 200)}`);
-      }
-      try {
-        return JSON.parse(text);
-      } catch (err) {
-        // The most common cause: the live deployment doesn't match the code
-        // (e.g. a new "version" wasn't deployed after editing Code.gs), so
-        // doGet() fell through and returned the HTML app page instead of JSON.
-        throw new Error('Server did not return valid data. The Apps Script deployment may be out of date — redeploy a new version (Deploy > Manage deployments > Edit > New version).');
-      }
-    }
-
-    // The Apps Script /exec URL normally works with fetch(). Some browsers or
-    // corporate networks block its cross-origin redirect, though. This GET-only
-    // JSONP fallback keeps dropdowns available without changing the form API.
-    function fetchJsonp(url, ms = READ_REQUEST_TIMEOUT_MS) {
-      return new Promise((resolve, reject) => {
-        const callbackName = `fireAuditJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const script = document.createElement('script');
-        const cleanup = () => {
-          clearTimeout(timer);
-          delete window[callbackName];
-          script.remove();
-        };
-        const timer = setTimeout(() => {
-          cleanup();
-          reject(new Error('Dropdown request timed out.'));
-        }, ms);
-        window[callbackName] = data => {
-          cleanup();
-          resolve(data);
-        };
-        script.onerror = () => {
-          cleanup();
-          reject(new Error('Dropdown request was blocked by the Apps Script deployment.'));
-        };
-        script.src = bustCache(`${url}${url.includes('?') ? '&' : '?'}callback=${encodeURIComponent(callbackName)}`);
-        document.head.appendChild(script);
-      });
-    }
-
-    async function serverCall(functionName, payload) {
-      if (window.google && google.script && google.script.run) {
-        return new Promise((resolve, reject) => {
-          google.script.run
-            .withSuccessHandler(resolve)
-            .withFailureHandler(reject)[functionName](payload);
-        });
-      }
-
-      if (functionName === 'getDropdownData') {
-        const dropdownUrl = `${WEB_APP_URL}?action=dropdowns`;
-        try {
-          return await fetchJson(bustCache(dropdownUrl), {}, READ_REQUEST_TIMEOUT_MS);
-        } catch (error) {
-          // Only use JSONP for a network/CORS style failure. A valid server
-          // error should still be shown rather than hidden by a second request.
-          if (!/^Network error:|timed out/i.test(String(error && error.message))) throw error;
-          return fetchJsonp(dropdownUrl, READ_REQUEST_TIMEOUT_MS);
-        }
-      }
-
-      // Requests carrying photo attachments (main audit form or Daily Task
-      // sign-out) take much longer server-side: each attachment gets
-      // base64-decoded and written to Drive with a sharing call. A single
-      // photo comfortably finishes in 15s, but several photos can easily
-      // take 30-60s+, so those calls get a longer timeout instead of
-      // failing with a false "timed out" error while the backend is still
-      // working.
-      const hasAttachments = Array.isArray(payload && payload.attachments) && payload.attachments.length > 0;
-      const timeoutMs = hasAttachments ? Math.min(120000, 15000 + payload.attachments.length * 20000) : 15000;
-
-      return fetchJson(WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-      }, timeoutMs);
-    }
-
-    document.getElementById('attachments').addEventListener('change', event => {
-      const files = [...event.target.files];
-      document.getElementById('fileList').innerHTML = files.map(file => `
+document.getElementById('attachments').addEventListener('change', event => {
+  const files = [...event.target.files];
+  document.getElementById('fileList').innerHTML = files.map(file => `
         <span class="file-chip">${escapeHtml(file.name)} - ${formatBytes(file.size)}</span>
       `).join('');
-      attachProgressHandlers();
+  attachProgressHandlers();
+});
+
+document.getElementById('auditForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+
+  const button = document.getElementById('submitBtn');
+  button.disabled = true;
+  button.textContent = 'Submitting...';
+  try {
+    const payload = collectPayload();
+    payload.attachments = await collectAttachments();
+    const response = await serverCall('submitAudit', payload);
+    if (response && response.ok === false) {
+      throw new Error(response.message || 'Submission failed.');
+    }
+    const result = response && response.result ? response.result : response;
+    const pdfUrl = result && result.pdfUrl ? result.pdfUrl : '';
+    const pdfDownloadUrl = result && result.pdfDownloadUrl ? result.pdfDownloadUrl : pdfUrl;
+    const pdfBase64 = result && result.pdfBase64 ? result.pdfBase64 : '';
+    const pdfName = result && result.pdfName ? result.pdfName : 'fire-safety-audit-report.pdf';
+    showToast(
+      pdfUrl ? 'The audit has been submitted successfully. The PDF report has been generated.' : 'The audit has been submitted successfully.',
+      false,
+      pdfDownloadUrl
+    );
+    state.submittedCount += 1;
+    animateKpiValue(document.getElementById('kpiSubmitted'), `${state.submittedCount}`);
+    if (pdfDownloadUrl) {
+      downloadPdf(pdfDownloadUrl);
+    } else if (pdfBase64) {
+      downloadPdfFromBase64(pdfBase64, pdfName);
+    }
+    form.reset();
+    setDefaultDates();
+    document.getElementById('fileList').innerHTML = '';
+    attachConditionalHandlers();
+    attachProgressHandlers();
+  } catch (error) {
+    showToast(error.message || 'Submit kora jayni. Please try again.', true);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Submit Audit';
+  }
+});
+
+function collectPayload() {
+  const payload = {};
+  const formData = new FormData(document.getElementById('auditForm'));
+  // Collect multi-select values first (they have [] in the name)
+  const multiSelectValues = {};
+  for (const [name, value] of formData.entries()) {
+    if (name === 'attachments') continue;
+    if (name.endsWith('[]')) {
+      const cleanName = name.slice(0, -2); // Remove []
+      if (!multiSelectValues[cleanName]) {
+        multiSelectValues[cleanName] = [];
+      }
+      if (value) multiSelectValues[cleanName].push(value);
+    } else {
+      setNested(payload, name.split('.'), value);
+    }
+  }
+  // Convert multi-select arrays to comma-separated strings
+  for (const [name, values] of Object.entries(multiSelectValues)) {
+    if (values.length > 0) {
+      setNested(payload, name.split('.'), values.join(', '));
+    }
+  }
+  return payload;
+}
+
+function setNested(target, keys, value) {
+  let pointer = target;
+  keys.forEach((key, index) => {
+    if (index === keys.length - 1) {
+      pointer[key] = value;
+      return;
+    }
+    pointer[key] = pointer[key] || {};
+    pointer = pointer[key];
+  });
+}
+
+async function collectAttachments() {
+  const files = [...document.getElementById('attachments').files];
+  return Promise.all(files.map(file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+      data: String(reader.result).split(',')[1]
     });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  })));
+}
 
-    document.getElementById('auditForm').addEventListener('submit', async event => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      if (!form.reportValidity()) return;
+function downloadPdfFromBase64(base64, fileName) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  triggerPdfDownload(url, fileName);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
 
-      const button = document.getElementById('submitBtn');
-      button.disabled = true;
-      button.textContent = 'Submitting...';
-      try {
-        const payload = collectPayload();
-        payload.attachments = await collectAttachments();
-        const response = await serverCall('submitAudit', payload);
-        if (response && response.ok === false) {
-          throw new Error(response.message || 'Submission failed.');
-        }
-        const result = response && response.result ? response.result : response;
-        const pdfUrl = result && result.pdfUrl ? result.pdfUrl : '';
-        const pdfDownloadUrl = result && result.pdfDownloadUrl ? result.pdfDownloadUrl : pdfUrl;
-        const pdfBase64 = result && result.pdfBase64 ? result.pdfBase64 : '';
-        const pdfName = result && result.pdfName ? result.pdfName : 'fire-safety-audit-report.pdf';
-        showToast(
-          pdfUrl ? 'The audit has been submitted successfully. The PDF report has been generated.' : 'The audit has been submitted successfully.',
-          false,
-          pdfDownloadUrl
-        );
-        state.submittedCount += 1;
-        animateKpiValue(document.getElementById('kpiSubmitted'), `${state.submittedCount}`);
-        if (pdfDownloadUrl) {
-          downloadPdf(pdfDownloadUrl);
-        } else if (pdfBase64) {
-          downloadPdfFromBase64(pdfBase64, pdfName);
-        }
-        form.reset();
-        setDefaultDates();
-        document.getElementById('fileList').innerHTML = '';
-        attachConditionalHandlers();
-        attachProgressHandlers();
-      } catch (error) {
-        showToast(error.message || 'Submit kora jayni. Please try again.', true);
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Submit Audit';
+function downloadPdf(url) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_top';
+  link.rel = 'noopener';
+  link.textContent = 'Download PDF';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => {
+    try {
+      window.top.location.href = url;
+    } catch (error) {
+      window.location.href = url;
+    }
+  }, 300);
+}
+
+function triggerPdfDownload(url, fileName) {
+  if (!downloadFrame) {
+    downloadFrame = document.createElement('iframe');
+    downloadFrame.className = 'download-frame';
+    downloadFrame.title = 'PDF download';
+    document.body.appendChild(downloadFrame);
+  }
+  downloadFrame.src = url;
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'fire-safety-audit-report.pdf';
+  link.rel = 'noopener';
+  link.textContent = 'Download PDF';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function setDefaultDates() {
+  document.querySelectorAll('input[type="date"]').forEach(input => {
+    if (!input.value) input.value = today;
+  });
+}
+
+function showToast(message, isError = false, linkUrl = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  if (linkUrl) {
+    const link = document.createElement('a');
+    link.href = linkUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = ' Download PDF';
+    toast.appendChild(link);
+  }
+  toast.classList.toggle('error', isError);
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 4200);
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function initCompanyTicker() {
+  const wrap = document.getElementById('companyTicker');
+  const textEl = document.getElementById('companyTickerText');
+  if (!wrap || !textEl) return;
+
+  const items = [
+    { text: 'Trio Trend Exports Pvt. Ltd.', className: 'ticker-brown' },
+    { text: 'Yamai Fashions Pvt. Ltd.', className: 'ticker-blue' }
+  ];
+
+  let itemIndex = 0;
+  let charIndex = 0;
+  let deleting = false;
+
+  const TYPE_SPEED = 65;
+  const DELETE_SPEED = 35;
+  const HOLD_AFTER_TYPE = 1600;
+  const HOLD_AFTER_DELETE = 400;
+
+  function tick() {
+    const current = items[itemIndex];
+    wrap.classList.remove('ticker-brown', 'ticker-blue');
+    wrap.classList.add(current.className);
+
+    if (!deleting) {
+      charIndex++;
+      textEl.textContent = current.text.slice(0, charIndex);
+      if (charIndex >= current.text.length) {
+        deleting = true;
+        setTimeout(tick, HOLD_AFTER_TYPE);
+        return;
       }
-    });
-
-    function collectPayload() {
-      const payload = {};
-      const formData = new FormData(document.getElementById('auditForm'));
-      // Collect multi-select values first (they have [] in the name)
-      const multiSelectValues = {};
-      for (const [name, value] of formData.entries()) {
-        if (name === 'attachments') continue;
-        if (name.endsWith('[]')) {
-          const cleanName = name.slice(0, -2); // Remove []
-          if (!multiSelectValues[cleanName]) {
-            multiSelectValues[cleanName] = [];
-          }
-          if (value) multiSelectValues[cleanName].push(value);
-        } else {
-          setNested(payload, name.split('.'), value);
-        }
+      setTimeout(tick, TYPE_SPEED);
+    } else {
+      charIndex--;
+      textEl.textContent = current.text.slice(0, charIndex);
+      if (charIndex <= 0) {
+        deleting = false;
+        itemIndex = (itemIndex + 1) % items.length;
+        setTimeout(tick, HOLD_AFTER_DELETE);
+        return;
       }
-      // Convert multi-select arrays to comma-separated strings
-      for (const [name, values] of Object.entries(multiSelectValues)) {
-        if (values.length > 0) {
-          setNested(payload, name.split('.'), values.join(', '));
-        }
-      }
-      return payload;
+      setTimeout(tick, DELETE_SPEED);
     }
+  }
 
-    function setNested(target, keys, value) {
-      let pointer = target;
-      keys.forEach((key, index) => {
-        if (index === keys.length - 1) {
-          pointer[key] = value;
-          return;
-        }
-        pointer[key] = pointer[key] || {};
-        pointer = pointer[key];
-      });
-    }
+  tick();
+}
 
-    async function collectAttachments() {
-      const files = [...document.getElementById('attachments').files];
-      return Promise.all(files.map(file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          data: String(reader.result).split(',')[1]
-        });
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      })));
-    }
+// Hides the full-screen "Loading..." overlay shown at app open.
+function hideAppLoader() {
+  const loader = document.getElementById('appLoader');
+  if (!loader) return;
+  loader.classList.add('hidden');
+  setTimeout(() => loader.remove(), 400);
+}
 
-    function downloadPdfFromBase64(base64, fileName) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-      }
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      triggerPdfDownload(url, fileName);
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    }
-
-    function downloadPdf(url) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_top';
-      link.rel = 'noopener';
-      link.textContent = 'Download PDF';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(() => {
-        try {
-          window.top.location.href = url;
-        } catch (error) {
-          window.location.href = url;
-        }
-      }, 300);
-    }
-
-    function triggerPdfDownload(url, fileName) {
-      if (!downloadFrame) {
-        downloadFrame = document.createElement('iframe');
-        downloadFrame.className = 'download-frame';
-        downloadFrame.title = 'PDF download';
-        document.body.appendChild(downloadFrame);
-      }
-      downloadFrame.src = url;
-
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName || 'fire-safety-audit-report.pdf';
-      link.rel = 'noopener';
-      link.textContent = 'Download PDF';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-
-    function setDefaultDates() {
-      document.querySelectorAll('input[type="date"]').forEach(input => {
-        if (!input.value) input.value = today;
-      });
-    }
-
-    function showToast(message, isError = false, linkUrl = '') {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      if (linkUrl) {
-        const link = document.createElement('a');
-        link.href = linkUrl;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = ' Download PDF';
-        toast.appendChild(link);
-      }
-      toast.classList.toggle('error', isError);
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 4200);
-    }
-
-    function formatBytes(bytes) {
-      if (!bytes) return '0 B';
-      const units = ['B', 'KB', 'MB', 'GB'];
-      const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-      return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
-    }
-
-    function formatLocalDate(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    function escapeHtml(value) {
-      return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function initCompanyTicker() {
-      const wrap = document.getElementById('companyTicker');
-      const textEl = document.getElementById('companyTickerText');
-      if (!wrap || !textEl) return;
-
-      const items = [
-        { text: 'Trio Trend Exports Pvt. Ltd.', className: 'ticker-brown' },
-        { text: 'Yamai Fashions Pvt. Ltd.', className: 'ticker-blue' }
-      ];
-
-      let itemIndex = 0;
-      let charIndex = 0;
-      let deleting = false;
-
-      const TYPE_SPEED = 65;
-      const DELETE_SPEED = 35;
-      const HOLD_AFTER_TYPE = 1600;
-      const HOLD_AFTER_DELETE = 400;
-
-      function tick() {
-        const current = items[itemIndex];
-        wrap.classList.remove('ticker-brown', 'ticker-blue');
-        wrap.classList.add(current.className);
-
-        if (!deleting) {
-          charIndex++;
-          textEl.textContent = current.text.slice(0, charIndex);
-          if (charIndex >= current.text.length) {
-            deleting = true;
-            setTimeout(tick, HOLD_AFTER_TYPE);
-            return;
-          }
-          setTimeout(tick, TYPE_SPEED);
-        } else {
-          charIndex--;
-          textEl.textContent = current.text.slice(0, charIndex);
-          if (charIndex <= 0) {
-            deleting = false;
-            itemIndex = (itemIndex + 1) % items.length;
-            setTimeout(tick, HOLD_AFTER_DELETE);
-            return;
-          }
-          setTimeout(tick, DELETE_SPEED);
-        }
-      }
-
-      tick();
-    }
-
-    // Hides the full-screen "Loading..." overlay shown at app open.
-    function hideAppLoader() {
-      const loader = document.getElementById('appLoader');
-      if (!loader) return;
-      loader.classList.add('hidden');
-      setTimeout(() => loader.remove(), 400);
-    }
-
-    initTheme();
-    initHeaderMorePanel();
-    updateGreeting();
-    setInterval(updateGreeting, 30000);
-    initCompanyTicker();
-    // Render form immediately — don't wait for API
-    render();
-    // Load dropdowns in background while the "Loading..." overlay is shown.
-    // The overlay hides as soon as dropdown data arrives (success or failure
-    // — loadDropdowns() catches its own errors), or after 4s max so the app
-    // never feels stuck if the network is slow.
-    const dropdownsReady = loadDropdowns();
-    const loaderSafetyTimeout = new Promise(resolve => setTimeout(resolve, 4000));
-    Promise.race([dropdownsReady, loaderSafetyTimeout]).then(hideAppLoader);
-    loadSubmitCount();
-    document
+initTheme();
+initHeaderMorePanel();
+updateGreeting();
+setInterval(updateGreeting, 30000);
+initCompanyTicker();
+// Render form immediately — don't wait for API
+render();
+// Load dropdowns in background while the "Loading..." overlay is shown.
+// The overlay hides as soon as dropdown data arrives (success or failure
+// — loadDropdowns() catches its own errors), or after 4s max so the app
+// never feels stuck if the network is slow.
+const dropdownsReady = loadDropdowns();
+const loaderSafetyTimeout = new Promise(resolve => setTimeout(resolve, 4000));
+Promise.race([dropdownsReady, loaderSafetyTimeout]).then(hideAppLoader);
+loadSubmitCount();
+document
   .getElementById('pdfBtn')
   .addEventListener('click', loadRecentPdfs);
 
-    document
+document
   .getElementById('dailyBtn')
   .addEventListener('click', openDailyModal);
 
-    document
+document
   .getElementById('dailyDashboardBtn')
   .addEventListener('click', openDailyTaskDashboard);
 
-function closePdfModal(){
+const amcBtn = document.getElementById('amcBtn');
+if (amcBtn) {
+  amcBtn.addEventListener('click', openAmcModal);
+}
+
+// Live-suggest the "Next Due Date" as soon as Last Service Date /
+// Frequency are filled in, mirroring the same auto-calculation the
+// backend does on save (amcDeriveNextDueDate in Code.gs) — so the user
+// sees the servicing status update immediately, before even saving.
+const amcLastServiceEl = document.getElementById('amcFormLastService');
+const amcFrequencyEl = document.getElementById('amcFormFrequency');
+if (amcLastServiceEl && amcFrequencyEl) {
+  const suggestAmcNextDue = () => {
+    const nextDueEl = document.getElementById('amcFormNextDue');
+    if (!nextDueEl || nextDueEl.value) return; // never overwrite a manual value
+    const suggestion = amcCalcNextDueDate(amcLastServiceEl.value, amcFrequencyEl.value);
+    if (suggestion) nextDueEl.value = suggestion;
+  };
+  amcLastServiceEl.addEventListener('change', suggestAmcNextDue);
+  amcFrequencyEl.addEventListener('change', suggestAmcNextDue);
+}
+
+function openAmcModal() {
+  const modal = document.getElementById('amcModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    closeAmcCategoryDetail();
+    loadAmcData();
+  }
+}
+
+function closeAmcModal() {
+  const modal = document.getElementById('amcModal');
+  if (modal) modal.classList.add('hidden');
+  closeAmcCategoryDetail();
+  closeAmcForm();
+}
+
+function closePdfModal() {
   document
     .getElementById('pdfModal')
     .classList.add('hidden');
@@ -923,7 +980,7 @@ const PDF_PREFETCH_MAX_AGE_MS = 60000;
 preloadPdfData();
 
 function preloadPdfData() {
-  fetchPdfsFromBackend().catch(() => {});
+  fetchPdfsFromBackend().catch(() => { });
 }
 
 function fetchPdfsFromBackend(force = false) {
@@ -954,7 +1011,7 @@ function fetchPdfsFromBackend(force = false) {
   return pdfDataPromise;
 }
 
-async function loadRecentPdfs(){
+async function loadRecentPdfs() {
 
   document
     .getElementById('pdfModal')
@@ -968,14 +1025,14 @@ async function loadRecentPdfs(){
     list.innerHTML = 'Loading...';
   }
 
-  try{
+  try {
 
     allPdfs = await fetchPdfsFromBackend();
 
     renderPdfList(allPdfs);
     stampPdfUpdated();
 
-  }catch(err){
+  } catch (err) {
 
     list.innerHTML = `<div class="pdf-empty"><p>Failed to load PDFs: ${escapeHtml(err.message || 'Unknown error')}</p></div>`;
 
@@ -993,7 +1050,7 @@ async function silentPdfRefresh() {
   try {
     allPdfs = await fetchPdfsFromBackend(true);
     filterPdfList();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // Manual (or auto-triggered) refresh with a spin animation on the refresh icon
@@ -1016,9 +1073,9 @@ function stampPdfUpdated() {
   el.textContent = `Updated ${hh}:${mm}:${ss}`;
 }
 
-function renderPdfList(data){
+function renderPdfList(data) {
   const list = document.getElementById('pdfList');
-  if(!data.length){
+  if (!data.length) {
     list.innerHTML = '<div class="pdf-empty"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>No PDFs found</p></div>';
     return;
   }
@@ -1052,7 +1109,7 @@ function renderPdfList(data){
   `).join('');
 }
 
-function filterPdfList(){
+function filterPdfList() {
 
   const search = document
     .getElementById('pdfSearch')
@@ -1067,7 +1124,7 @@ function filterPdfList(){
 
   let filtered = [...allPdfs];
 
-  if(search){
+  if (search) {
 
     filtered = filtered.filter(pdf =>
       pdf.name.toLowerCase().includes(search) ||
@@ -1075,14 +1132,14 @@ function filterPdfList(){
     );
   }
 
-  if(fromDate){
+  if (fromDate) {
 
     filtered = filtered.filter(pdf =>
       new Date(pdf.timestamp) >= new Date(fromDate)
     );
   }
 
-  if(toDate){
+  if (toDate) {
 
     filtered = filtered.filter(pdf =>
       new Date(pdf.timestamp) <= new Date(toDate + 'T23:59:59')
@@ -1092,61 +1149,61 @@ function filterPdfList(){
   renderPdfList(filtered);
 }
 
-function formatPdfOnlyDate(date){
+function formatPdfOnlyDate(date) {
 
   return new Date(date).toLocaleDateString(
     'en-GB',
     {
-      day:'2-digit',
-      month:'short',
-      year:'numeric'
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
     }
   );
 }
 
-function formatPdfOnlyTime(date){
+function formatPdfOnlyTime(date) {
 
   return new Date(date).toLocaleTimeString(
     'en-US',
     {
-      hour:'2-digit',
-      minute:'2-digit'
+      hour: '2-digit',
+      minute: '2-digit'
     }
   );
 }
 
-function promptDeletePdf(pdfId){
+function promptDeletePdf(pdfId) {
   const password = prompt('Enter password to delete this PDF:');
-  
-  if(password === null){
+
+  if (password === null) {
     return;
   }
-  
-  if(password === 'Trio@2026'){
+
+  if (password === 'Trio@2026') {
     deletePdf(pdfId);
   } else {
     showToast('Incorrect password. PDF not deleted.', true);
   }
 }
 
-async function deletePdf(pdfId){
-  try{
+async function deletePdf(pdfId) {
+  try {
     const response = await fetch(WEB_APP_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'deletePdf', pdfId: pdfId }),
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     });
-    
+
     const result = await response.json();
-    
-    if(result.ok){
+
+    if (result.ok) {
       showToast('PDF deleted successfully.', false);
       allPdfs = allPdfs.filter(pdf => pdf.id !== pdfId);
       renderPdfList(allPdfs);
     } else {
       showToast(result.message || 'Failed to delete PDF.', true);
     }
-  } catch(err){
+  } catch (err) {
     showToast('Error deleting PDF: ' + err.message, true);
   }
 }
@@ -1201,7 +1258,7 @@ async function silentRptRefresh() {
     allRptData = Array.isArray(data) ? data : [];
     buildRptMonthFilter();
     applyRptFilter(false);
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // Manual refresh only now — no background timer. Click the refresh button
@@ -1234,7 +1291,7 @@ function preloadRptData() {
   // Start while the main form is becoming interactive. Opening the report
   // reuses this promise or its completed result instead of starting another
   // Google Sheets request.
-  fetchRptFromBackend().catch(() => {});
+  fetchRptFromBackend().catch(() => { });
 }
 
 function fetchRptFromBackend(force = false) {
@@ -1282,9 +1339,9 @@ function buildRptMonthFilter() {
     if (!r.isoDate) return;
     const d = new Date(r.isoDate);
     if (isNaN(d)) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
     if (!months.has(key)) {
-      const lbl = d.toLocaleString('default',{month:'long'}) + ' ' + d.getFullYear();
+      const lbl = d.toLocaleString('default', { month: 'long' }) + ' ' + d.getFullYear();
       months.set(key, lbl);
     }
   });
@@ -1300,13 +1357,13 @@ function buildRptMonthFilter() {
 }
 
 function initRptDefaults() {
-  const now   = new Date();
+  const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   document.getElementById('rptFromDate').value = formatLocalDate(first);
-  document.getElementById('rptToDate').value   = formatLocalDate(last);
+  document.getElementById('rptToDate').value = formatLocalDate(last);
   // Pre-select current month if available
-  const curKey = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
+  const curKey = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
   const sel = document.getElementById('rptMonth');
   if ([...sel.options].some(o => o.value === curKey)) sel.value = curKey;
   else sel.value = '';
@@ -1317,17 +1374,17 @@ function resetRptFilter() { initRptDefaults(); applyRptFilter(); }
 
 function applyRptFilter(resetPage = true) {
   const status = document.getElementById('rptStatus').value;
-  const from   = document.getElementById('rptFromDate').value;
-  const to     = document.getElementById('rptToDate').value;
-  const month  = document.getElementById('rptMonth').value; // "yyyy-M" or ""
+  const from = document.getElementById('rptFromDate').value;
+  const to = document.getElementById('rptToDate').value;
+  const month = document.getElementById('rptMonth').value; // "yyyy-M" or ""
 
   filteredRptData = allRptData.filter(row => {
     if (status === 'Complete' && row.status !== 'Complete') return false;
-    if (status === 'Pending'  && row.status === 'Complete') return false;
+    if (status === 'Pending' && row.status === 'Complete') return false;
     const d = row.isoDate ? new Date(row.isoDate) : null;
     if (d && !isNaN(d)) {
       if (from && d < new Date(from)) return false;
-      if (to   && d > new Date(to + 'T23:59:59')) return false;
+      if (to && d > new Date(to + 'T23:59:59')) return false;
       if (month !== '') {
         const [yr, mo] = month.split('-').map(Number);
         if (d.getFullYear() !== yr || d.getMonth() !== mo) return false;
@@ -1342,14 +1399,14 @@ function applyRptFilter(resetPage = true) {
 }
 
 function renderRptKpis() {
-  const total    = filteredRptData.length;
+  const total = filteredRptData.length;
   const complete = filteredRptData.filter(r => r.status === 'Complete').length;
-  const pending  = total - complete;   // Pending = Total - Complete
+  const pending = total - complete;   // Pending = Total - Complete
   const pct = total > 0 ? Math.round((pending / total) * 100) + '%' : '-';
-  document.getElementById('rptKpiTotal').textContent    = total;
-  document.getElementById('rptKpiPending').textContent  = pending;
+  document.getElementById('rptKpiTotal').textContent = total;
+  document.getElementById('rptKpiPending').textContent = pending;
   document.getElementById('rptKpiComplete').textContent = complete;
-  document.getElementById('rptKpiElapsed').textContent  = pct;
+  document.getElementById('rptKpiElapsed').textContent = pct;
 }
 
 function sortRpt(col) {
@@ -1358,21 +1415,21 @@ function sortRpt(col) {
   document.querySelectorAll('.rpt-table thead th').forEach(th => {
     th.classList.toggle('sorted', th.dataset.col === col);
     const ic = th.querySelector('.sicon');
-    if (ic) ic.textContent = th.dataset.col === col ? (rptSortDir===1?'\u2191':'\u2193') : '\u2195';
+    if (ic) ic.textContent = th.dataset.col === col ? (rptSortDir === 1 ? '\u2191' : '\u2193') : '\u2195';
   });
   renderRptTable();
 }
 
 function renderRptTable() {
-  const sorted = [...filteredRptData].sort((a,b) => {
-    const av = a[rptSortCol]||'', bv = b[rptSortCol]||'';
+  const sorted = [...filteredRptData].sort((a, b) => {
+    const av = a[rptSortCol] || '', bv = b[rptSortCol] || '';
     return av < bv ? -rptSortDir : av > bv ? rptSortDir : 0;
   });
-  const total = sorted.length, pages = Math.ceil(total/RPT_PAGE_SIZE)||1;
-  rptPage = Math.min(Math.max(rptPage,1), pages);
-  const start = (rptPage-1)*RPT_PAGE_SIZE;
-  const page  = sorted.slice(start, start+RPT_PAGE_SIZE);
-  const today = new Date(); today.setHours(0,0,0,0);
+  const total = sorted.length, pages = Math.ceil(total / RPT_PAGE_SIZE) || 1;
+  rptPage = Math.min(Math.max(rptPage, 1), pages);
+  const start = (rptPage - 1) * RPT_PAGE_SIZE;
+  const page = sorted.slice(start, start + RPT_PAGE_SIZE);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const tbody = document.getElementById('rptTableBody');
 
   if (!page.length) {
@@ -1380,40 +1437,40 @@ function renderRptTable() {
   } else {
     tbody.innerHTML = page.map((row, i) => {
       const isComplete = row.status === 'Complete';
-      const isPending  = !isComplete;
+      const isPending = !isComplete;
 
       let badge;
       if (isPending && row.isoDate) {
-        const d = new Date(row.isoDate); d.setHours(0,0,0,0);
-        const days = Math.max(0, Math.round((today-d)/86400000));
-        const lbl = days===0 ? 'Pending, audited today.'
-          : days===1 ? 'Pending, 1 day has elapsed since the audit date.'
-          : `Pending, ${days} days have elapsed since the audit date.`;
+        const d = new Date(row.isoDate); d.setHours(0, 0, 0, 0);
+        const days = Math.max(0, Math.round((today - d) / 86400000));
+        const lbl = days === 0 ? 'Pending, audited today.'
+          : days === 1 ? 'Pending, 1 day has elapsed since the audit date.'
+            : `Pending, ${days} days have elapsed since the audit date.`;
         badge = `<span class="rpt-badge rpt-badge-pending">${escapeHtml(lbl)}</span>`;
       } else if (isComplete) {
         badge = `<span class="rpt-badge rpt-badge-complete">Complete</span>`;
       } else {
-        badge = `<span class="rpt-badge rpt-badge-default">${escapeHtml(row.status||'-')}</span>`;
+        badge = `<span class="rpt-badge rpt-badge-default">${escapeHtml(row.status || '-')}</span>`;
       }
 
       const link = row.fileLink
-        ? `<a class="rpt-file-link" href="${escapeHtml(row.fileLink)}" target="_blank" rel="noopener">${escapeHtml(row.fileLink.length>28?row.fileLink.slice(0,26)+'\u2026':row.fileLink)}</a>`
+        ? `<a class="rpt-file-link" href="${escapeHtml(row.fileLink)}" target="_blank" rel="noopener">${escapeHtml(row.fileLink.length > 28 ? row.fileLink.slice(0, 26) + '\u2026' : row.fileLink)}</a>`
         : '-';
 
       // Action checkbox: checked = isDone (col G has DONE), only Pending rows are clickable
-      const cbChecked  = row.isDone ? ' checked' : '';
+      const cbChecked = row.isDone ? ' checked' : '';
       const cbDisabled = isComplete ? ' disabled' : '';
-      const cbClick    = isComplete ? '' : ` onclick="markRptDone(this,${row.rowIndex})"`;
+      const cbClick = isComplete ? '' : ` onclick="markRptDone(this,${row.rowIndex})"`;
 
       const actualDate = escapeHtml(row.actualDate || '-');
 
       return `<tr>
-        <td>${start+i+1}</td>
-        <td>${escapeHtml(row.auditDate||'-')}</td>
-        <td>${escapeHtml(row.unit||'-')}</td>
-        <td>${escapeHtml(row.location||'-')}</td>
+        <td>${start + i + 1}</td>
+        <td>${escapeHtml(row.auditDate || '-')}</td>
+        <td>${escapeHtml(row.unit || '-')}</td>
+        <td>${escapeHtml(row.location || '-')}</td>
         <td>${link}</td>
-        <td>${escapeHtml(row.remarks||'-')}</td>
+        <td>${escapeHtml(row.remarks || '-')}</td>
         <td>${badge}</td>
         <td class="rpt-cb-wrap"><input type="checkbox" class="rpt-cb"${cbChecked}${cbDisabled}${cbClick}></td>
         <td>${actualDate}</td>
@@ -1421,19 +1478,19 @@ function renderRptTable() {
     }).join('');
   }
 
-  const end = Math.min(start+RPT_PAGE_SIZE, total);
+  const end = Math.min(start + RPT_PAGE_SIZE, total);
   document.getElementById('rptShowing').textContent =
-    total ? `Showing ${start+1} to ${end} of ${total} entries` : 'No entries';
+    total ? `Showing ${start + 1} to ${end} of ${total} entries` : 'No entries';
 
-  let ph = `<button class="rpt-page-btn" onclick="rptGoPage(${rptPage-1})"${rptPage===1?' disabled':''}>\u2039</button>`;
-  for (let p=1; p<=pages; p++)
-    ph += `<button class="rpt-page-btn${p===rptPage?' active':''}" onclick="rptGoPage(${p})">${p}</button>`;
-  ph += `<button class="rpt-page-btn" onclick="rptGoPage(${rptPage+1})"${rptPage===pages?' disabled':''}>\u203a</button>`;
+  let ph = `<button class="rpt-page-btn" onclick="rptGoPage(${rptPage - 1})"${rptPage === 1 ? ' disabled' : ''}>\u2039</button>`;
+  for (let p = 1; p <= pages; p++)
+    ph += `<button class="rpt-page-btn${p === rptPage ? ' active' : ''}" onclick="rptGoPage(${p})">${p}</button>`;
+  ph += `<button class="rpt-page-btn" onclick="rptGoPage(${rptPage + 1})"${rptPage === pages ? ' disabled' : ''}>\u203a</button>`;
   document.getElementById('rptPages').innerHTML = ph;
 }
 
 function rptGoPage(p) {
-  rptPage = Math.max(1, Math.min(p, Math.ceil(filteredRptData.length/RPT_PAGE_SIZE)||1));
+  rptPage = Math.max(1, Math.min(p, Math.ceil(filteredRptData.length / RPT_PAGE_SIZE) || 1));
   renderRptTable();
 }
 
@@ -1447,8 +1504,8 @@ function markRptDone(cb, rowIndex) {
       cb.style.opacity = '1';
       // Stamp today's date optimistically in the Actual Date cell
       const ts = new Date();
-      const dd = String(ts.getDate()).padStart(2,'0');
-      const mm = String(ts.getMonth()+1).padStart(2,'0');
+      const dd = String(ts.getDate()).padStart(2, '0');
+      const mm = String(ts.getMonth() + 1).padStart(2, '0');
       const yy = String(ts.getFullYear()).slice(-2);
       const tsStr = `${dd}-${mm}-${yy}`;
       const tr = cb.closest('tr');
@@ -1480,16 +1537,16 @@ function markRptDone(cb, rowIndex) {
 
 function exportRptExcel() {
   if (!filteredRptData.length) { showToast('No data to export.', true); return; }
-  const hdr = ['#','Audit Date','Unit','Location','File Link','Remarks','STATUS','Actual Date'];
-  const rows = filteredRptData.map((r,i) => [
-    i+1, r.auditDate||'', r.unit||'', r.location||'',
-    r.fileLink||'', r.remarks||'', r.status||'', r.actualDate||''
+  const hdr = ['#', 'Audit Date', 'Unit', 'Location', 'File Link', 'Remarks', 'STATUS', 'Actual Date'];
+  const rows = filteredRptData.map((r, i) => [
+    i + 1, r.auditDate || '', r.unit || '', r.location || '',
+    r.fileLink || '', r.remarks || '', r.status || '', r.actualDate || ''
   ]);
-  const csv = [hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a'); a.href=url; a.download='Audit_Status_Report.csv'; a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  const csv = [hdr, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'Audit_Status_Report.csv'; a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
   showToast('Exported! Open the CSV file in Excel.', false);
 }
 // ─── DAILY TASK ─────────────────────────────────────────────────────────
@@ -1704,7 +1761,7 @@ function formatElapsed(ms) {
 }
 
 function formatDailyTimestamp(date) {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dd = date.getDate();
   const mo = months[date.getMonth()];
   const yy = date.getFullYear();
@@ -1829,7 +1886,7 @@ const DAILY_TASK_PREFETCH_MAX_AGE_MS = 60000;
 preloadDailyTaskData();
 
 function preloadDailyTaskData() {
-  fetchDailyTaskDataFromBackend().catch(() => {});
+  fetchDailyTaskDataFromBackend().catch(() => { });
 }
 
 function fetchDailyTaskDataFromBackend(force = false) {
@@ -1998,7 +2055,7 @@ function renderDailyReportTable() {
     const p = (row.priority || '').toLowerCase();
     const attachmentsCell = (row.attachments && row.attachments.length)
       ? row.attachments.map((url, i) =>
-          `<a href="${encodeURI(url)}" target="_blank" rel="noopener" class="daily-rpt-attach-link" title="Open attachment ${i + 1}">
+        `<a href="${encodeURI(url)}" target="_blank" rel="noopener" class="daily-rpt-attach-link" title="Open attachment ${i + 1}">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
           </a>`).join('')
       : '<span class="daily-rpt-attach-empty">-</span>';
@@ -2107,7 +2164,7 @@ function rptStatusBadge(row, today) {
     const days = Math.max(0, Math.round((today - d) / 86400000));
     const lbl = days === 0 ? 'Pending, audited today.'
       : days === 1 ? 'Pending, 1 day has elapsed since the audit date.'
-      : `Pending, ${days} days have elapsed since the audit date.`;
+        : `Pending, ${days} days have elapsed since the audit date.`;
     return `<span class="rpt-badge rpt-badge-pending">${escapeHtml(lbl)}</span>`;
   } else if (isComplete) {
     return `<span class="rpt-badge rpt-badge-complete">Complete</span>`;
@@ -2486,12 +2543,12 @@ async function openMailCompose() {
   closeMailConfirm();
 
   // ── Gather current observation data ──────────────────────────────────
-  const unit            = document.getElementById('dailyUnit')?.value        || '';
-  const floor           = document.getElementById('dailyFloor')?.value       || '';
+  const unit = document.getElementById('dailyUnit')?.value || '';
+  const floor = document.getElementById('dailyFloor')?.value || '';
   const observationArea = document.getElementById('dailyObservation')?.value?.trim() || '';
-  const priority        = document.getElementById('dailyPriority')?.value    || '';
-  const now             = new Date();
-  const dateStr         = formatDailyTimestamp(now);
+  const priority = document.getElementById('dailyPriority')?.value || '';
+  const now = new Date();
+  const dateStr = formatDailyTimestamp(now);
 
   // ── Auto Subject ──────────────────────────────────────────────────────
   const dateForSubject = now.toLocaleDateString('en-IN', {
@@ -2502,9 +2559,9 @@ async function openMailCompose() {
 
   // ── Priority badge (fully inline-styled — must survive being emailed) ─
   const priorityColors = {
-    High:   { bg: '#fde7e9', fg: '#a4262c', dot: '#d13438' },
+    High: { bg: '#fde7e9', fg: '#a4262c', dot: '#d13438' },
     Medium: { bg: '#fff4ce', fg: '#7a5c00', dot: '#ffb900' },
-    Low:    { bg: '#dff6dd', fg: '#107c10', dot: '#107c10' }
+    Low: { bg: '#dff6dd', fg: '#107c10', dot: '#107c10' }
   };
   const pc = priorityColors[priority] || { bg: '#f3f2f1', fg: '#605e5c', dot: '#a19f9d' };
   const priorityHtml = priority
@@ -2607,7 +2664,7 @@ async function openMailCompose() {
       "Please find below the fire safety observation recorded during today's floor round.",
       '',
       `Date & Time    : ${dateStr}`,
-      `Unit / Factory : ${unit  || '—'}`,
+      `Unit / Factory : ${unit || '—'}`,
       `Floor          : ${floor || '—'}`,
       `Priority       : ${priority || '—'}`,
       '',
@@ -2709,3 +2766,2813 @@ async function sendObservationMail() {
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AMC (ANNUAL MAINTENANCE CONTRACT) FRONTEND LOGIC
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allAmcData = [];
+let currentAmcCategory = '';
+let amcFilesSelected = [];
+let amcDataPromise = null;
+let amcDataCache = null;
+let amcDataCachedAt = 0;
+const AMC_PREFETCH_MAX_AGE_MS = 60000;
+
+preloadAmcData();
+
+function preloadAmcData() {
+  fetchAmcDataFromBackend().catch(() => { });
+}
+
+function fetchAmcDataFromBackend(force = false) {
+  const cacheIsFresh = Array.isArray(amcDataCache) && (Date.now() - amcDataCachedAt) < AMC_PREFETCH_MAX_AGE_MS;
+  if (!force && cacheIsFresh) {
+    return Promise.resolve(amcDataCache);
+  }
+  if (!force && amcDataPromise) {
+    return amcDataPromise;
+  }
+
+  let request;
+  if (window.google && google.script && google.script.run) {
+    request = new Promise((res, rej) =>
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcData());
+  } else {
+    request = fetchJson(bustCache(`${WEB_APP_URL}?action=amcData`), {}, READ_REQUEST_TIMEOUT_MS);
+  }
+
+  amcDataPromise = request
+    .then(data => {
+      amcDataCache = Array.isArray(data) ? data : [];
+      amcDataCachedAt = Date.now();
+      return amcDataCache;
+    })
+    .catch(error => {
+      amcDataPromise = null;
+      throw error;
+    });
+
+  return amcDataPromise;
+}
+
+async function loadAmcData(force = false) {
+  try {
+    const data = await fetchAmcDataFromBackend(force);
+    allAmcData = Array.isArray(data) ? data : [];
+    updateAmcOverviewBadges();
+    updateAmcAlertBanner();
+    if (currentAmcCategory) {
+      renderAmcTable();
+    }
+  } catch (err) {
+    console.error('Error loading AMC data:', err);
+    showToast(`Could not load AMC records: ${err.message || err}`, true);
+  }
+}
+
+function refreshAmcData() {
+  loadAmcData(true).then(() => showToast('AMC records refreshed.'));
+}
+
+// ── AMC date display helper ──────────────────────────────────────────────────
+// Converts a yyyy-mm-dd string from the backend to dd-mm-yyyy for display.
+// Returns '—' for falsy input so callers don't need to guard themselves.
+function fmtAMCDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = String(dateStr).split('-');
+  if (!y || !m || !d) return dateStr; // fallback if format unexpected
+  return `${d}-${m}-${y}`;
+}
+
+// Mirrors AMC_FREQUENCY_DAYS in Code.gs — used only for the live client-side
+// suggestion; the backend recalculates authoritatively on save either way.
+const AMC_FREQUENCY_DAYS_JS = { 'Monthly': 30, 'Quarterly': 91, 'Half-Yearly': 182, 'Annual': 365 };
+
+function amcCalcNextDueDate(fromDateStr, frequency) {
+  const intervalDays = AMC_FREQUENCY_DAYS_JS[frequency];
+  if (!intervalDays || !fromDateStr) return '';
+  const d = new Date(fromDateStr);
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + intervalDays);
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Live status preview (mirrors amcContractStatus / amcServiceStatus /
+// amcCombineStatus in Code.gs) — Status is NOT a field anyone fills in
+// anymore; it's always derived from the dates, so the form just shows a
+// read-only preview that updates as the person types.
+const AMC_CONTRACT_WARN_DAYS_JS = 30;
+const AMC_SERVICE_WARN_DAYS_JS = 7;
+
+function amcDaysFromTodayJs(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const t = new Date(today);
+  return Math.round((d.getTime() - t.getTime()) / 86400000);
+}
+
+function amcComputeStatusPreview({ expiryDate, nextDueDate, lastServiceDate, startDate, frequency }) {
+  const effectiveNextDue = nextDueDate || amcCalcNextDueDate(lastServiceDate || startDate, frequency);
+
+  let contractStatus = 'Active';
+  let contractDays = null;
+  if (expiryDate) {
+    contractDays = amcDaysFromTodayJs(expiryDate);
+    if (contractDays < 0) contractStatus = 'Expired';
+    else if (contractDays <= AMC_CONTRACT_WARN_DAYS_JS) contractStatus = 'Expiring Soon';
+  }
+
+  let serviceStatus = 'Not Scheduled';
+  let serviceDays = null;
+  if (frequency !== 'On-Call' && effectiveNextDue) {
+    serviceDays = amcDaysFromTodayJs(effectiveNextDue);
+    if (serviceDays < 0) serviceStatus = 'Overdue';
+    else if (serviceDays <= AMC_SERVICE_WARN_DAYS_JS) serviceStatus = 'Due Soon';
+    else serviceStatus = 'On Track';
+  }
+
+  let overall = 'Active';
+  let detail = expiryDate
+    ? 'Contract and servicing are both on track.'
+    : 'Add a Contract Expiry Date to see a live status.';
+
+  if (contractStatus === 'Expired') { overall = 'Expired'; detail = `Contract expired ${Math.abs(contractDays)}d ago.`; }
+  else if (serviceStatus === 'Overdue') { overall = 'Service Overdue'; detail = `Service visit overdue by ${Math.abs(serviceDays)}d.`; }
+  else if (contractStatus === 'Expiring Soon') { overall = 'Expiring Soon'; detail = `Contract expires in ${contractDays}d.`; }
+  else if (serviceStatus === 'Due Soon') { overall = 'Service Due Soon'; detail = `Next service due in ${serviceDays}d.`; }
+
+  return { overall, detail, effectiveNextDue };
+}
+
+function updateAmcStatusPreview() {
+  const el = document.getElementById('amcStatusPreview');
+  if (!el) return;
+
+  const expiryDate = document.getElementById('amcFormExpiryDate')?.value || '';
+  const startDate = document.getElementById('amcFormStartDate')?.value || '';
+  const frequency = document.getElementById('amcFormFrequency')?.value || 'Annual';
+  const lastServiceDate = document.getElementById('amcFormLastService')?.value || '';
+  const nextDueDate = document.getElementById('amcFormNextDue')?.value || '';
+
+  const { overall, detail } = amcComputeStatusPreview({ expiryDate, nextDueDate, lastServiceDate, startDate, frequency });
+
+  const statusClass =
+    (overall === 'Expired' || overall === 'Service Overdue') ? 'status-expired' :
+      (overall === 'Expiring Soon' || overall === 'Service Due Soon') ? 'status-expiring' :
+        overall === 'Active' ? 'status-active' : 'status-pending';
+
+  el.innerHTML = `<span class="amc-status-pill ${statusClass}">${escapeHtml(overall)}</span><span class="amc-status-preview-text">${escapeHtml(detail)}</span>`;
+}
+
+const AMC_CATEGORY_MAP = {
+  'Generator': 'amcBadgeGenerator',
+  'Fire': 'amcBadgeFire',
+  'Lift': 'amcBadgeLift',
+  'Air Condition': 'amcBadgeAirCondition',
+  'Water Filter': 'amcBadgeWaterFilter',
+  'CCTV Camera': 'amcBadgeCCTVCamera',
+  'Sound System & intercom': 'amcBadgeSoundSystem',
+  'Solar Panel Maintenance': 'amcBadgeSolarPanel'
+};
+
+function updateAmcOverviewBadges() {
+  const counts = {};
+  Object.keys(AMC_CATEGORY_MAP).forEach(k => counts[k] = { total: 0, expired: 0, serviceOverdue: 0, expiring: 0, serviceDue: 0 });
+
+  allAmcData.forEach(r => {
+    const cat = r.category;
+    if (counts[cat]) {
+      counts[cat].total++;
+      if (r.status === 'Expired') counts[cat].expired++;
+      else if (r.status === 'Service Overdue') counts[cat].serviceOverdue++;
+      else if (r.status === 'Expiring Soon') counts[cat].expiring++;
+      else if (r.status === 'Service Due Soon') counts[cat].serviceDue++;
+    }
+  });
+
+  // Same priority order as the backend's amcCombineStatus(): contract expiry
+  // trumps everything, then an overdue service visit, then an approaching
+  // contract expiry, then an approaching service visit, then all-clear.
+  Object.entries(AMC_CATEGORY_MAP).forEach(([cat, badgeId]) => {
+    const el = document.getElementById(badgeId);
+    if (!el) return;
+    const c = counts[cat];
+    if (c.total === 0) {
+      el.textContent = '0 Records';
+      el.style.backgroundColor = '';
+      el.style.color = '';
+    } else if (c.expired > 0) {
+      el.textContent = `${c.total} (${c.expired} Expired)`;
+      el.style.backgroundColor = '#fee2e2';
+      el.style.color = '#b91c1c';
+    } else if (c.serviceOverdue > 0) {
+      el.textContent = `${c.total} (${c.serviceOverdue} Service Overdue)`;
+      el.style.backgroundColor = '#fee2e2';
+      el.style.color = '#b91c1c';
+    } else if (c.expiring > 0) {
+      el.textContent = `${c.total} (${c.expiring} Expiring)`;
+      el.style.backgroundColor = '#fef3c7';
+      el.style.color = '#b45309';
+    } else if (c.serviceDue > 0) {
+      el.textContent = `${c.total} (${c.serviceDue} Service Due)`;
+      el.style.backgroundColor = '#fef3c7';
+      el.style.color = '#b45309';
+    } else {
+      el.textContent = `${c.total} Active`;
+      el.style.backgroundColor = '#dcfce7';
+      el.style.color = '#15803d';
+    }
+  });
+}
+
+// Fills the "Auto Alert & Warning Banner" at the top of the AMC overview
+// with a plain-language summary the moment anyone opens the AMC screen —
+// no need to click into a category to notice something's overdue.
+function updateAmcAlertBanner() {
+  const bar = document.getElementById('amcAlertSummaryBar');
+  const textEl = document.getElementById('amcAlertText');
+  if (!bar || !textEl) return;
+
+  const expired = allAmcData.filter(r => r.status === 'Expired').length;
+  const serviceOverdue = allAmcData.filter(r => r.status === 'Service Overdue').length;
+  const expiring = allAmcData.filter(r => r.status === 'Expiring Soon').length;
+  const serviceDue = allAmcData.filter(r => r.status === 'Service Due Soon').length;
+
+  const critical = expired + serviceOverdue;
+  const warning = expiring + serviceDue;
+
+  if (critical === 0 && warning === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+
+  const parts = [];
+  if (expired) parts.push(`<strong>${expired} contract${expired > 1 ? 's' : ''} expired</strong>`);
+  if (serviceOverdue) parts.push(`<strong>${serviceOverdue} service visit${serviceOverdue > 1 ? 's' : ''} overdue</strong>`);
+  if (expiring) parts.push(`${expiring} contract${expiring > 1 ? 's' : ''} expiring soon`);
+  if (serviceDue) parts.push(`${serviceDue} service visit${serviceDue > 1 ? 's' : ''} due soon`);
+
+  textEl.innerHTML = parts.join(' &nbsp;•&nbsp; ') + ' — check the category cards below for details.';
+  bar.classList.remove('hidden');
+  bar.classList.toggle('amc-alert-critical', critical > 0);
+}
+
+// Manually fires the same daily reminder email the server-side trigger
+// sends (see sendAmcWarningDigest() in Code.gs) — lets an admin test it or
+// push it out immediately without waiting for the 8 AM schedule.
+async function sendAmcReminderDigestNow() {
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'sendAmcDigest' })
+    });
+    const data = await res.json();
+    if (data.sent) {
+      showToast(data.message || 'Reminder digest sent.');
+    } else {
+      showToast(data.message || 'Nothing to send right now.');
+    }
+  } catch (err) {
+    showToast(`Could not send digest: ${err.message || err}`, true);
+  }
+}
+
+function openAmcCategoryDetail(categoryKey) {
+  currentAmcCategory = categoryKey;
+  const overviewEl = document.getElementById('amcOverviewView');
+  const detailEl = document.getElementById('amcCategoryDetailView');
+  const titleEl = document.getElementById('amcDetailCategoryTitle');
+
+  if (overviewEl) overviewEl.classList.add('hidden');
+  if (detailEl) detailEl.classList.remove('hidden');
+  if (titleEl) titleEl.textContent = `${categoryKey} AMC Records`;
+
+  // Populate Unit filter with unique units
+  const unitFilterEl = document.getElementById('amcFilterUnit');
+  if (unitFilterEl) {
+    const existingVal = unitFilterEl.value;
+    const units = [...new Set(state.factories.concat(allAmcData.map(r => r.unit)))].filter(Boolean);
+    unitFilterEl.innerHTML = '<option value="">All Units</option>' +
+      units.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+    if (units.includes(existingVal)) unitFilterEl.value = existingVal;
+  }
+
+  renderAmcTable();
+}
+
+function closeAmcCategoryDetail() {
+  currentAmcCategory = '';
+  const overviewEl = document.getElementById('amcOverviewView');
+  const detailEl = document.getElementById('amcCategoryDetailView');
+  if (overviewEl) overviewEl.classList.remove('hidden');
+  if (detailEl) detailEl.classList.add('hidden');
+}
+
+function applyAmcFilters() {
+  renderAmcTable();
+}
+
+function resetAmcFilters() {
+  const searchInput = document.getElementById('amcSearchInput');
+  const unitFilter = document.getElementById('amcFilterUnit');
+  const floorFilter = document.getElementById('amcFilterFloor');
+  const statusFilter = document.getElementById('amcFilterStatus');
+  if (searchInput) searchInput.value = '';
+  if (unitFilter) unitFilter.value = '';
+  if (floorFilter) floorFilter.value = '';
+  if (statusFilter) statusFilter.value = '';
+  renderAmcTable();
+}
+
+// Always-on pulsing highlight on the table's "Next Due" date — red once
+// servicing is due soon/overdue, green while still on track — so it's
+// impossible to miss at a glance, without opening the record.
+function amcNextDuePulseClass(r) {
+  if (r.serviceStatus === 'Not Scheduled' || !r.nextDueDate) return '';
+  return (r.serviceStatus === 'Overdue' || r.serviceStatus === 'Due Soon') ? 'amc-nextdue-pulse-red' : 'amc-nextdue-pulse-green';
+}
+
+function renderAmcTable() {
+  const tbody = document.getElementById('amcTableBody');
+  const badge = document.getElementById('amcDetailCountBadge');
+  if (!tbody) return;
+
+  const searchQuery = (document.getElementById('amcSearchInput')?.value || '').toLowerCase().trim();
+  const unitFilter = document.getElementById('amcFilterUnit')?.value || '';
+  const floorFilter = document.getElementById('amcFilterFloor')?.value || '';
+  const statusFilter = document.getElementById('amcFilterStatus')?.value || '';
+
+  const records = allAmcData.filter(r => {
+    if (r.category !== currentAmcCategory) return false;
+    if (unitFilter && r.unit !== unitFilter) return false;
+    if (floorFilter && r.floor !== floorFilter) return false;
+    if (statusFilter && r.status !== statusFilter) return false;
+    if (searchQuery) {
+      const match = [r.vendorName, r.contactInfo, r.remarks, r.unit, r.floor, r.id].join(' ').toLowerCase();
+      if (!match.includes(searchQuery)) return false;
+    }
+    return true;
+  });
+
+  if (badge) badge.textContent = `${records.length} Records`;
+
+  if (!records.length) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:36px;color:#6b7280;">No AMC records matching current filter in <strong>${escapeHtml(currentAmcCategory)}</strong>. Click "+ Add Contract / Service" to create one.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = records.map((r, index) => {
+    // Red for anything actually past due (contract expired or a missed
+    // service visit), amber for anything approaching, green when clear.
+    const statusClass =
+      (r.status === 'Expired' || r.status === 'Service Overdue') ? 'status-expired' :
+        (r.status === 'Expiring Soon' || r.status === 'Service Due Soon') ? 'status-expiring' :
+          r.status === 'Active' ? 'status-active' : 'status-pending';
+
+    // A short "why" line under the pill, so it's clear whether it's the
+    // CONTRACT or the SERVICING that's the problem.
+    let statusDetail = '';
+    if (r.status === 'Expired') statusDetail = `Contract expired ${Math.abs(r.contractDaysLeft)}d ago`;
+    else if (r.status === 'Expiring Soon') statusDetail = `Contract expires in ${r.contractDaysLeft}d`;
+    else if (r.status === 'Service Overdue') statusDetail = `Service overdue by ${Math.abs(r.serviceDaysLeft)}d`;
+    else if (r.status === 'Service Due Soon') statusDetail = `Service due in ${r.serviceDaysLeft}d`;
+
+    const durationDisplay = (r.startDate || r.expiryDate)
+      ? `${fmtAMCDate(r.startDate)} to ${fmtAMCDate(r.expiryDate)}`
+      : '—';
+
+    const docsHtml = (r.attachments && r.attachments.length)
+      ? r.attachments.map((link, i) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" class="amc-doc-link"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Doc ${i + 1} <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg></a>`).join(' ')
+      : '<span style="color:#94a3b8;">None</span>';
+
+    return `
+      <tr>
+        <td style="color:#64748b;font-weight:600;">${index + 1}</td>
+        <td><strong>${escapeHtml(r.unit)}</strong></td>
+        <td>${escapeHtml(r.floor || '—')}</td>
+        <td>
+          <div style="font-weight:600;">${escapeHtml(r.vendorName || '—')}</div>
+          <div style="font-size:11.5px;color:#64748b;">${escapeHtml(r.contactInfo || '')}</div>
+        </td>
+        <td>${durationDisplay}</td>
+        <td>${escapeHtml(r.frequency || 'Annual')}</td>
+        <td>${fmtAMCDate(r.lastServiceDate)}</td>
+        <td><strong class="${amcNextDuePulseClass(r)}">${fmtAMCDate(r.nextDueDate)}</strong></td>
+        <td>
+          <span class="amc-status-pill ${statusClass}">${escapeHtml(r.status)}</span>
+          ${statusDetail ? `<div style="font-size:10.5px;color:#64748b;margin-top:3px;">${escapeHtml(statusDetail)}</div>` : ''}
+        </td>
+        <td>${docsHtml}</td>
+        <td style="max-width:180px;font-size:12px;color:#475569;white-space:normal;">${escapeHtml(r.remarks || '—')}</td>
+        <td>
+          <button class="amc-take-action-btn" type="button" onclick="openAmcActionModal('${escapeHtml(r.id)}')" title="Take actions & view details for this AMC record">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Take Actions
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openAmcForm(categoryKey = '', rowIndex = null) {
+  const modal = document.getElementById('amcFormModal');
+  const titleEl = document.getElementById('amcFormModalTitle');
+  const form = document.getElementById('amcRecordForm');
+  if (!modal || !form) return;
+
+  form.reset();
+  amcFilesSelected = [];
+  renderAmcFileList();
+
+  // Populate Unit dropdown
+  const unitSel = document.getElementById('amcFormUnit');
+  if (unitSel) {
+    unitSel.innerHTML = '<option value="">Select unit...</option>' +
+      state.factories.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+  }
+
+  document.getElementById('amcFormRowIndex').value = '';
+  document.getElementById('amcFormId').value = '';
+
+  if (rowIndex) {
+    const record = allAmcData.find(r => r.rowIndex === rowIndex);
+    if (record) {
+      titleEl.textContent = `Edit ${record.category} Record`;
+      document.getElementById('amcFormRowIndex').value = record.rowIndex;
+      document.getElementById('amcFormId').value = record.id;
+      document.getElementById('amcFormCategory').value = record.category;
+      document.getElementById('amcFormUnit').value = record.unit;
+      document.getElementById('amcFormFloor').value = record.floor || '';
+      document.getElementById('amcFormVendor').value = record.vendorName;
+      document.getElementById('amcFormContact').value = record.contactInfo;
+      document.getElementById('amcFormStartDate').value = record.startDate;
+      document.getElementById('amcFormExpiryDate').value = record.expiryDate;
+      document.getElementById('amcFormFrequency').value = record.frequency;
+      document.getElementById('amcFormLastService').value = record.lastServiceDate;
+      document.getElementById('amcFormNextDue').value = record.nextDueDate;
+      document.getElementById('amcFormRemarks').value = record.remarks;
+
+      // Existing record: show the breakdown/service log history + the
+      // "log a visit" mini-form underneath, and pull its history.
+      const logSection = document.getElementById('amcServiceLogSection');
+      if (logSection) logSection.classList.remove('hidden');
+      const logDateEl = document.getElementById('amcLogVisitDate');
+      if (logDateEl) logDateEl.value = today;
+      loadAmcServiceLogForForm(record.id);
+    }
+  } else {
+    titleEl.textContent = categoryKey ? `New ${categoryKey} AMC Record` : 'New AMC Record';
+    if (categoryKey) {
+      document.getElementById('amcFormCategory').value = categoryKey;
+    }
+    // Set default start date = today
+    document.getElementById('amcFormStartDate').value = today;
+
+    // Service/breakdown logging only makes sense once a record exists
+    // (it needs a Record ID to attach the visit to), so it's hidden for a
+    // brand-new record and appears automatically once you edit it again.
+    const logSection = document.getElementById('amcServiceLogSection');
+    if (logSection) logSection.classList.add('hidden');
+    const timeline = document.getElementById('amcServiceLogTimeline');
+    if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">No visits logged yet.</p>';
+  }
+
+  updateAmcStatusPreview();
+  modal.classList.remove('hidden');
+}
+
+// ── Service / Breakdown Log (per AMC record) ──────────────────────────────
+
+let amcCurrentLogRecordId = '';
+
+async function fetchAmcServiceLog(amcId) {
+  if (window.google && google.script && google.script.run) {
+    return new Promise((res, rej) =>
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcServiceLog(amcId));
+  }
+  return fetchJson(bustCache(`${WEB_APP_URL}?action=amcServiceLog&amcId=${encodeURIComponent(amcId)}`), {}, READ_REQUEST_TIMEOUT_MS);
+}
+
+async function loadAmcServiceLogForForm(amcId) {
+  amcCurrentLogRecordId = amcId;
+  const timeline = document.getElementById('amcServiceLogTimeline');
+  if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">Loading history…</p>';
+
+  try {
+    const logs = await fetchAmcServiceLog(amcId);
+    if (amcCurrentLogRecordId !== amcId) return; // form has since switched to a different record
+    renderAmcServiceLogTimeline(Array.isArray(logs) ? logs : []);
+  } catch (err) {
+    if (timeline) timeline.innerHTML = `<p class="amc-service-log-empty">Could not load history: ${escapeHtml(err.message || String(err))}</p>`;
+  }
+}
+
+function renderAmcServiceLogTimeline(logs) {
+  const timeline = document.getElementById('amcServiceLogTimeline');
+  if (!timeline) return;
+
+  if (!logs.length) {
+    timeline.innerHTML = '<p class="amc-service-log-empty">No visits logged yet — log the first one below.</p>';
+    return;
+  }
+
+  timeline.innerHTML = logs.map(l => {
+    const isBreakdown = l.logType === 'Breakdown Repair';
+    const hasCost = l.cost !== '' && l.cost !== null && l.cost !== undefined;
+    return `
+      <div class="amc-log-entry ${isBreakdown ? 'amc-log-breakdown' : 'amc-log-scheduled'}">
+        <div class="amc-log-entry-top">
+          <span class="amc-log-type-badge">
+            ${isBreakdown ? `
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>Breakdown
+            ` : `
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>Scheduled
+            `}
+          </span>
+          <span class="amc-log-date">${escapeHtml(l.visitDate || '—')}</span>
+          ${hasCost ? `<span class="amc-log-cost">₹${escapeHtml(String(l.cost))}</span>` : ''}
+        </div>
+        ${l.description ? `<div class="amc-log-desc">${escapeHtml(l.description)}</div>` : ''}
+        ${l.technician ? `<div class="amc-log-tech">By: ${escapeHtml(l.technician)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Keeps the "Update Last Service Date" checkbox in sync with the selected
+// visit Type: ON for a real Scheduled Service, OFF for a Breakdown Repair —
+// so, by default, an emergency repair never shifts the next servicing date;
+// only an actual scheduled service does. Still user-overridable.
+function syncAmcLogUpdateLastCheckbox() {
+  const typeEl = document.getElementById('amcLogType');
+  const checkboxEl = document.getElementById('amcLogUpdateLast');
+  if (!typeEl || !checkboxEl) return;
+  checkboxEl.checked = typeEl.value === 'Scheduled Service';
+}
+
+async function handleAmcLogSubmit() {
+  const amcId = document.getElementById('amcFormId').value;
+  if (!amcId) {
+    showToast('Save the record first, then log a service or breakdown visit.', true);
+    return;
+  }
+
+  const visitDate = document.getElementById('amcLogVisitDate').value;
+  if (!visitDate) {
+    showToast('Please pick a visit date.', true);
+    return;
+  }
+
+  const payload = {
+    action: 'saveAmcServiceLog',
+    amcId,
+    visitDate,
+    logType: document.getElementById('amcLogType').value,
+    technician: document.getElementById('amcLogTechnician').value.trim(),
+    cost: document.getElementById('amcLogCost').value,
+    description: document.getElementById('amcLogDescription').value.trim(),
+    updateLastService: document.getElementById('amcLogUpdateLast').checked,
+    attachments: []
+  };
+
+  const btn = document.getElementById('amcLogAddBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Saving…'; }
+
+  try {
+    const res = await serverCall('saveAmcServiceLog', payload);
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
+    showToast('Visit logged successfully.');
+
+    document.getElementById('amcLogVisitDate').value = today;
+    document.getElementById('amcLogType').value = 'Scheduled Service';
+    document.getElementById('amcLogTechnician').value = '';
+    document.getElementById('amcLogCost').value = '';
+    document.getElementById('amcLogDescription').value = '';
+    document.getElementById('amcLogUpdateLast').checked = true;
+
+    await loadAmcServiceLogForForm(amcId);
+    await loadAmcData(true);
+
+    // Reflect the auto-updated Last Service / Next Due Date right in the
+    // still-open form, so the person sees the effect immediately.
+    if (payload.updateLastService) {
+      const refreshed = allAmcData.find(r => r.id === amcId);
+      if (refreshed) {
+        document.getElementById('amcFormLastService').value = refreshed.lastServiceDate;
+        document.getElementById('amcFormNextDue').value = refreshed.nextDueDate;
+        updateAmcStatusPreview();
+      }
+    }
+  } catch (err) {
+    console.error('Failed to log AMC visit:', err);
+    showToast(`Could not log visit: ${err.message || err}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+}
+
+function openAmcFormFromDetail() {
+  openAmcForm(currentAmcCategory);
+}
+
+function closeAmcForm() {
+  const modal = document.getElementById('amcFormModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function editAmcRecord(rowIndex) {
+  openAmcForm('', rowIndex);
+}
+
+async function deleteAmcRecordRow(rowIndex, recordId) {
+  if (!confirm(`Are you sure you want to delete this AMC record (${recordId})?`)) return;
+
+  try {
+    showToast('Deleting AMC record...');
+    const res = await serverCall('deleteAmc', { action: 'deleteAmc', rowIndex });
+    showToast('AMC record deleted successfully.');
+    await loadAmcData(true);
+  } catch (err) {
+    console.error('Error deleting AMC record:', err);
+    showToast(`Failed to delete record: ${err.message || err}`, true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AMC TAKE ACTION & COMPREHENSIVE DETAILS MODAL LOGIC
+// ─────────────────────────────────────────────────────────────────────────────
+
+let amcActiveActionRecord = null;
+
+function openAmcActionModal(recordId) {
+  const modal = document.getElementById('amcActionModal');
+  if (!modal) return;
+
+  const record = allAmcData.find(r => r.id === recordId);
+  if (!record) {
+    showToast('Record not found.', true);
+    return;
+  }
+
+  amcActiveActionRecord = record;
+
+  // Title, Subtitle, and Status Badge
+  const titleEl = document.getElementById('amcActionTitle');
+  const subEl = document.getElementById('amcActionSubtitle');
+  const badgeEl = document.getElementById('amcActionStatusBadge');
+
+  if (titleEl) titleEl.textContent = `${record.category} AMC — Unit ${record.unit}${record.floor ? ' / ' + record.floor : ''}`;
+  if (subEl) subEl.textContent = `Vendor: ${record.vendorName || '—'} | Record ID: ${record.id}`;
+
+  const statusClass =
+    (record.status === 'Expired' || record.status === 'Service Overdue') ? 'status-expired' :
+      (record.status === 'Expiring Soon' || record.status === 'Service Due Soon') ? 'status-expiring' :
+        record.status === 'Active' ? 'status-active' : 'status-pending';
+
+  if (badgeEl) {
+    badgeEl.className = `amc-status-pill ${statusClass}`;
+    badgeEl.textContent = record.status;
+  }
+
+  // Summary Card Items
+  document.getElementById('amcSummaryUnit').textContent = record.unit || '—';
+  document.getElementById('amcSummaryFloor').textContent = record.floor || '—';
+  document.getElementById('amcSummaryVendor').textContent = record.vendorName ? `${record.vendorName} ${record.contactInfo ? '(' + record.contactInfo + ')' : ''}` : '—';
+  document.getElementById('amcSummaryFrequency').textContent = record.frequency || 'Annual';
+  document.getElementById('amcSummaryExpiry').textContent = fmtAMCDate(record.expiryDate);
+  document.getElementById('amcSummaryLastService').textContent = fmtAMCDate(record.lastServiceDate);
+  document.getElementById('amcSummaryNextDue').textContent = fmtAMCDate(record.nextDueDate);
+  applyAmcNextDuePulse(record.nextDueDate);
+  document.getElementById('amcSummaryRemarks').textContent = record.remarks || 'No remarks provided.';
+
+  // Docs in Summary Card
+  const docsEl = document.getElementById('amcSummaryDocs');
+  if (docsEl) {
+    if (record.attachments && record.attachments.length) {
+      docsEl.innerHTML = record.attachments.map((link, i) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" class="amc-doc-link"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Doc ${i + 1} <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg></a>`).join(' ');
+    } else {
+      docsEl.innerHTML = '<span style="font-size:12px;color:#b08d5f;">No documents attached.</span>';
+    }
+  }
+
+  // Reset Full Details Panel
+  const fullPanel = document.getElementById('amcFullDetailsPanel');
+  const fullToggleBtn = document.getElementById('amcToggleFullDetailsBtn');
+  if (fullPanel) fullPanel.classList.add('hidden');
+  if (fullToggleBtn) {
+    fullToggleBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>View Full Details &amp; History</span>
+    `;
+  }
+
+  // Pre-fill Tab 1: Servicing Form
+  document.getElementById('amcActionRecordId').value = record.id;
+  const serviceDateInput = document.getElementById('amcActionServiceDate');
+  if (serviceDateInput) serviceDateInput.value = today;
+  document.getElementById('amcActionServiceTech').value = '';
+  document.getElementById('amcActionServiceCost').value = '';
+  document.getElementById('amcActionServiceDesc').value = '';
+  calculateAmcNextServicePreview();
+
+  // Pre-fill Tab 2: Breakdown Form
+  const breakdownDateInput = document.getElementById('amcActionBreakdownDate');
+  if (breakdownDateInput) breakdownDateInput.value = today;
+  document.getElementById('amcActionBreakdownTech').value = '';
+  document.getElementById('amcActionBreakdownCost').value = '';
+  document.getElementById('amcActionBreakdownDesc').value = '';
+  // Off by default: a breakdown/emergency repair should NOT push the
+  // servicing cycle forward. Next Due Date keeps counting from the actual
+  // Last Service Date unless someone explicitly ticks this on.
+  document.getElementById('amcActionBreakdownUpdateCycle').checked = false;
+
+  // Pre-fill Tab 3: Renew Form
+  document.getElementById('amcActionRenewVendor').value = record.vendorName || '';
+  document.getElementById('amcActionRenewContact').value = record.contactInfo || '';
+  document.getElementById('amcActionRenewFrequency').value = record.frequency || 'Annual';
+  document.getElementById('amcActionRenewStartDate').value = record.startDate || '';
+  document.getElementById('amcActionRenewExpiryDate').value = record.expiryDate || '';
+  document.getElementById('amcActionRenewRemarks').value = record.remarks || '';
+
+  // Default active tab = 'service'
+  switchAmcActionTab('service');
+
+  // Load audit history
+  loadAmcFullDetailsHistory(record.id);
+
+  modal.classList.remove('hidden');
+}
+
+function closeAmcActionModal() {
+  const modal = document.getElementById('amcActionModal');
+  if (modal) modal.classList.add('hidden');
+  amcActiveActionRecord = null;
+}
+
+function switchAmcActionTab(tabKey) {
+  const tabBtns = {
+    service: document.getElementById('amcTabBtnService'),
+    breakdown: document.getElementById('amcTabBtnBreakdown'),
+    renew: document.getElementById('amcTabBtnRenew'),
+    delete: document.getElementById('amcTabBtnDelete')
+  };
+  const tabContents = {
+    service: document.getElementById('amcTabContentService'),
+    breakdown: document.getElementById('amcTabContentBreakdown'),
+    renew: document.getElementById('amcTabContentRenew'),
+    delete: document.getElementById('amcTabContentDelete')
+  };
+
+  Object.entries(tabBtns).forEach(([k, btn]) => {
+    if (btn) btn.classList.toggle('active', k === tabKey);
+  });
+  Object.entries(tabContents).forEach(([k, content]) => {
+    if (content) content.classList.toggle('hidden', k !== tabKey);
+  });
+}
+
+function toggleAmcFullDetails() {
+  const panel = document.getElementById('amcFullDetailsPanel');
+  const btn = document.getElementById('amcToggleFullDetailsBtn');
+  if (!panel || !btn) return;
+
+  const isHidden = panel.classList.contains('hidden');
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="18 15 12 9 6 15"/>
+      </svg>
+      <span>Hide Full Details &amp; History</span>
+    `;
+  } else {
+    panel.classList.add('hidden');
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>View Full Details &amp; History</span>
+    `;
+  }
+}
+
+async function loadAmcFullDetailsHistory(recordId) {
+  const timeline = document.getElementById('amcFullHistoryTimeline');
+  const countBadge = document.getElementById('amcFullHistoryCount');
+  if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">Loading history…</p>';
+
+  try {
+    const logs = await fetchAmcServiceLog(recordId);
+    const list = Array.isArray(logs) ? logs : [];
+    if (countBadge) countBadge.textContent = `${list.length} Visit${list.length === 1 ? '' : 's'}`;
+
+    // Store for download usage
+    window._amcHistoryLogsCache = list;
+
+    // Show/hide download buttons based on whether there is data
+    const dlBtns = document.getElementById('amcHistoryDownloadBtns');
+    if (dlBtns) dlBtns.classList.toggle('hidden', list.length === 0);
+
+    if (!list.length) {
+      if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">No previous servicing or breakdown history logged yet.</p>';
+      return;
+    }
+
+    if (timeline) {
+      timeline.innerHTML = list.map(l => {
+        const isBreakdown = l.logType === 'Breakdown Repair';
+        const hasCost = l.cost !== '' && l.cost !== null && l.cost !== undefined;
+        return `
+          <div class="amc-log-entry ${isBreakdown ? 'amc-log-breakdown' : 'amc-log-scheduled'}">
+            <div class="amc-log-entry-top">
+              <span class="amc-log-type-badge">
+                ${isBreakdown ? `
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>Breakdown Repair
+                ` : `
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>Routine Servicing
+                `}
+              </span>
+              <span class="amc-log-date">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                ${escapeHtml(fmtAMCDate(l.visitDate))}
+              </span>
+              ${hasCost ? `<span class="amc-log-cost">₹${escapeHtml(String(l.cost))}</span>` : ''}
+            </div>
+            ${l.description ? `<div class="amc-log-desc">${escapeHtml(l.description)}</div>` : ''}
+            ${l.technician ? `<div class="amc-log-tech">Attended by: <strong>${escapeHtml(l.technician)}</strong></div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    if (timeline) timeline.innerHTML = `<p class="amc-service-log-empty">Could not load history: ${escapeHtml(err.message || String(err))}</p>`;
+  }
+}
+
+// ─── AMC Maintenance & Service History — Excel (.xlsx) export ─────────────
+function downloadAmcHistoryExcel() {
+  const logs = window._amcHistoryLogsCache || [];
+  if (!logs.length) { showToast('No history to export.', true); return; }
+
+  const record = amcActiveActionRecord || {};
+
+  const infoRows = [
+    ['Complete Maintenance & Service History'],
+    [`Category: ${record.category || '-'}    Unit / Factory: ${record.unit || '-'}    Floor: ${record.floor || '-'}`],
+    [`Vendor: ${record.vendorName || '-'}${record.contactInfo ? ' (' + record.contactInfo + ')' : ''}`],
+    [`Generated: ${formatDailyTimestamp(new Date())}`],
+    []
+  ];
+
+  const header = ['Visit Date', 'Type', 'Technician', 'Cost (₹)', 'Issue / Work Done'];
+  const rows = logs.map(l => [
+    fmtAMCDate(l.visitDate) || '-',
+    l.logType || '-',
+    l.technician || '-',
+    (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? Number(l.cost) : '',
+    l.description || '-'
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([...infoRows, header, ...rows]);
+  ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 50 }];
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Service History');
+
+  const stamp = formatLocalDate(new Date());
+  const unitSlug = (record.unit || 'AMC').replace(/[^a-z0-9]+/gi, '_');
+  XLSX.writeFile(wb, `AMC_History_${unitSlug}_${stamp}.xlsx`);
+}
+
+// ─── AMC Maintenance & Service History — PDF export (IBM Plex Sans) ───────
+function downloadAmcHistoryPdf() {
+  const logs = window._amcHistoryLogsCache || [];
+  if (!logs.length) { showToast('No history to export.', true); return; }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('PDF library failed to load. Check your connection and try again.', true);
+    return;
+  }
+
+  const record = amcActiveActionRecord || {};
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+
+  if (window.registerIbmPlexFont) window.registerIbmPlexFont(doc);
+  const fontName = window.registerIbmPlexFont ? 'IBMPlexSans' : 'helvetica';
+  doc.setFont(fontName, 'normal');
+
+  doc.setFontSize(15);
+  doc.setTextColor(20, 30, 40);
+  doc.text('Complete Maintenance & Service History', 40, 36);
+
+  doc.setFontSize(9.5);
+  doc.setTextColor(90, 100, 110);
+  doc.text(`${record.category || '-'} AMC — Unit ${record.unit || '-'}${record.floor ? ' / ' + record.floor : ''}`, 40, 52);
+  doc.text(`Vendor: ${record.vendorName || '-'}${record.contactInfo ? ' (' + record.contactInfo + ')' : ''}`, 40, 65);
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(140, 150, 160);
+  doc.text(`Generated: ${formatDailyTimestamp(new Date())}`, 40, 78);
+
+  doc.autoTable({
+    head: [['Visit Date', 'Type', 'Technician', 'Cost (₹)', 'Issue / Work Done']],
+    body: logs.map(l => [
+      fmtAMCDate(l.visitDate) || '-',
+      l.logType || '-',
+      l.technician || '-',
+      (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? String(l.cost) : '-',
+      l.description || '-'
+    ]),
+    startY: 90,
+    styles: {
+      font: fontName,
+      fontSize: 8.5,
+      cellPadding: 6,
+      textColor: [30, 40, 50],
+      lineColor: [225, 229, 233],
+      lineWidth: 0.5,
+      overflow: 'linebreak'
+    },
+    headStyles: {
+      font: fontName,
+      fontStyle: 'bold',
+      fillColor: [13, 148, 136],
+      textColor: 255,
+      fontSize: 8.5
+    },
+    columnStyles: {
+      0: { cellWidth: 65 },
+      1: { cellWidth: 85 },
+      2: { cellWidth: 85 },
+      3: { cellWidth: 55 },
+      4: { cellWidth: 'auto' }
+    },
+    alternateRowStyles: { fillColor: [246, 248, 247] },
+    margin: { left: 40, right: 40 }
+  });
+
+  const stamp = formatLocalDate(new Date());
+  const unitSlug = (record.unit || 'AMC').replace(/[^a-z0-9]+/gi, '_');
+  doc.save(`AMC_History_${unitSlug}_${stamp}.pdf`);
+}
+
+// Colors the "Next Service Due" value red (pulsing) if the due date falls
+// within the next 30 days (or is already overdue), otherwise green (pulsing).
+function applyAmcNextDuePulse(nextDueDateStr) {
+  const el = document.getElementById('amcSummaryNextDue');
+  if (!el) return;
+
+  el.classList.remove('amc-nextdue-pulse-red', 'amc-nextdue-pulse-green');
+  if (!nextDueDateStr) return;
+
+  const due = new Date(nextDueDateStr);
+  if (isNaN(due.getTime())) return;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((due - today) / 86400000);
+  el.classList.add(diffDays <= 30 ? 'amc-nextdue-pulse-red' : 'amc-nextdue-pulse-green');
+}
+
+function calculateAmcNextServicePreview() {
+  const textEl = document.getElementById('amcCalcNextDueText');
+  if (!textEl || !amcActiveActionRecord) return;
+
+  const serviceDate = document.getElementById('amcActionServiceDate')?.value;
+  const frequency = amcActiveActionRecord.frequency || 'Annual';
+
+  if (!serviceDate) {
+    textEl.innerHTML = `Please select a Service Date to calculate the next due date.`;
+    return;
+  }
+
+  if (frequency === 'On-Call') {
+    textEl.innerHTML = `This contract is on <strong>On-Call</strong> frequency (No fixed automated schedule).`;
+    return;
+  }
+
+  const nextDue = amcCalcNextDueDate(serviceDate, frequency);
+  if (nextDue) {
+    textEl.innerHTML = `Based on Service Date <strong>${escapeHtml(serviceDate)}</strong> and <strong>${escapeHtml(frequency)}</strong> frequency, the next servicing due date will automatically become: <strong class="amc-highlight-due-date">${escapeHtml(nextDue)}</strong>.`;
+  } else {
+    textEl.innerHTML = `Could not calculate next due date.`;
+  }
+}
+
+async function handleAmcServicingActionSubmit(event) {
+  event.preventDefault();
+  if (!amcActiveActionRecord) return;
+
+  const visitDate = document.getElementById('amcActionServiceDate')?.value;
+  if (!visitDate) {
+    showToast('Please enter a service date.', true);
+    return;
+  }
+
+  const payload = {
+    action: 'saveAmcServiceLog',
+    amcId: amcActiveActionRecord.id,
+    visitDate,
+    logType: 'Scheduled Service',
+    technician: document.getElementById('amcActionServiceTech')?.value.trim() || '',
+    cost: document.getElementById('amcActionServiceCost')?.value || '',
+    description: document.getElementById('amcActionServiceDesc')?.value.trim() || 'Routine Scheduled Servicing',
+    updateLastService: true,
+    attachments: []
+  };
+
+  const btn = document.getElementById('amcServiceSaveBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Saving Servicing Record…'; }
+
+  try {
+    const res = await serverCall('saveAmcServiceLog', payload);
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
+    showToast('Routine servicing logged and Next Due Date updated successfully.');
+
+    await loadAmcData(true);
+    const refreshed = allAmcData.find(r => r.id === amcActiveActionRecord.id);
+    if (refreshed) {
+      openAmcActionModal(refreshed.id);
+    }
+  } catch (err) {
+    console.error('Failed to log servicing:', err);
+    showToast(`Could not log servicing: ${err.message || err}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+}
+
+async function handleAmcBreakdownActionSubmit(event) {
+  event.preventDefault();
+  if (!amcActiveActionRecord) return;
+
+  const visitDate = document.getElementById('amcActionBreakdownDate')?.value;
+  const description = document.getElementById('amcActionBreakdownDesc')?.value.trim();
+  if (!visitDate || !description) {
+    showToast('Please enter the breakdown date and fault description.', true);
+    return;
+  }
+
+  const payload = {
+    action: 'saveAmcServiceLog',
+    amcId: amcActiveActionRecord.id,
+    visitDate,
+    logType: 'Breakdown Repair',
+    technician: document.getElementById('amcActionBreakdownTech')?.value.trim() || '',
+    cost: document.getElementById('amcActionBreakdownCost')?.value || '',
+    description,
+    updateLastService: document.getElementById('amcActionBreakdownUpdateCycle')?.checked ?? false,
+    attachments: []
+  };
+
+  const btn = document.getElementById('amcBreakdownSaveBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Saving Breakdown Record…'; }
+
+  try {
+    const res = await serverCall('saveAmcServiceLog', payload);
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
+    showToast('Breakdown repair logged successfully.');
+
+    await loadAmcData(true);
+    const refreshed = allAmcData.find(r => r.id === amcActiveActionRecord.id);
+    if (refreshed) {
+      openAmcActionModal(refreshed.id);
+    }
+  } catch (err) {
+    console.error('Failed to log breakdown:', err);
+    showToast(`Could not log breakdown: ${err.message || err}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+}
+
+async function handleAmcContractRenewalSubmit(event) {
+  event.preventDefault();
+  if (!amcActiveActionRecord) return;
+
+  const vendorName = document.getElementById('amcActionRenewVendor')?.value.trim();
+  const expiryDate = document.getElementById('amcActionRenewExpiryDate')?.value;
+  if (!vendorName || !expiryDate) {
+    showToast('Vendor and Contract Expiry Date are required.', true);
+    return;
+  }
+
+  const payload = {
+    action: 'saveAmc',
+    rowIndex: amcActiveActionRecord.rowIndex,
+    id: amcActiveActionRecord.id,
+    category: amcActiveActionRecord.category,
+    unit: amcActiveActionRecord.unit,
+    vendorName,
+    contactInfo: document.getElementById('amcActionRenewContact')?.value.trim() || '',
+    startDate: document.getElementById('amcActionRenewStartDate')?.value || '',
+    expiryDate,
+    frequency: document.getElementById('amcActionRenewFrequency')?.value || 'Annual',
+    lastServiceDate: amcActiveActionRecord.lastServiceDate,
+    nextDueDate: amcActiveActionRecord.nextDueDate,
+    remarks: document.getElementById('amcActionRenewRemarks')?.value.trim() || '',
+    attachments: []
+  };
+
+  const btn = document.getElementById('amcRenewSaveBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Updating Contract…'; }
+
+  try {
+    const res = await serverCall('saveAmc', payload);
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
+    showToast('Contract details updated successfully.');
+
+    await loadAmcData(true);
+    const refreshed = allAmcData.find(r => r.id === amcActiveActionRecord.id);
+    if (refreshed) {
+      openAmcActionModal(refreshed.id);
+    }
+  } catch (err) {
+    console.error('Failed to update contract:', err);
+    showToast(`Could not update contract: ${err.message || err}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+}
+
+async function confirmDeleteFromActionModal() {
+  if (!amcActiveActionRecord) return;
+  const id = amcActiveActionRecord.id;
+  const rowIndex = amcActiveActionRecord.rowIndex;
+
+  if (!confirm(`Are you sure you want to permanently delete this AMC record (${id})?`)) return;
+
+  try {
+    showToast('Deleting AMC record...');
+    const res = await serverCall('deleteAmc', { action: 'deleteAmc', rowIndex });
+    showToast('AMC record deleted successfully.');
+    closeAmcActionModal();
+    await loadAmcData(true);
+  } catch (err) {
+    console.error('Error deleting AMC record:', err);
+    showToast(`Failed to delete record: ${err.message || err}`, true);
+  }
+}
+
+function handleAmcFileSelection(event) {
+  const files = [...event.target.files];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      amcFilesSelected.push({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        data: String(reader.result).split(',')[1]
+      });
+      renderAmcFileList();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function removeAmcSelectedFile(index) {
+  amcFilesSelected.splice(index, 1);
+  renderAmcFileList();
+}
+
+function renderAmcFileList() {
+  const listEl = document.getElementById('amcFormFileList');
+  if (!listEl) return;
+  if (!amcFilesSelected.length) {
+    listEl.innerHTML = '';
+    return;
+  }
+  listEl.innerHTML = amcFilesSelected.map((f, i) => `
+    <span class="amc-form-file-item">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${escapeHtml(f.name)}
+      <button type="button" class="amc-form-file-remove" onclick="removeAmcSelectedFile(${i})" title="Remove">&times;</button>
+    </span>
+  `).join('');
+}
+
+async function handleAmcFormSubmit(event) {
+  event.preventDefault();
+  const submitBtn = document.getElementById('amcFormSubmitBtn');
+  const originalHtml = submitBtn ? submitBtn.innerHTML : '';
+
+  const payload = {
+    action: 'saveAmc',
+    rowIndex: document.getElementById('amcFormRowIndex').value || null,
+    id: document.getElementById('amcFormId').value || null,
+    category: document.getElementById('amcFormCategory').value,
+    unit: document.getElementById('amcFormUnit').value,
+    floor: document.getElementById('amcFormFloor').value,
+    vendorName: document.getElementById('amcFormVendor').value.trim(),
+    contactInfo: document.getElementById('amcFormContact').value.trim(),
+    startDate: document.getElementById('amcFormStartDate').value,
+    expiryDate: document.getElementById('amcFormExpiryDate').value,
+    frequency: document.getElementById('amcFormFrequency').value,
+    lastServiceDate: document.getElementById('amcFormLastService').value,
+    nextDueDate: document.getElementById('amcFormNextDue').value,
+    remarks: document.getElementById('amcFormRemarks').value.trim(),
+    attachments: amcFilesSelected
+  };
+
+  if (!payload.category || !payload.unit || !payload.floor || !payload.vendorName || !payload.expiryDate) {
+    showToast('Please fill all required fields.', true);
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Saving…';
+  }
+
+  try {
+    const res = await serverCall('saveAmc', payload);
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
+    showToast('AMC record saved successfully.');
+    closeAmcForm();
+    await loadAmcData(true);
+  } catch (err) {
+    console.error('Failed to save AMC record:', err);
+    showToast(`Could not save AMC record: ${err.message || err}`, true);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHtml;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AMC REPORT & ANALYTICS DASHBOARD FRONTEND CONTROLLER
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allAmcServiceLogs = [];
+let amcAllLogsPromise = null;
+let amcAllLogsCachedAt = 0;
+let currentAmcReportTab = 'pivot';
+
+// Wire up menu button for AMC Report & Analysis
+document.getElementById('amcReportBtn')?.addEventListener('click', () => {
+  openAmcReportModal();
+  const overlay = document.getElementById('headerMoreOverlay');
+  const panel = document.getElementById('headerMorePanel');
+  if (overlay && panel) {
+    overlay.classList.remove('active');
+    panel.classList.remove('active');
+  }
+});
+
+async function fetchAllAmcServiceLogs(force = false) {
+  const cacheIsFresh = Array.isArray(allAmcServiceLogs) && allAmcServiceLogs.length > 0 && (Date.now() - amcAllLogsCachedAt) < AMC_PREFETCH_MAX_AGE_MS;
+  if (!force && cacheIsFresh) return allAmcServiceLogs;
+  if (!force && amcAllLogsPromise) return amcAllLogsPromise;
+
+  let request;
+  if (window.google && google.script && google.script.run) {
+    request = new Promise((res, rej) =>
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcServiceLog(''));
+  } else {
+    request = fetchJson(bustCache(`${WEB_APP_URL}?action=amcServiceLog&amcId=`), {}, READ_REQUEST_TIMEOUT_MS);
+  }
+
+  amcAllLogsPromise = request
+    .then(data => {
+      allAmcServiceLogs = Array.isArray(data) ? data : [];
+      amcAllLogsCachedAt = Date.now();
+      return allAmcServiceLogs;
+    })
+    .catch(err => {
+      amcAllLogsPromise = null;
+      console.warn('Could not fetch all AMC logs:', err);
+      return [];
+    });
+
+  return amcAllLogsPromise;
+}
+
+async function openAmcReportModal() {
+  const modal = document.getElementById('amcReportModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  const updatedEl = document.getElementById('amcReportUpdatedAt');
+  if (updatedEl) updatedEl.textContent = `Generated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+
+  // Populate Unit and Floor filter options
+  populateAmcReportFilterDropdowns();
+
+  // Load both AMC master data and all service logs concurrently
+  try {
+    await Promise.all([
+      loadAmcData(false),
+      fetchAllAmcServiceLogs(false)
+    ]);
+  } catch (err) {
+    console.error('Error opening AMC report data:', err);
+  }
+
+  // Re-populate dropdowns with updated units
+  populateAmcReportFilterDropdowns();
+
+  // Calculate and render all dashboard sections
+  updateAmcReportDashboard();
+}
+
+function closeAmcReportModal() {
+  const modal = document.getElementById('amcReportModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function refreshAmcReportData() {
+  showToast('Refreshing AMC analysis data…');
+  try {
+    await Promise.all([
+      loadAmcData(true),
+      fetchAllAmcServiceLogs(true)
+    ]);
+    const updatedEl = document.getElementById('amcReportUpdatedAt');
+    if (updatedEl) updatedEl.textContent = `Generated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    populateAmcReportFilterDropdowns();
+    updateAmcReportDashboard();
+    showToast('Analysis data updated.');
+  } catch (err) {
+    showToast(`Refresh failed: ${err.message || err}`, true);
+  }
+}
+
+function populateAmcReportFilterDropdowns() {
+  const unitFilterEl = document.getElementById('amcRptFilterUnit');
+  if (unitFilterEl) {
+    const currentVal = unitFilterEl.value;
+    const units = [...new Set(state.factories.concat(allAmcData.map(r => r.unit)))].filter(Boolean);
+    unitFilterEl.innerHTML = '<option value="">All Units</option>' +
+      units.map(u => `<option value="${escapeHtml(u)}" ${u === currentVal ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('');
+  }
+}
+
+function getFilteredAmcReportRecords() {
+  const unitFilter = document.getElementById('amcRptFilterUnit')?.value || '';
+  const floorFilter = document.getElementById('amcRptFilterFloor')?.value || '';
+  const categoryFilter = document.getElementById('amcRptFilterCategory')?.value || '';
+  const statusFilter = document.getElementById('amcRptFilterStatus')?.value || '';
+  const searchFilter = (document.getElementById('amcRptSearchInput')?.value || '').toLowerCase().trim();
+
+  return allAmcData.filter(r => {
+    if (unitFilter && r.unit !== unitFilter) return false;
+    if (floorFilter && r.floor !== floorFilter) return false;
+    if (categoryFilter && r.category !== categoryFilter) return false;
+    if (statusFilter) {
+      if (statusFilter === 'Overdue' && r.status !== 'Service Overdue') return false;
+      if (statusFilter === 'Due Soon' && r.status !== 'Service Due Soon') return false;
+      if (statusFilter === 'Expired' && r.status !== 'Expired') return false;
+      if (statusFilter === 'Expiring Soon' && r.status !== 'Expiring Soon') return false;
+      if (statusFilter === 'Active' && r.status !== 'Active') return false;
+    }
+    if (searchFilter) {
+      const matchStr = [r.vendorName, r.contactInfo, r.remarks, r.unit, r.floor, r.id, r.category].join(' ').toLowerCase();
+      if (!matchStr.includes(searchFilter)) return false;
+    }
+    return true;
+  });
+}
+
+function applyAmcReportFilters() {
+  updateAmcReportDashboard();
+}
+
+function resetAmcReportFilters() {
+  const unitFilter = document.getElementById('amcRptFilterUnit');
+  const floorFilter = document.getElementById('amcRptFilterFloor');
+  const categoryFilter = document.getElementById('amcRptFilterCategory');
+  const statusFilter = document.getElementById('amcRptFilterStatus');
+  const searchInput = document.getElementById('amcRptSearchInput');
+
+  if (unitFilter) unitFilter.value = '';
+  if (floorFilter) floorFilter.value = '';
+  if (categoryFilter) categoryFilter.value = '';
+  if (statusFilter) statusFilter.value = '';
+  if (searchInput) searchInput.value = '';
+
+  updateAmcReportDashboard();
+}
+
+function switchAmcReportTab(tabKey) {
+  currentAmcReportTab = tabKey;
+  document.querySelectorAll('.amc-rpt-tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.amc-rpt-tab-content').forEach(c => c.classList.add('hidden'));
+
+  if (tabKey === 'pivot') {
+    document.getElementById('amcRptTabBtnPivot')?.classList.add('active');
+    document.getElementById('amcRptTabContentPivot')?.classList.remove('hidden');
+    renderAmcPivotTable();
+  } else if (tabKey === 'delays') {
+    document.getElementById('amcRptTabBtnDelays')?.classList.add('active');
+    document.getElementById('amcRptTabContentDelays')?.classList.remove('hidden');
+    renderAmcDelaysTable();
+  } else if (tabKey === 'breakdowns') {
+    document.getElementById('amcRptTabBtnBreakdowns')?.classList.add('active');
+    document.getElementById('amcRptTabContentBreakdowns')?.classList.remove('hidden');
+    renderAmcBreakdownsTable();
+  } else if (tabKey === 'vendors') {
+    document.getElementById('amcRptTabBtnVendors')?.classList.add('active');
+    document.getElementById('amcRptTabContentVendors')?.classList.remove('hidden');
+    renderAmcVendorsTable();
+  }
+}
+
+function updateAmcReportDashboard() {
+  const filteredRecords = getFilteredAmcReportRecords();
+  const recordIds = new Set(filteredRecords.map(r => r.id));
+  const filteredLogs = allAmcServiceLogs.filter(l => recordIds.has(l.amcId));
+
+  // 1. Calculate Top KPI Summary Cards
+  const totalAssets = filteredRecords.length;
+  const activeContracts = filteredRecords.filter(r => r.status === 'Active').length;
+  const overdueCount = filteredRecords.filter(r => r.status === 'Service Overdue').length;
+  const dueSoonCount = filteredRecords.filter(r => r.status === 'Service Due Soon').length;
+  const expiredContracts = filteredRecords.filter(r => r.status === 'Expired').length;
+  const expiringContracts = filteredRecords.filter(r => r.status === 'Expiring Soon').length;
+
+  const breakdownCount = filteredLogs.filter(l => l.logType === 'Breakdown Repair').length;
+  const scheduledCount = filteredLogs.filter(l => l.logType === 'Scheduled Service').length;
+
+  const totalCost = filteredLogs.reduce((sum, l) => {
+    const num = parseFloat(l.cost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+
+  document.getElementById('amcRptTotalAssets').textContent = totalAssets;
+  document.getElementById('amcRptActiveSub').textContent = `${activeContracts} Active (${expiringContracts} Expiring)`;
+  document.getElementById('amcRptOverdueCount').textContent = overdueCount;
+  document.getElementById('amcRptDueSoonSub').textContent = `${dueSoonCount} Due Soon`;
+  document.getElementById('amcRptBreakdownCount').textContent = breakdownCount;
+  document.getElementById('amcRptScheduledVisitsSub').textContent = `${scheduledCount} Scheduled Visits`;
+  document.getElementById('amcRptTotalCost').textContent = `₹${totalCost.toLocaleString('en-IN')}`;
+  document.getElementById('amcRptExpiredContractsSub').textContent = `${expiredContracts} Contract${expiredContracts === 1 ? '' : 's'} Expired`;
+
+  // 2. Render active tab
+  if (currentAmcReportTab === 'pivot') renderAmcPivotTable();
+  else if (currentAmcReportTab === 'delays') renderAmcDelaysTable();
+  else if (currentAmcReportTab === 'breakdowns') renderAmcBreakdownsTable();
+  else if (currentAmcReportTab === 'vendors') renderAmcVendorsTable();
+}
+
+// ── 1. Multi-Dimension Pivot Matrix Renderer ────────────────────────────────
+function renderAmcPivotTable() {
+  const container = document.getElementById('amcPivotTableContainer');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const recordIds = new Set(records.map(r => r.id));
+  const logs = allAmcServiceLogs.filter(l => recordIds.has(l.amcId));
+  const dimension = document.getElementById('amcPivotDimension')?.value || 'unit_floor';
+
+  if (!records.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">No AMC records match the selected filter criteria.</div>';
+    return;
+  }
+
+  const allCategories = [
+    'Generator',
+    'Fire',
+    'Lift',
+    'Air Condition',
+    'Water Filter',
+    'CCTV Camera',
+    'Sound System & intercom',
+    'Solar Panel Maintenance'
+  ];
+
+  if (dimension === 'unit_floor') {
+    // Group rows by "Unit | Floor"
+    const rowKeys = [...new Set(records.map(r => `${r.unit}|||${r.floor || 'All Floors'}`))].sort();
+
+    let headHtml = `
+      <thead>
+        <tr>
+          <th class="sticky-col" style="min-width:180px;">Unit &amp; Floor</th>
+          ${allCategories.map(cat => `<th style="min-width:120px;">${escapeHtml(cat)}</th>`).join('')}
+          <th style="min-width:130px;background-color:#172554;">Total Overview</th>
+        </tr>
+      </thead>
+    `;
+
+    // Totals per category
+    const catTotals = {};
+    allCategories.forEach(c => catTotals[c] = { total: 0, overdue: 0, breakdown: 0, cost: 0 });
+    let grandTotal = { total: 0, overdue: 0, breakdown: 0, cost: 0 };
+
+    let bodyHtml = rowKeys.map(rowKey => {
+      const [unit, floor] = rowKey.split('|||');
+      let rowTotal = { total: 0, overdue: 0, breakdown: 0, cost: 0 };
+
+      const cells = allCategories.map(cat => {
+        const matching = records.filter(r => r.unit === unit && (r.floor || 'All Floors') === floor && r.category === cat);
+        if (!matching.length) {
+          return `<td style="color:#94a3b8;">—</td>`;
+        }
+
+        const count = matching.length;
+        const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+        const matchingIds = new Set(matching.map(r => r.id));
+        const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+        const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
+        const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+
+        rowTotal.total += count;
+        rowTotal.overdue += overdue;
+        rowTotal.breakdown += breakdowns;
+        rowTotal.cost += cost;
+
+        catTotals[cat].total += count;
+        catTotals[cat].overdue += overdue;
+        catTotals[cat].breakdown += breakdowns;
+        catTotals[cat].cost += cost;
+
+        return `
+          <td>
+            <div class="pivot-cell-box">
+              <span class="pivot-tag tag-active">${count} Asset${count > 1 ? 's' : ''}</span>
+              ${overdue ? `<span class="pivot-tag tag-overdue">${overdue} Overdue</span>` : ''}
+              ${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns} Repair${breakdowns > 1 ? 's' : ''}</span>` : ''}
+              ${cost > 0 ? `<span class="pivot-tag tag-cost">₹${cost.toLocaleString('en-IN')}</span>` : ''}
+            </div>
+          </td>
+        `;
+      }).join('');
+
+      grandTotal.total += rowTotal.total;
+      grandTotal.overdue += rowTotal.overdue;
+      grandTotal.breakdown += rowTotal.breakdown;
+      grandTotal.cost += rowTotal.cost;
+
+      return `
+        <tr>
+          <td class="sticky-col">
+            <div style="font-weight:700;color:var(--ink);">${escapeHtml(unit)}</div>
+            <div style="font-size:11px;color:var(--muted);">${escapeHtml(floor)}</div>
+          </td>
+          ${cells}
+          <td style="background-color:rgba(30,58,138,0.05);font-weight:700;">
+            <div class="pivot-cell-box">
+              <strong style="color:#1e3a8a;">${rowTotal.total} Total</strong>
+              ${rowTotal.overdue ? `<span class="pivot-tag tag-overdue">${rowTotal.overdue} Overdue</span>` : ''}
+              ${rowTotal.breakdown ? `<span class="pivot-tag tag-breakdown">${rowTotal.breakdown} Repairs</span>` : ''}
+              ${rowTotal.cost > 0 ? `<span class="pivot-tag tag-cost">₹${rowTotal.cost.toLocaleString('en-IN')}</span>` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    let footHtml = `
+      <tfoot>
+        <tr>
+          <td class="sticky-col">Grand Total</td>
+          ${allCategories.map(cat => {
+            const ct = catTotals[cat];
+            if (!ct.total) return `<td style="color:#94a3b8;">0</td>`;
+            return `
+              <td>
+                <div class="pivot-cell-box">
+                  <strong>${ct.total}</strong>
+                  ${ct.overdue ? `<span class="pivot-tag tag-overdue">${ct.overdue} Overdue</span>` : ''}
+                  ${ct.breakdown ? `<span class="pivot-tag tag-breakdown">${ct.breakdown} Repairs</span>` : ''}
+                  ${ct.cost > 0 ? `<span class="pivot-tag tag-cost">₹${ct.cost.toLocaleString('en-IN')}</span>` : ''}
+                </div>
+              </td>
+            `;
+          }).join('')}
+          <td style="background-color:#1e3a8a;color:#ffffff;">
+            <div class="pivot-cell-box">
+              <span style="font-size:14px;font-weight:800;color:#ffffff;">${grandTotal.total} Assets</span>
+              ${grandTotal.overdue ? `<span class="pivot-tag tag-overdue" style="background:#ffffff;color:#dc2626;">${grandTotal.overdue} Overdue</span>` : ''}
+              ${grandTotal.cost > 0 ? `<span class="pivot-tag" style="background:#ffffff;color:#1e3a8a;">₹${grandTotal.cost.toLocaleString('en-IN')}</span>` : ''}
+            </div>
+          </td>
+        </tr>
+      </tfoot>
+    `;
+
+    container.innerHTML = `
+      <table class="amc-pivot-table">
+        ${headHtml}
+        <tbody>${bodyHtml}</tbody>
+        ${footHtml}
+      </table>
+    `;
+  } else if (dimension === 'category_status') {
+    // Dimension 2: Category vs Status breakdown
+    let headHtml = `
+      <thead>
+        <tr>
+          <th class="sticky-col" style="min-width:180px;">Category</th>
+          <th>Total Assets</th>
+          <th>Active</th>
+          <th>Expiring Soon</th>
+          <th>Expired</th>
+          <th>Service Due Soon</th>
+          <th>Service Overdue</th>
+          <th>Breakdown Repairs</th>
+          <th>Total Cost (₹)</th>
+          <th>Compliance Rate</th>
+        </tr>
+      </thead>
+    `;
+
+    let bodyHtml = allCategories.map(cat => {
+      const matching = records.filter(r => r.category === cat);
+      const count = matching.length;
+      if (!count) {
+        return `
+          <tr>
+            <td class="sticky-col">${escapeHtml(cat)}</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">0</td>
+            <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">100%</td>
+          </tr>
+        `;
+      }
+
+      const active = matching.filter(r => r.status === 'Active').length;
+      const expiring = matching.filter(r => r.status === 'Expiring Soon').length;
+      const expired = matching.filter(r => r.status === 'Expired').length;
+      const dueSoon = matching.filter(r => r.status === 'Service Due Soon').length;
+      const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+
+      const matchingIds = new Set(matching.map(r => r.id));
+      const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+      const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
+      const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+
+      const onTrack = count - (overdue + expired);
+      const compliance = Math.round((onTrack / count) * 100);
+
+      return `
+        <tr>
+          <td class="sticky-col"><strong>${escapeHtml(cat)}</strong></td>
+          <td><strong>${count}</strong></td>
+          <td><span class="pivot-tag tag-active">${active}</span></td>
+          <td>${expiring ? `<span class="pivot-tag tag-breakdown">${expiring}</span>` : '0'}</td>
+          <td>${expired ? `<span class="pivot-tag tag-overdue">${expired}</span>` : '0'}</td>
+          <td>${dueSoon ? `<span class="pivot-tag tag-breakdown">${dueSoon}</span>` : '0'}</td>
+          <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue}</span>` : '0'}</td>
+          <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
+          <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+          <td>
+            <strong style="color:${compliance < 80 ? '#dc2626' : compliance < 100 ? '#ea580c' : '#15803d'};">
+              ${compliance}%
+            </strong>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <table class="amc-pivot-table">
+        ${headHtml}
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    `;
+  } else if (dimension === 'vendor_category') {
+    // Dimension 3: Vendor vs Category Coverage
+    const vendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))].sort();
+
+    let headHtml = `
+      <thead>
+        <tr>
+          <th class="sticky-col" style="min-width:200px;">Vendor Agency</th>
+          <th>Covered Categories</th>
+          <th>Units Covered</th>
+          <th>Total Contracts</th>
+          <th>Active</th>
+          <th>Overdue Visits</th>
+          <th>Breakdowns</th>
+          <th>Total Spend (₹)</th>
+        </tr>
+      </thead>
+    `;
+
+    let bodyHtml = vendors.map(vendor => {
+      const matching = records.filter(r => r.vendorName === vendor);
+      const cats = [...new Set(matching.map(r => r.category))].join(', ');
+      const units = [...new Set(matching.map(r => r.unit))].join(', ');
+      const active = matching.filter(r => r.status === 'Active').length;
+      const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+
+      const matchingIds = new Set(matching.map(r => r.id));
+      const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+      const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
+      const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+
+      return `
+        <tr>
+          <td class="sticky-col">
+            <strong>${escapeHtml(vendor)}</strong>
+            <div style="font-size:11px;color:var(--muted);">${escapeHtml(matching[0]?.contactInfo || '')}</div>
+          </td>
+          <td>${escapeHtml(cats)}</td>
+          <td>${escapeHtml(units)}</td>
+          <td><strong>${matching.length}</strong></td>
+          <td><span class="pivot-tag tag-active">${active}</span></td>
+          <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue}</span>` : '0'}</td>
+          <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
+          <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <table class="amc-pivot-table">
+        ${headHtml}
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    `;
+  }
+}
+
+// ── 2. Servicing Delay Analysis Table ───────────────────────────────────────
+function renderAmcDelaysTable() {
+  const container = document.getElementById('amcDelaysTableContainer');
+  const cardsRow = document.getElementById('amcDelayCardsRow');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const overdueList = records.filter(r => r.status === 'Service Overdue' || r.status === 'Service Due Soon');
+
+  // Summary breakdown: >60 days overdue, 30-60 days overdue, <30 days / due soon
+  let criticalCount = 0; // >60 days
+  let severeCount = 0;   // 30-60 days
+  let moderateCount = 0; // <30 days overdue or due soon
+
+  overdueList.forEach(r => {
+    const days = Math.abs(r.serviceDaysLeft || 0);
+    if (r.status === 'Service Overdue') {
+      if (days > 60) criticalCount++;
+      else if (days >= 30) severeCount++;
+      else moderateCount++;
+    } else {
+      moderateCount++;
+    }
+  });
+
+  if (cardsRow) {
+    cardsRow.innerHTML = `
+      <div class="amc-sub-summary-card card-critical">
+        <div class="amc-sub-summary-info">
+          <h5>Critical Delay (>60 Days)</h5>
+          <p>Immediate executive escalation needed</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#dc2626;">${criticalCount}</span>
+      </div>
+      <div class="amc-sub-summary-card card-warning">
+        <div class="amc-sub-summary-info">
+          <h5>Severe Delay (30–60 Days)</h5>
+          <p>Follow up with service vendors</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#ea580c;">${severeCount}</span>
+      </div>
+      <div class="amc-sub-summary-card card-info">
+        <div class="amc-sub-summary-info">
+          <h5>Moderate / Due Soon (&lt;30 Days)</h5>
+          <p>Schedule technician visit</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#1e3a8a;">${moderateCount}</span>
+      </div>
+    `;
+  }
+
+  if (!overdueList.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#15803d;font-weight:600;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Excellent! All equipment servicing schedules are currently up to date with zero delays.</div>';
+    return;
+  }
+
+  // Sort by highest delay first
+  const sorted = [...overdueList].sort((a, b) => (a.serviceDaysLeft || 0) - (b.serviceDaysLeft || 0));
+
+  let headHtml = `
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>Unit</th>
+        <th>Floor</th>
+        <th>AMC Category</th>
+        <th>Vendor Agency</th>
+        <th>Last Serviced</th>
+        <th>Next Due Date</th>
+        <th>Delay Duration</th>
+        <th>Severity Level</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+  `;
+
+  let bodyHtml = sorted.map((r, i) => {
+    const isOverdue = r.status === 'Service Overdue';
+    const days = Math.abs(r.serviceDaysLeft || 0);
+
+    let severityBadge = '';
+    if (isOverdue) {
+      if (days > 60) severityBadge = '<span class="pivot-tag tag-overdue" style="background:#fee2e2;color:#991b1b;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><path d="M12 9v4"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 17h.01"/></svg>Critical Delay (&gt;60d)</span>';
+      else if (days >= 30) severityBadge = '<span class="pivot-tag tag-breakdown"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><path d="M12 9v4"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 17h.01"/></svg>Severe Delay (30-60d)</span>';
+      else severityBadge = '<span class="pivot-tag tag-breakdown" style="background:#fef3c7;color:#92400e;">Moderate Delay (&lt;30d)</span>';
+    } else {
+      severityBadge = '<span class="pivot-tag" style="background:#e0f2fe;color:#0369a1;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Service Due Soon</span>';
+    }
+
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${escapeHtml(r.unit)}</strong></td>
+        <td>${escapeHtml(r.floor || '—')}</td>
+        <td><strong>${escapeHtml(r.category)}</strong></td>
+        <td>
+          <div>${escapeHtml(r.vendorName || '—')}</div>
+          <div style="font-size:11px;color:var(--muted);">${escapeHtml(r.contactInfo || '')}</div>
+        </td>
+        <td>${fmtAMCDate(r.lastServiceDate)}</td>
+        <td><strong class="${amcNextDuePulseClass(r)}">${fmtAMCDate(r.nextDueDate)}</strong></td>
+        <td>
+          <strong style="color:${isOverdue ? '#dc2626' : '#ea580c'};">
+            ${isOverdue ? `${days} Days Overdue` : `Due in ${days} Days`}
+          </strong>
+        </td>
+        <td>${severityBadge}</td>
+        <td>
+          <button class="amc-take-action-btn" type="button" onclick="closeAmcReportModal();openAmcActionModal('${escapeHtml(r.id)}')">
+            Take Action
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="amc-pivot-table">
+      ${headHtml}
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  `;
+}
+
+// ── 3. Breakdown & Repair Hotspots Table ────────────────────────────────────
+function renderAmcBreakdownsTable() {
+  const container = document.getElementById('amcBreakdownsTableContainer');
+  const summaryRow = document.getElementById('amcBreakdownSummaryRow');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId) && l.logType === 'Breakdown Repair');
+
+  const totalBreakdowns = logs.length;
+  const totalCost = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+
+  // Group by equipment ID to find recurring breakdowns
+  const equipFailures = {};
+  logs.forEach(l => {
+    equipFailures[l.amcId] = (equipFailures[l.amcId] || 0) + 1;
+  });
+  const recurringCount = Object.values(equipFailures).filter(c => c > 1).length;
+
+  if (summaryRow) {
+    summaryRow.innerHTML = `
+      <div class="amc-sub-summary-card card-warning">
+        <div class="amc-sub-summary-info">
+          <h5>Total Breakdown Incidents</h5>
+          <p>Unscheduled emergency visits logged</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#ea580c;">${totalBreakdowns}</span>
+      </div>
+      <div class="amc-sub-summary-card card-critical">
+        <div class="amc-sub-summary-info">
+          <h5>Recurring Problem Assets</h5>
+          <p>Equipment with &gt;1 breakdown repair</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#dc2626;">${recurringCount}</span>
+      </div>
+      <div class="amc-sub-summary-card card-info">
+        <div class="amc-sub-summary-info">
+          <h5>Total Breakdown Repair Spend</h5>
+          <p>Direct parts &amp; emergency repair cost</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#1e3a8a;">₹${totalCost.toLocaleString('en-IN')}</span>
+      </div>
+    `;
+  }
+
+  if (!logs.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#15803d;font-weight:600;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Zero breakdown repairs logged! All equipment functioning smoothly.</div>';
+    return;
+  }
+
+  let headHtml = `
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>Visit Date</th>
+        <th>Category</th>
+        <th>Unit</th>
+        <th>Floor</th>
+        <th>Vendor / Tech</th>
+        <th>Failure Description / Work Done</th>
+        <th>Cost (₹)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+  `;
+
+  let bodyHtml = logs.map((l, i) => {
+    const parentRec = recordMap.get(l.amcId) || {};
+    const failCount = equipFailures[l.amcId] || 1;
+
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${fmtAMCDate(l.visitDate)}</strong></td>
+        <td>
+          <strong>${escapeHtml(parentRec.category || '—')}</strong>
+          ${failCount > 1 ? `<span class="pivot-tag tag-overdue" style="font-size:10px;margin-left:4px;">${failCount}x Failures</span>` : ''}
+        </td>
+        <td>${escapeHtml(parentRec.unit || '—')}</td>
+        <td>${escapeHtml(parentRec.floor || '—')}</td>
+        <td>
+          <div>${escapeHtml(parentRec.vendorName || '—')}</div>
+          <div style="font-size:11px;color:var(--muted);">${escapeHtml(l.technician ? 'Tech: ' + l.technician : '')}</div>
+        </td>
+        <td style="max-width:280px;text-align:left;">
+          <div style="font-size:12px;color:var(--ink);">${escapeHtml(l.description || 'Breakdown repair')}</div>
+        </td>
+        <td>
+          <strong style="color:#1e3a8a;">${(l.cost !== '' && l.cost !== null && l.cost !== undefined) ? '₹' + Number(l.cost).toLocaleString('en-IN') : '—'}</strong>
+        </td>
+        <td>
+          <button class="amc-take-action-btn" type="button" onclick="closeAmcReportModal();openAmcActionModal('${escapeHtml(parentRec.id)}')">
+            View Record
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="amc-pivot-table">
+      ${headHtml}
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  `;
+}
+
+// ── 4. Vendor Performance & SLA Table ──────────────────────────────────────
+function renderAmcVendorsTable() {
+  const container = document.getElementById('amcVendorsTableContainer');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+
+  const vendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))].sort();
+
+  if (!vendors.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">No vendor records found for current filter.</div>';
+    return;
+  }
+
+  let headHtml = `
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th class="sticky-col">Vendor / Agency Name</th>
+        <th>Contact Details</th>
+        <th>Maintained Categories</th>
+        <th>Units Serviced</th>
+        <th>Total Contracts</th>
+        <th>Active</th>
+        <th>Overdue Servicing</th>
+        <th>Breakdown Calls</th>
+        <th>Total Expenditure (₹)</th>
+        <th>SLA Compliance</th>
+      </tr>
+    </thead>
+  `;
+
+  let bodyHtml = vendors.map((vendor, i) => {
+    const matching = records.filter(r => r.vendorName === vendor);
+    const cats = [...new Set(matching.map(r => r.category))].join(', ');
+    const units = [...new Set(matching.map(r => r.unit))].join(', ');
+    const active = matching.filter(r => r.status === 'Active').length;
+    const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+
+    const matchingIds = new Set(matching.map(r => r.id));
+    const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+    const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
+    const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+
+    const onTime = matching.length - overdue;
+    const sla = Math.round((onTime / matching.length) * 100);
+
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="sticky-col"><strong>${escapeHtml(vendor)}</strong></td>
+        <td>${escapeHtml(matching[0]?.contactInfo || '—')}</td>
+        <td>${escapeHtml(cats)}</td>
+        <td>${escapeHtml(units)}</td>
+        <td><strong>${matching.length}</strong></td>
+        <td><span class="pivot-tag tag-active">${active}</span></td>
+        <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue} Overdue</span>` : '<span style="color:#15803d;">0</span>'}</td>
+        <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
+        <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+        <td>
+          <span class="pivot-tag" style="background:${sla >= 90 ? '#dcfce7' : sla >= 70 ? '#fef3c7' : '#fee2e2'};color:${sla >= 90 ? '#15803d' : sla >= 70 ? '#b45309' : '#b91c1c'};font-weight:800;">
+            ${sla}%
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="amc-pivot-table">
+      ${headHtml}
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  `;
+}
+
+// ── Export Multi-Sheet Comprehensive Excel (.xlsx) ──────────────────────────
+function exportAmcAnalysisExcel() {
+  if (!window.XLSX) {
+    showToast('Excel export library not available.', true);
+    return;
+  }
+
+  const records = getFilteredAmcReportRecords();
+  if (!records.length) {
+    showToast('No records to export.', true);
+    return;
+  }
+
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Master Records List
+  const masterHeaders = [
+    'Record ID', 'Category', 'Unit', 'Floor', 'Vendor', 'Contact',
+    'Start Date', 'Expiry Date', 'Frequency', 'Last Service Date', 'Next Due Date',
+    'Status', 'Remarks'
+  ];
+  const masterRows = records.map(r => [
+    r.id || '',
+    r.category || '',
+    r.unit || '',
+    r.floor || '',
+    r.vendorName || '',
+    r.contactInfo || '',
+    r.startDate || '',
+    r.expiryDate || '',
+    r.frequency || '',
+    r.lastServiceDate || '',
+    r.nextDueDate || '',
+    r.status || '',
+    r.remarks || ''
+  ]);
+  const wsMaster = XLSX.utils.aoa_to_sheet([['AMC MASTER EQUIPMENT & CONTRACT RECORDS'], [], masterHeaders, ...masterRows]);
+  wsMaster['!cols'] = [{ wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 35 }];
+  XLSX.utils.book_append_sheet(wb, wsMaster, 'AMC Master Records');
+
+  // ── Sheet 2: Servicing Delays Report
+  const overdueList = records.filter(r => r.status === 'Service Overdue' || r.status === 'Service Due Soon');
+  const delayHeaders = ['Unit', 'Floor', 'Category', 'Vendor', 'Last Serviced', 'Next Due Date', 'Days Overdue', 'Status'];
+  const delayRows = overdueList.map(r => [
+    r.unit || '',
+    r.floor || '',
+    r.category || '',
+    r.vendorName || '',
+    r.lastServiceDate || '',
+    r.nextDueDate || '',
+    Math.abs(r.serviceDaysLeft || 0),
+    r.status || ''
+  ]);
+  const wsDelays = XLSX.utils.aoa_to_sheet([['AMC SERVICING DELAY & OVERDUE REPORT'], [], delayHeaders, ...delayRows]);
+  wsDelays['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsDelays, 'Servicing Delays');
+
+  // ── Sheet 3: Breakdown & Repair Logs
+  const breakdownLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+  const breakdownHeaders = ['Visit Date', 'Category', 'Unit', 'Floor', 'Vendor', 'Technician', 'Repair Cost (₹)', 'Issue Description'];
+  const breakdownRows = breakdownLogs.map(l => {
+    const p = recordMap.get(l.amcId) || {};
+    return [
+      l.visitDate || '',
+      p.category || '',
+      p.unit || '',
+      p.floor || '',
+      p.vendorName || '',
+      l.technician || '',
+      l.cost !== '' && l.cost !== null && l.cost !== undefined ? Number(l.cost) : '',
+      l.description || ''
+    ];
+  });
+  const wsBreakdown = XLSX.utils.aoa_to_sheet([['BREAKDOWN & EMERGENCY REPAIR HOTSPOTS'], [], breakdownHeaders, ...breakdownRows]);
+  wsBreakdown['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 45 }];
+  XLSX.utils.book_append_sheet(wb, wsBreakdown, 'Breakdown Repairs');
+
+  const stamp = formatLocalDate(new Date());
+  XLSX.writeFile(wb, `AMC_Report_Analysis_${stamp}.xlsx`);
+  showToast('Excel report downloaded successfully.');
+}
+
+// ── Print Report Function ───────────────────────────────────────────────────
+function printAmcAnalysisReport() {
+  const records = getFilteredAmcReportRecords();
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  // KPI cards
+  setText('amcKpiPrintTotalAssets', document.getElementById('amcRptTotalAssets')?.textContent || '0');
+  setText('amcKpiPrintActiveSub', document.getElementById('amcRptActiveSub')?.textContent || '0 Active Contracts');
+  setText('amcKpiPrintOverdue', document.getElementById('amcRptOverdueCount')?.textContent || '0');
+  setText('amcKpiPrintDueSoon', document.getElementById('amcRptDueSoonSub')?.textContent || '0 Due Soon');
+  setText('amcKpiPrintBreakdowns', document.getElementById('amcRptBreakdownCount')?.textContent || '0');
+  setText('amcKpiPrintScheduled', document.getElementById('amcRptScheduledVisitsSub')?.textContent || '0 Scheduled Visits');
+  setText('amcKpiPrintCost', document.getElementById('amcRptTotalCost')?.textContent || '₹0');
+  setText('amcKpiPrintExpired', document.getElementById('amcRptExpiredContractsSub')?.textContent || '0 Contracts Expired');
+
+  // Table 1: AMC Master Equipment & Contract Records
+  const masterBody = document.getElementById('amcPrintMasterBody');
+  if (masterBody) {
+    masterBody.innerHTML = records.length ? records.map(r => `
+      <tr>
+        <td>${escapeHtml(r.id || '')}</td>
+        <td>${escapeHtml(r.category || '')}</td>
+        <td>${escapeHtml(r.unit || '')}</td>
+        <td>${escapeHtml(r.floor || '')}</td>
+        <td>${escapeHtml(r.vendorName || '')}</td>
+        <td>${escapeHtml(r.startDate || '')}</td>
+        <td>${escapeHtml(r.expiryDate || '')}</td>
+        <td>${escapeHtml(r.frequency || '')}</td>
+        <td>${escapeHtml(r.lastServiceDate || '')}</td>
+        <td>${escapeHtml(r.nextDueDate || '')}</td>
+        <td>${escapeHtml(r.status || '')}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="11" class="amc-kpi-print-empty">No records found.</td></tr>`;
+  }
+
+  // Table 2: Servicing Delay & Overdue Report
+  const delayBody = document.getElementById('amcPrintDelayBody');
+  if (delayBody) {
+    const overdueList = records.filter(r => r.status === 'Service Overdue' || r.status === 'Service Due Soon');
+    delayBody.innerHTML = overdueList.length ? overdueList.map(r => `
+      <tr>
+        <td>${escapeHtml(r.unit || '')}</td>
+        <td>${escapeHtml(r.floor || '')}</td>
+        <td>${escapeHtml(r.category || '')}</td>
+        <td>${escapeHtml(r.vendorName || '')}</td>
+        <td>${escapeHtml(r.lastServiceDate || '')}</td>
+        <td>${escapeHtml(r.nextDueDate || '')}</td>
+        <td>${Math.abs(r.serviceDaysLeft || 0)}</td>
+        <td>${escapeHtml(r.status || '')}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="8" class="amc-kpi-print-empty">No servicing delays or overdue equipment.</td></tr>`;
+  }
+
+  // Table 3: Breakdown & Emergency Repair Logs
+  const breakdownBody = document.getElementById('amcPrintBreakdownBody');
+  if (breakdownBody) {
+    const breakdownLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+    breakdownBody.innerHTML = breakdownLogs.length ? breakdownLogs.map(l => {
+      const p = recordMap.get(l.amcId) || {};
+      const cost = (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? Number(l.cost).toLocaleString('en-IN') : '—';
+      return `
+        <tr>
+          <td>${escapeHtml(l.visitDate || '')}</td>
+          <td>${escapeHtml(p.category || '')}</td>
+          <td>${escapeHtml(p.unit || '')}</td>
+          <td>${escapeHtml(p.floor || '')}</td>
+          <td>${escapeHtml(p.vendorName || '')}</td>
+          <td>${escapeHtml(l.technician || '')}</td>
+          <td>${cost}</td>
+          <td>${escapeHtml(l.description || '')}</td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="8" class="amc-kpi-print-empty">No breakdown repair logs.</td></tr>`;
+  }
+
+  const dateEl = document.getElementById('amcKpiPrintDate');
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = `Generated on ${now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} at ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  window.print();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AMC KPI DRILL-DOWN ANALYSIS CONTROLLER
+// ═══════════════════════════════════════════════════════════════════════════
+
+let currentDrillKpiType = 'assets';
+
+function openAmcKpiDrilldown(kpiType) {
+  currentDrillKpiType = kpiType;
+  const modal = document.getElementById('amcKpiDrillModal');
+  const searchInput = document.getElementById('amcDrillSearchInput');
+  if (searchInput) searchInput.value = '';
+
+  if (modal) modal.classList.remove('hidden');
+  renderAmcDrilldownContent(kpiType);
+}
+
+function closeAmcKpiDrillModal() {
+  const modal = document.getElementById('amcKpiDrillModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function filterAmcDrilldownTable() {
+  const searchVal = (document.getElementById('amcDrillSearchInput')?.value || '').toLowerCase().trim();
+  renderAmcDrilldownContent(currentDrillKpiType, searchVal);
+}
+
+function renderAmcDrilldownContent(kpiType, searchVal = '') {
+  const container = document.getElementById('amcDrillBodyContainer');
+  const titleEl = document.getElementById('amcDrillTitle');
+  const subtitleEl = document.getElementById('amcDrillSubtitle');
+  const statsTextEl = document.getElementById('amcDrillStatsText');
+  const iconWrap = document.getElementById('amcDrillIconWrap');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // CARD 1: TOTAL AMC ASSETS
+  // ═════════════════════════════════════════════════════════════════════════
+  if (kpiType === 'assets') {
+    if (titleEl) titleEl.textContent = `Total AMC Assets & Contract Portfolio (${records.length} Assets)`;
+    if (subtitleEl) subtitleEl.textContent = 'Category-wise and unit-wise breakdown of all registered equipment contracts';
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>';
+
+    let filtered = records;
+    if (searchVal) {
+      filtered = records.filter(r => [r.category, r.unit, r.floor, r.vendorName, r.status, r.id, r.remarks].join(' ').toLowerCase().includes(searchVal));
+    }
+
+    const total = records.length;
+    const active = records.filter(r => r.status === 'Active').length;
+    const expiring = records.filter(r => r.status === 'Expiring Soon').length;
+    const expired = records.filter(r => r.status === 'Expired').length;
+    const overdue = records.filter(r => r.status === 'Service Overdue').length;
+
+    // Category summary pivot
+    const catMap = {};
+    records.forEach(r => {
+      if (!catMap[r.category]) catMap[r.category] = { total: 0, active: 0, expiring: 0, expired: 0, overdue: 0, units: new Set() };
+      catMap[r.category].total++;
+      if (r.status === 'Active') catMap[r.category].active++;
+      if (r.status === 'Expiring Soon') catMap[r.category].expiring++;
+      if (r.status === 'Expired') catMap[r.category].expired++;
+      if (r.status === 'Service Overdue') catMap[r.category].overdue++;
+      if (r.unit) catMap[r.category].units.add(r.unit);
+    });
+
+    let catPivotRows = Object.entries(catMap).map(([cat, s]) => `
+      <tr>
+        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+        <td style="text-align:center;font-weight:800;font-size:13.5px;color:#1e3a8a;">${s.total}</td>
+        <td style="text-align:center;"><span class="pivot-tag tag-active">${s.active} Active</span></td>
+        <td style="text-align:center;">${s.expiring ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-weight:700;">${s.expiring} Expiring</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
+        <td style="text-align:center;">${s.expired ? `<span class="pivot-tag tag-overdue">${s.expired} Expired</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
+        <td style="text-align:center;">${s.overdue ? `<span class="pivot-tag tag-overdue">${s.overdue} Overdue</span>` : '<span style="color:#15803d;font-weight:700;">0</span>'}</td>
+        <td style="text-align:center;font-size:12px;font-weight:600;color:var(--ink);">${escapeHtml([...s.units].join(', '))}</td>
+      </tr>
+    `).join('');
+
+    let listRows = filtered.map((r, i) => `
+      <tr>
+        <td style="text-align:center;">${i + 1}</td>
+        <td style="text-align:center;"><code>${escapeHtml(r.id)}</code></td>
+        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(r.category)}</span></td>
+        <td style="text-align:center;font-weight:700;">${escapeHtml(r.unit)}</td>
+        <td style="text-align:center;">${escapeHtml(r.floor || 'All Floors')}</td>
+        <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
+        <td style="text-align:center;">${fmtAMCDate(r.startDate)}</td>
+        <td style="text-align:center;font-weight:700;">${fmtAMCDate(r.expiryDate)}</td>
+        <td style="text-align:center;">
+          <span class="pivot-tag ${r.status === 'Active' ? 'tag-active' : r.status === 'Expired' ? 'tag-overdue' : 'tag-breakdown'}">
+            ${escapeHtml(r.status)}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <button type="button" class="amc-drill-action-btn" onclick="closeAmcKpiDrillModal();openAmcActionModal('${escapeHtml(r.id)}')">
+            Action &rarr;
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${total} equipment assets`;
+
+    container.innerHTML = `
+      <div class="amc-drill-summary-grid">
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Total Assets</span>
+          <span class="chip-val" style="color:#1e3a8a;">${total}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Active Contracts</span>
+          <span class="chip-val" style="color:#059669;">${active}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-warning">
+          <span class="chip-label">Expiring Soon (< 30d)</span>
+          <span class="chip-val" style="color:#ea580c;">${expiring}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-danger">
+          <span class="chip-label">Expired</span>
+          <span class="chip-val" style="color:#dc2626;">${expired}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-purple">
+          <span class="chip-label">Categories Covered</span>
+          <span class="chip-val" style="color:#7c3aed;">${Object.keys(catMap).length}</span>
+        </div>
+      </div>
+
+      <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Category Summary Matrix</h4>
+      <div class="amc-drill-pivot-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">Equipment Category</th>
+              <th style="text-align:center;">Total Assets</th>
+              <th style="text-align:center;">Active</th>
+              <th style="text-align:center;">Expiring Soon</th>
+              <th style="text-align:center;">Expired</th>
+              <th style="text-align:center;">Service Overdue</th>
+              <th style="text-align:center;">Units Covering</th>
+            </tr>
+          </thead>
+          <tbody>${catPivotRows}</tbody>
+        </table>
+      </div>
+
+      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>Individual Equipment Records (${filtered.length})</h4>
+      <div class="amc-drill-table-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">#</th>
+              <th style="text-align:center;">Record ID</th>
+              <th style="text-align:center;">Category</th>
+              <th style="text-align:center;">Unit</th>
+              <th style="text-align:center;">Floor</th>
+              <th style="text-align:center;">Vendor</th>
+              <th style="text-align:center;">Start Date</th>
+              <th style="text-align:center;">Expiry Date</th>
+              <th style="text-align:center;">Contract Status</th>
+              <th style="text-align:center;">Take Action</th>
+            </tr>
+          </thead>
+          <tbody>${listRows || '<tr><td colspan="10" style="padding:24px;text-align:center;color:#94a3b8;">No matching assets found.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  }
+  // ═════════════════════════════════════════════════════════════════════════
+  // CARD 2: SERVICING OVERDUE & DUE SCHEDULE
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (kpiType === 'overdue') {
+    const overdueList = records.filter(r => r.status === 'Service Overdue' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft < 0));
+    const dueSoonList = records.filter(r => r.status === 'Service Due Soon' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft >= 0 && r.serviceDaysLeft <= 14));
+    const onTrackList = records.filter(r => !overdueList.includes(r) && !dueSoonList.includes(r));
+
+    if (titleEl) titleEl.textContent = `Servicing Schedule & Status Tracker (${overdueList.length} Overdue, ${dueSoonList.length} Due Soon)`;
+    if (subtitleEl) subtitleEl.textContent = 'Detailed servicing timeline and compliance status across all equipment';
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+
+    const sortedAll = [...overdueList, ...dueSoonList, ...onTrackList];
+
+    let filtered = sortedAll;
+    if (searchVal) {
+      filtered = sortedAll.filter(r => [r.category, r.unit, r.floor, r.vendorName, r.contactInfo, r.status, r.id].join(' ').toLowerCase().includes(searchVal));
+    }
+
+    const worstOverdueDays = overdueList.length
+      ? Math.abs([...overdueList].sort((a, b) => (a.serviceDaysLeft || 0) - (b.serviceDaysLeft || 0))[0]?.serviceDaysLeft || 0)
+      : 0;
+
+    let rows = filtered.map((r, i) => {
+      const isOverdue = r.status === 'Service Overdue' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft < 0);
+      const isDueSoon = r.status === 'Service Due Soon' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft >= 0 && r.serviceDaysLeft <= 14);
+      const days = r.serviceDaysLeft !== undefined ? Math.abs(r.serviceDaysLeft) : null;
+
+      let statusBadge = '<span class="pivot-tag tag-active"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>On Track</span>';
+      if (isOverdue) {
+        statusBadge = `<span class="pivot-tag tag-overdue"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><path d="M12 9v4"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 17h.01"/></svg>${days !== null ? `${days}d Overdue` : 'Overdue'}</span>`;
+      } else if (isDueSoon) {
+        statusBadge = `<span class="pivot-tag tag-breakdown">⏳ ${days !== null ? `Due in ${days}d` : 'Due Soon'}</span>`;
+      }
+
+      return `
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><code>${escapeHtml(r.id)}</code></td>
+          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(r.category)}</span></td>
+          <td style="text-align:center;font-weight:700;">${escapeHtml(r.unit)}</td>
+          <td style="text-align:center;">${escapeHtml(r.floor || 'All Floors')}</td>
+          <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
+          <td style="text-align:center;">${fmtAMCDate(r.lastServiceDate)}</td>
+          <td style="text-align:center;font-weight:700;color:#1e3a8a;">${fmtAMCDate(r.nextDueDate)}</td>
+          <td style="text-align:center;">${escapeHtml(r.frequency || 'Annual')}</td>
+          <td style="text-align:center;">${statusBadge}</td>
+          <td style="text-align:center;">
+            <button type="button" class="amc-drill-action-btn" onclick="closeAmcKpiDrillModal();openAmcActionModal('${escapeHtml(r.id)}')">
+              Log Service &rarr;
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} equipment servicing records`;
+
+    container.innerHTML = `
+      <div class="amc-drill-summary-grid">
+        <div class="amc-drill-stat-chip ${overdueList.length ? 'chip-danger' : 'chip-success'}">
+          <span class="chip-label">Overdue Servicing</span>
+          <span class="chip-val" style="color:${overdueList.length ? '#dc2626' : '#059669'};">${overdueList.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip ${dueSoonList.length ? 'chip-warning' : 'chip-success'}">
+          <span class="chip-label">Due Soon (< 14d)</span>
+          <span class="chip-val" style="color:${dueSoonList.length ? '#ea580c' : '#059669'};">${dueSoonList.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Up to Date</span>
+          <span class="chip-val" style="color:#059669;">${onTrackList.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-purple">
+          <span class="chip-label">Worst Delay</span>
+          <span class="chip-val" style="color:${worstOverdueDays ? '#dc2626' : '#059669'};">${worstOverdueDays ? `${worstOverdueDays} Days` : 'None (0d)'}</span>
+        </div>
+      </div>
+
+      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Equipment Servicing Schedule List (${filtered.length})</h4>
+      <div class="amc-drill-table-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">#</th>
+              <th style="text-align:center;">Record ID</th>
+              <th style="text-align:center;">Equipment Category</th>
+              <th style="text-align:center;">Unit / Factory</th>
+              <th style="text-align:center;">Floor</th>
+              <th style="text-align:center;">Vendor</th>
+              <th style="text-align:center;">Last Serviced</th>
+              <th style="text-align:center;">Next Due Date</th>
+              <th style="text-align:center;">Frequency</th>
+              <th style="text-align:center;">Servicing Status</th>
+              <th style="text-align:center;">Take Action</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="11" style="padding:28px;text-align:center;color:#94a3b8;">No equipment records found.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  }
+  // ═════════════════════════════════════════════════════════════════════════
+  // CARD 3: BREAKDOWNS LOGGED & SERVICE HISTORY
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (kpiType === 'breakdowns') {
+    const breakdownLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+    const scheduledLogs = logs.filter(l => l.logType === 'Scheduled Service');
+
+    if (titleEl) titleEl.textContent = `Breakdowns Logged & Service History (${breakdownLogs.length} Breakdowns, ${scheduledLogs.length} Scheduled)`;
+    if (subtitleEl) subtitleEl.textContent = 'Complete log of emergency breakdown repairs and scheduled maintenance visits';
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+
+    let filtered = logs;
+    if (searchVal) {
+      filtered = logs.filter(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
+      });
+    }
+
+    const totalRepairCost = breakdownLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+
+    // Breakdown count by category pivot
+    const catBreakdowns = {};
+    breakdownLogs.forEach(l => {
+      const parent = recordMap.get(l.amcId) || {};
+      const cat = parent.category || 'General';
+      if (!catBreakdowns[cat]) catBreakdowns[cat] = { count: 0, cost: 0 };
+      catBreakdowns[cat].count++;
+      catBreakdowns[cat].cost += (parseFloat(l.cost) || 0);
+    });
+
+    let catBreakdownRows = Object.entries(catBreakdowns).map(([cat, s]) => `
+      <tr>
+        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+        <td style="text-align:center;"><span class="pivot-tag tag-breakdown" style="font-weight:800;">${s.count} Incidents</span></td>
+        <td style="text-align:center;font-weight:800;color:#c2410c;font-size:13.5px;">₹${s.cost.toLocaleString('en-IN')}</td>
+      </tr>
+    `).join('');
+
+    let rows = filtered.map((l, i) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const isBreakdown = l.logType === 'Breakdown Repair';
+      const costVal = parseFloat(l.cost);
+
+      return `
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+          <td style="text-align:center;"><strong>${fmtAMCDate(l.visitDate)}</strong></td>
+          <td style="text-align:center;">
+            <span class="pivot-tag ${isBreakdown ? 'tag-breakdown' : 'tag-active'}" style="font-weight:700;">
+              ${isBreakdown ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Breakdown Repair' : '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Scheduled Service'}
+            </span>
+          </td>
+          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || 'General')}</span></td>
+          <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
+          <td style="text-align:center;">${escapeHtml(l.technician || '—')}</td>
+          <td style="text-align:center;font-size:12px;max-width:280px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
+          <td style="text-align:center;font-weight:800;color:${!isNaN(costVal) && costVal > 0 ? '#c2410c' : '#64748b'};">
+            ${!isNaN(costVal) && costVal > 0 ? `₹${costVal.toLocaleString('en-IN')}` : '₹0'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${logs.length} logged visits`;
+
+    container.innerHTML = `
+      <div class="amc-drill-summary-grid">
+        <div class="amc-drill-stat-chip chip-warning">
+          <span class="chip-label">Breakdowns Logged</span>
+          <span class="chip-val" style="color:#ea580c;">${breakdownLogs.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Scheduled Visits</span>
+          <span class="chip-val" style="color:#059669;">${scheduledLogs.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-danger">
+          <span class="chip-label">Breakdown Repair Cost</span>
+          <span class="chip-val" style="color:#dc2626;">₹${totalRepairCost.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Total Visits Logged</span>
+          <span class="chip-val" style="color:#1e3a8a;">${logs.length}</span>
+        </div>
+      </div>
+
+      ${Object.keys(catBreakdowns).length ? `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Breakdown Hotspots by Category</h4>
+        <div class="amc-drill-pivot-wrap">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Equipment Category</th>
+                <th style="text-align:center;">Breakdown Incidents</th>
+                <th style="text-align:center;">Total Repair Cost (₹)</th>
+              </tr>
+            </thead>
+            <tbody>${catBreakdownRows}</tbody>
+          </table>
+        </div>
+      ` : ''}
+
+      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Maintenance &amp; Breakdown Log Entries (${filtered.length})</h4>
+      <div class="amc-drill-table-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">#</th>
+              <th style="text-align:center;">Log ID</th>
+              <th style="text-align:center;">Visit Date</th>
+              <th style="text-align:center;">Log Type</th>
+              <th style="text-align:center;">Category</th>
+              <th style="text-align:center;">Unit &amp; Floor</th>
+              <th style="text-align:center;">Technician</th>
+              <th style="text-align:center;">Issue / Action Taken</th>
+              <th style="text-align:center;">Cost (₹)</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;">No service or breakdown logs found.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  }
+  // ═════════════════════════════════════════════════════════════════════════
+  // CARD 4: TOTAL REPAIR / SPEND ANALYSIS
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (kpiType === 'spend') {
+    const totalSpend = logs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const breakdownCost = logs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const scheduledCost = logs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const expiredCount = records.filter(r => r.status === 'Expired').length;
+
+    if (titleEl) titleEl.textContent = `Total Repair & Spend Breakdown (₹${totalSpend.toLocaleString('en-IN')})`;
+    if (subtitleEl) subtitleEl.textContent = `Financial breakdown of maintenance spend by equipment category, vendor, and individual visits`;
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>';
+
+    // Spend by category pivot
+    const catSpend = {};
+    logs.forEach(l => {
+      const parent = recordMap.get(l.amcId) || {};
+      const cat = parent.category || 'General';
+      if (!catSpend[cat]) catSpend[cat] = { total: 0, breakdownCost: 0, scheduledCost: 0, count: 0 };
+      const c = parseFloat(l.cost) || 0;
+      catSpend[cat].total += c;
+      catSpend[cat].count++;
+      if (l.logType === 'Breakdown Repair') catSpend[cat].breakdownCost += c;
+      else catSpend[cat].scheduledCost += c;
+    });
+
+    let catSpendRows = Object.entries(catSpend).map(([cat, s]) => `
+      <tr>
+        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+        <td style="text-align:center;font-weight:700;">${s.count} Visits</td>
+        <td style="text-align:center;color:#059669;font-weight:700;">₹${s.scheduledCost.toLocaleString('en-IN')}</td>
+        <td style="text-align:center;color:#ea580c;font-weight:700;">₹${s.breakdownCost.toLocaleString('en-IN')}</td>
+        <td style="text-align:center;font-weight:800;color:#1e3a8a;font-size:14px;">₹${s.total.toLocaleString('en-IN')}</td>
+      </tr>
+    `).join('');
+
+    let filteredLogs = logs;
+    if (searchVal) {
+      filteredLogs = logs.filter(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
+      });
+    }
+
+    let costRows = filteredLogs.map((l, i) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const c = parseFloat(l.cost) || 0;
+
+      return `
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+          <td style="text-align:center;">${fmtAMCDate(l.visitDate)}</td>
+          <td style="text-align:center;"><span class="pivot-tag ${l.logType === 'Breakdown Repair' ? 'tag-breakdown' : 'tag-active'}">${escapeHtml(l.logType)}</span></td>
+          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || '—')}</span></td>
+          <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
+          <td style="text-align:center;">${escapeHtml(parent.vendorName || '—')}</td>
+          <td style="text-align:center;font-size:12px;max-width:280px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
+          <td style="text-align:center;font-weight:800;color:${c > 0 ? '#047857' : '#64748b'};font-size:13px;">₹${c.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    if (statsTextEl) statsTextEl.textContent = `Showing ₹${totalSpend.toLocaleString('en-IN')} total maintenance expenditure across ${logs.length} visits`;
+
+    container.innerHTML = `
+      <div class="amc-drill-summary-grid">
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Total Spend</span>
+          <span class="chip-val" style="color:#047857;">₹${totalSpend.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-warning">
+          <span class="chip-label">Breakdown Repair Cost</span>
+          <span class="chip-val" style="color:#ea580c;">₹${breakdownCost.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Scheduled Service Cost</span>
+          <span class="chip-val" style="color:#1e3a8a;">₹${scheduledCost.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-danger">
+          <span class="chip-label">Expired Contracts</span>
+          <span class="chip-val" style="color:#dc2626;">${expiredCount}</span>
+        </div>
+      </div>
+
+      <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>Spend Matrix by Equipment Category</h4>
+      <div class="amc-drill-pivot-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">Equipment Category</th>
+              <th style="text-align:center;">Total Visits</th>
+              <th style="text-align:center;">Scheduled Spend (₹)</th>
+              <th style="text-align:center;">Breakdown Spend (₹)</th>
+              <th style="text-align:center;">Grand Total Spend (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${catSpendRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8;">No cost data recorded yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Individual Invoice &amp; Cost Logs (${filteredLogs.length})</h4>
+      <div class="amc-drill-table-wrap">
+        <table class="amc-pivot-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;">#</th>
+              <th style="text-align:center;">Log ID</th>
+              <th style="text-align:center;">Visit Date</th>
+              <th style="text-align:center;">Log Type</th>
+              <th style="text-align:center;">Category</th>
+              <th style="text-align:center;">Unit &amp; Floor</th>
+              <th style="text-align:center;">Vendor</th>
+              <th style="text-align:center;">Description</th>
+              <th style="text-align:center;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${costRows || '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;">No cost entries found for current filter.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+}
+
+function exportAmcDrilldownExcel() {
+  if (!window.XLSX) {
+    showToast('Excel export library not available.', true);
+    return;
+  }
+
+  const table = document.querySelector('#amcDrillBodyContainer table:last-of-type');
+  if (!table) {
+    showToast('No table data to export.', true);
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.table_to_sheet(table);
+  XLSX.utils.book_append_sheet(wb, ws, 'KPI Breakdown');
+
+  const stamp = formatLocalDate(new Date());
+  XLSX.writeFile(wb, `AMC_KPI_${currentDrillKpiType.toUpperCase()}_Breakdown_${stamp}.xlsx`);
+  showToast('KPI breakdown downloaded to Excel.');
+}
+
+// Close KPI drilldown modal on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const drillModal = document.getElementById('amcKpiDrillModal');
+    if (drillModal && !drillModal.classList.contains('hidden')) {
+      closeAmcKpiDrillModal();
+    }
+  }
+});
