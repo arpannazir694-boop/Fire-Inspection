@@ -1,4 +1,4 @@
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxsqXXzxakM7t-4SyMIWVVdrskDSMc4AbQVLEk8s2HIUlskM0bCK49BUEF5u_DDtroq/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7NY8Lxr2pL877LbSoch1eeugGaOI7PJulODyApCIU_4tBfe-t6Nb4LorBsYgUc5qFjA/exec';
 // Apps Script can take several seconds to wake up and read Google Sheets.
 // Keep read requests below the browser's practical connection limit while
 // allowing enough time for a cold start or a larger report sheet.
@@ -424,6 +424,11 @@ function initHeaderMorePanel() {
   if (closeBtn) closeBtn.addEventListener('click', closePanel);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const amcDeletePasswordModal = document.getElementById('amcDeletePasswordModal');
+      if (amcDeletePasswordModal && !amcDeletePasswordModal.classList.contains('hidden')) {
+        closeAmcDeletePasswordModal();
+        return;
+      }
       const amcActionModal = document.getElementById('amcActionModal');
       if (amcActionModal && !amcActionModal.classList.contains('hidden')) {
         closeAmcActionModal();
@@ -3040,6 +3045,255 @@ async function sendAmcReminderDigestNow() {
   }
 }
 
+// Category badge colours — shared by the reminder dashboard and the record detail card
+const AMC_REMINDER_CATEGORY_COLORS = {
+  'Generator': '#f97316',
+  'Fire': '#ef4444',
+  'Lift': '#8b5cf6',
+  'Air Condition': '#0ea5e9',
+  'Water Filter': '#10b981',
+  'CCTV Camera': '#0891b2',
+  'Sound System & intercom': '#ec4899',
+  'Solar Panel Maintenance': '#eab308'
+};
+
+// ─── AI Reminder Dashboard ──────────────────────────────────────────────────
+// Opens the reminder card and populates all 4 alert quadrants from allAmcData.
+function openAmcReminderDashboard() {
+  const modal = document.getElementById('amcReminderModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  renderAmcReminderDashboard();
+}
+
+function closeAmcReminderDashboard() {
+  const modal = document.getElementById('amcReminderModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderAmcReminderDashboard() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // Helper: safe parse a YYYY-MM-DD date string
+  function safeDate(str) {
+    if (!str) return null;
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Helper: days difference (positive = future, negative = past)
+  function daysFrom(dateStr) {
+    const d = safeDate(dateStr);
+    if (!d) return null;
+    d.setHours(0, 0, 0, 0);
+    return Math.round((d - now) / 86400000);
+  }
+
+  // Category badge colours (see AMC_REMINDER_CATEGORY_COLORS)
+  function categoryChip(cat) {
+    const col = AMC_REMINDER_CATEGORY_COLORS[cat] || '#64748b';
+    return `<span class="amcr-cat-chip" style="background:${col}20;color:${col};border:1px solid ${col}40;">${escapeHtml(cat)}</span>`;
+  }
+
+  function rowHtml(r, daysLabel, urgency) {
+    const urgencyClass = urgency === 'critical' ? 'amcr-urgency-critical' : 'amcr-urgency-warning';
+    return `
+      <div class="amcr-row" onclick="openAmcReminderDetail('${escapeHtml(r.id)}')">
+        <div class="amcr-row-top">
+          ${categoryChip(r.category)}
+          <span class="${urgencyClass}">${escapeHtml(daysLabel)}</span>
+        </div>
+        <div class="amcr-row-unit"><strong>${escapeHtml(r.unit || '—')}</strong>${r.floor ? ` · ${escapeHtml(r.floor)}` : ''}</div>
+        <div class="amcr-row-vendor">${r.vendorName ? `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;opacity:.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${escapeHtml(r.vendorName)}` : ''}</div>
+      </div>`;
+  }
+
+  // Quadrant 1: Contract Expired, not renewed
+  const expired = allAmcData
+    .filter(r => r.status === 'Expired')
+    .sort((a, b) => (daysFrom(a.expiryDate) || 0) - (daysFrom(b.expiryDate) || 0));
+
+  // Quadrant 2: Contract Expiring Soon
+  const expiring = allAmcData
+    .filter(r => r.status === 'Expiring Soon')
+    .sort((a, b) => (daysFrom(a.expiryDate) || 999) - (daysFrom(b.expiryDate) || 999));
+
+  // Quadrant 3: Service Overdue (date passed, not yet serviced)
+  const serviceOverdue = allAmcData
+    .filter(r => r.status === 'Service Overdue')
+    .sort((a, b) => (daysFrom(a.nextDueDate) || 0) - (daysFrom(b.nextDueDate) || 0));
+
+  // Quadrant 4: Service Due Soon
+  const serviceDue = allAmcData
+    .filter(r => r.status === 'Service Due Soon')
+    .sort((a, b) => (daysFrom(a.nextDueDate) || 999) - (daysFrom(b.nextDueDate) || 999));
+
+  // Render helper
+  function renderList(elId, countElId, items, buildRow) {
+    const listEl = document.getElementById(elId);
+    const countEl = document.getElementById(countElId);
+    if (!listEl || !countEl) return;
+    countEl.textContent = items.length;
+    if (items.length === 0) {
+      listEl.innerHTML = '<p class="amc-reminder-empty"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12.5 10.8 15 16 9"/></svg>All clear</p>';
+      return;
+    }
+    listEl.innerHTML = items.map(buildRow).join('');
+  }
+
+  // Render all four
+  renderList('amcReminderListExpired', 'amcReminderCountExpired', expired, r => {
+    const d = daysFrom(r.expiryDate);
+    const label = d !== null ? `Expired ${Math.abs(d)}d ago` : 'Date unknown';
+    return rowHtml(r, label, 'critical');
+  });
+
+  renderList('amcReminderListExpiring', 'amcReminderCountExpiring', expiring, r => {
+    const d = daysFrom(r.expiryDate);
+    const label = d !== null ? `Expires in ${d}d (${fmtAMCDate(r.expiryDate)})` : 'Date unknown';
+    return rowHtml(r, label, 'warning');
+  });
+
+  renderList('amcReminderListServiceOverdue', 'amcReminderCountServiceOverdue', serviceOverdue, r => {
+    const d = daysFrom(r.nextDueDate);
+    const label = d !== null ? `Overdue by ${Math.abs(d)}d (due ${fmtAMCDate(r.nextDueDate)})` : 'Date unknown';
+    return rowHtml(r, label, 'critical');
+  });
+
+  renderList('amcReminderListServiceDue', 'amcReminderCountServiceDue', serviceDue, r => {
+    const d = daysFrom(r.nextDueDate);
+    const label = d !== null ? `Due in ${d}d (${fmtAMCDate(r.nextDueDate)})` : 'Date unknown';
+    return rowHtml(r, label, 'warning');
+  });
+
+  // Summary bar
+  const totalCritical = expired.length + serviceOverdue.length;
+  const totalWarning  = expiring.length + serviceDue.length;
+  const bar = document.getElementById('amcReminderSummaryBar');
+  if (bar) {
+    const svgOk = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const svgWarn = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    if (totalCritical === 0 && totalWarning === 0) {
+      bar.innerHTML = `<span class="amcr-summary-ok">${svgOk}All AMC contracts and servicing schedules are on track.</span>`;
+      bar.className = 'amc-reminder-summary-bar amcr-bar-ok';
+    } else {
+      const parts = [];
+      if (expired.length) parts.push(`<strong>${expired.length}</strong> contract${expired.length > 1 ? 's' : ''} expired`);
+      if (serviceOverdue.length) parts.push(`<strong>${serviceOverdue.length}</strong> service${serviceOverdue.length > 1 ? 's' : ''} overdue`);
+      if (expiring.length) parts.push(`<strong>${expiring.length}</strong> expiring soon`);
+      if (serviceDue.length) parts.push(`<strong>${serviceDue.length}</strong> service${serviceDue.length > 1 ? 's' : ''} due soon`);
+      bar.innerHTML = svgWarn + parts.join(' &nbsp;·&nbsp; ');
+      bar.className = 'amc-reminder-summary-bar ' + (totalCritical > 0 ? 'amcr-bar-critical' : 'amcr-bar-warning');
+    }
+  }
+}
+
+// ─── AI Reminder — Record Detail Card ───────────────────────────────────────
+// Opens when an individual alert row is clicked; shows every field for that
+// single AMC record on top of the dashboard.
+function openAmcReminderDetail(recordId) {
+  const record = allAmcData.find(r => String(r.id) === String(recordId));
+  if (!record) {
+    showToast('Record not found.', true);
+    return;
+  }
+
+  const modal = document.getElementById('amcReminderDetailModal');
+  if (!modal) return;
+
+  const col = AMC_REMINDER_CATEGORY_COLORS[record.category] || '#64748b';
+  const box = modal.querySelector('.amcrd-box');
+  if (box) {
+    box.style.setProperty('--amcrd-accent', col);
+    box.style.setProperty('--amcrd-accent-soft', col + '14');
+  }
+
+  const catBadge = document.getElementById('amcrdCatBadge');
+  // catBadge now shows the fixed company logo (see index.html) — no per-category overwrite.
+
+  document.getElementById('amcrdUnitTitle').textContent = `${record.category || 'AMC'} — Unit ${record.unit || '—'}`;
+  document.getElementById('amcrdFloorSub').textContent = record.floor ? `Floor: ${record.floor}` : 'Floor not specified';
+  document.getElementById('amcrdStatusPill').textContent = record.status || '—';
+  document.getElementById('amcrdVendor').textContent = record.vendorName || '—';
+  document.getElementById('amcrdContact').textContent = record.contactInfo || '—';
+  document.getElementById('amcrdStart').textContent = fmtAMCDate(record.startDate);
+  document.getElementById('amcrdExpiry').textContent = fmtAMCDate(record.expiryDate);
+  document.getElementById('amcrdFrequency').textContent = record.frequency || 'Annual';
+  document.getElementById('amcrdLastService').textContent = fmtAMCDate(record.lastServiceDate);
+  document.getElementById('amcrdNextDue').textContent = fmtAMCDate(record.nextDueDate);
+  document.getElementById('amcrdRecordId').textContent = record.id || '—';
+  document.getElementById('amcrdRemarks').textContent = record.remarks || 'No remarks provided.';
+
+  // Alert note — why this record is showing up in the reminder feed
+  const noteEl = document.getElementById('amcrdAlertNote');
+  if (noteEl) {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    function daysFrom(dateStr) {
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return null;
+      d.setHours(0, 0, 0, 0);
+      return Math.round((d - now) / 86400000);
+    }
+    const svgWarnIcon = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    let noteText = '';
+    let noteClass = 'is-warning';
+    if (record.status === 'Expired') {
+      const d = daysFrom(record.expiryDate);
+      noteText = d !== null ? `Contract expired ${Math.abs(d)}d ago — not yet renewed.` : 'Contract expired — date unknown.';
+      noteClass = 'is-critical';
+    } else if (record.status === 'Expiring Soon') {
+      const d = daysFrom(record.expiryDate);
+      noteText = d !== null ? `Contract expires in ${d}d (${fmtAMCDate(record.expiryDate)}).` : 'Contract expiring soon.';
+    } else if (record.status === 'Service Overdue') {
+      const d = daysFrom(record.nextDueDate);
+      noteText = d !== null ? `Servicing overdue by ${Math.abs(d)}d (was due ${fmtAMCDate(record.nextDueDate)}).` : 'Servicing overdue.';
+      noteClass = 'is-critical';
+    } else if (record.status === 'Service Due Soon') {
+      const d = daysFrom(record.nextDueDate);
+      noteText = d !== null ? `Servicing due in ${d}d (${fmtAMCDate(record.nextDueDate)}).` : 'Servicing due soon.';
+    }
+    if (noteText) {
+      noteEl.style.display = 'flex';
+      noteEl.className = 'amcrd-alert-note ' + noteClass;
+      noteEl.innerHTML = svgWarnIcon + noteText;
+    } else {
+      noteEl.style.display = 'none';
+    }
+  }
+
+  // Attachments
+  const docsBlock = document.getElementById('amcrdDocsBlock');
+  const docsList = document.getElementById('amcrdDocsList');
+  if (docsBlock && docsList) {
+    if (record.attachments && record.attachments.length) {
+      docsBlock.style.display = 'flex';
+      docsList.innerHTML = record.attachments.map((link, i) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" class="amcrd-doc-link"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Doc ${i + 1}</a>`).join('');
+    } else {
+      docsBlock.style.display = 'none';
+      docsList.innerHTML = '';
+    }
+  }
+
+  // Manage button hands off to the existing full action/details modal
+  const manageBtn = document.getElementById('amcrdManageBtn');
+  if (manageBtn) {
+    manageBtn.onclick = () => {
+      closeAmcReminderDetail();
+      openAmcActionModal(record.id);
+    };
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeAmcReminderDetail() {
+  const modal = document.getElementById('amcReminderDetailModal');
+  if (modal) modal.classList.add('hidden');
+}
+
 function openAmcCategoryDetail(categoryKey) {
   currentAmcCategory = categoryKey;
   const overviewEl = document.getElementById('amcOverviewView');
@@ -3940,20 +4194,80 @@ async function handleAmcContractRenewalSubmit(event) {
 
 async function confirmDeleteFromActionModal() {
   if (!amcActiveActionRecord) return;
-  const id = amcActiveActionRecord.id;
-  const rowIndex = amcActiveActionRecord.rowIndex;
+  const modal = document.getElementById('amcDeletePasswordModal');
+  const input = document.getElementById('amcDeletePasswordInput');
+  const error = document.getElementById('amcDeletePasswordError');
+  if (!modal || !input) return;
 
-  if (!confirm(`Are you sure you want to permanently delete this AMC record (${id})?`)) return;
+  input.value = '';
+  input.type = 'password';
+  if (error) error.classList.add('hidden');
+  modal.classList.remove('hidden');
+  window.setTimeout(() => input.focus(), 180);
+}
+
+function closeAmcDeletePasswordModal() {
+  const modal = document.getElementById('amcDeletePasswordModal');
+  const input = document.getElementById('amcDeletePasswordInput');
+  const error = document.getElementById('amcDeletePasswordError');
+  if (modal) modal.classList.add('hidden');
+  if (input) { input.value = ''; input.type = 'password'; }
+  if (error) error.classList.add('hidden');
+}
+
+function toggleAmcDeletePasswordVisibility() {
+  const input = document.getElementById('amcDeletePasswordInput');
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function clearAmcDeletePasswordError() {
+  const input = document.getElementById('amcDeletePasswordInput');
+  const error = document.getElementById('amcDeletePasswordError');
+  if (input) input.classList.remove('is-invalid');
+  if (error) error.classList.add('hidden');
+}
+
+async function submitAmcDeletePassword(event) {
+  event.preventDefault();
+  if (!amcActiveActionRecord) return;
+
+  const input = document.getElementById('amcDeletePasswordInput');
+  const error = document.getElementById('amcDeletePasswordError');
+  const btn = document.getElementById('amcDeletePasswordSubmitBtn');
+  if (!input || !input.value) {
+    if (error) error.classList.remove('hidden');
+    if (input) { input.classList.add('is-invalid'); input.focus(); input.select(); }
+    return;
+  }
+
+  input.classList.remove('is-invalid');
+  const rowIndex = amcActiveActionRecord.rowIndex;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Deleting…'; }
 
   try {
     showToast('Deleting AMC record...');
-    const res = await serverCall('deleteAmc', { action: 'deleteAmc', rowIndex });
+    const res = await serverCall('deleteAmc', {
+      action: 'deleteAmc',
+      rowIndex,
+      deletePassword: input.value
+    });
+    if (res && res.ok === false) throw new Error(res.message || 'Server returned failure.');
     showToast('AMC record deleted successfully.');
+    closeAmcDeletePasswordModal();
     closeAmcActionModal();
     await loadAmcData(true);
   } catch (err) {
     console.error('Error deleting AMC record:', err);
+    if (String(err.message || err).toLowerCase().includes('password')) {
+      if (error) error.classList.remove('hidden');
+      if (input) { input.classList.add('is-invalid'); input.focus(); input.select(); }
+      return;
+    }
     showToast(`Failed to delete record: ${err.message || err}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
   }
 }
 
@@ -4164,8 +4478,10 @@ function getFilteredAmcReportRecords() {
     if (floorFilter && r.floor !== floorFilter) return false;
     if (categoryFilter && r.category !== categoryFilter) return false;
     if (statusFilter) {
-      if (statusFilter === 'Overdue' && r.status !== 'Service Overdue') return false;
-      if (statusFilter === 'Due Soon' && r.status !== 'Service Due Soon') return false;
+      // Service status is intentionally checked separately from the overall
+      // contract badge: a contract can be expired AND its servicing overdue.
+      if (statusFilter === 'Overdue' && r.serviceStatus !== 'Overdue') return false;
+      if (statusFilter === 'Due Soon' && r.serviceStatus !== 'Due Soon') return false;
       if (statusFilter === 'Expired' && r.status !== 'Expired') return false;
       if (statusFilter === 'Expiring Soon' && r.status !== 'Expiring Soon') return false;
       if (statusFilter === 'Active' && r.status !== 'Active') return false;
@@ -4230,8 +4546,8 @@ function updateAmcReportDashboard() {
   // 1. Calculate Top KPI Summary Cards
   const totalAssets = filteredRecords.length;
   const activeContracts = filteredRecords.filter(r => r.status === 'Active').length;
-  const overdueCount = filteredRecords.filter(r => r.status === 'Service Overdue').length;
-  const dueSoonCount = filteredRecords.filter(r => r.status === 'Service Due Soon').length;
+  const overdueCount = filteredRecords.filter(r => r.serviceStatus === 'Overdue').length;
+  const dueSoonCount = filteredRecords.filter(r => r.serviceStatus === 'Due Soon').length;
   const expiredContracts = filteredRecords.filter(r => r.status === 'Expired').length;
   const expiringContracts = filteredRecords.filter(r => r.status === 'Expiring Soon').length;
 
@@ -4315,7 +4631,7 @@ function renderAmcPivotTable() {
         }
 
         const count = matching.length;
-        const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+        const overdue = matching.filter(r => r.serviceStatus === 'Overdue').length;
         const matchingIds = new Set(matching.map(r => r.id));
         const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
         const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
@@ -4445,8 +4761,8 @@ function renderAmcPivotTable() {
       const active = matching.filter(r => r.status === 'Active').length;
       const expiring = matching.filter(r => r.status === 'Expiring Soon').length;
       const expired = matching.filter(r => r.status === 'Expired').length;
-      const dueSoon = matching.filter(r => r.status === 'Service Due Soon').length;
-      const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+      const dueSoon = matching.filter(r => r.serviceStatus === 'Due Soon').length;
+      const overdue = matching.filter(r => r.serviceStatus === 'Overdue').length;
 
       const matchingIds = new Set(matching.map(r => r.id));
       const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
@@ -4506,7 +4822,7 @@ function renderAmcPivotTable() {
       const cats = [...new Set(matching.map(r => r.category))].join(', ');
       const units = [...new Set(matching.map(r => r.unit))].join(', ');
       const active = matching.filter(r => r.status === 'Active').length;
-      const overdue = matching.filter(r => r.status === 'Service Overdue').length;
+      const overdue = matching.filter(r => r.serviceStatus === 'Overdue').length;
 
       const matchingIds = new Set(matching.map(r => r.id));
       const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
@@ -4540,13 +4856,13 @@ function renderAmcPivotTable() {
 }
 
 // ── 2. Servicing Delay Analysis Table ───────────────────────────────────────
-function renderAmcDelaysTable() {
+function renderAmcOpenServiceDelays() {
   const container = document.getElementById('amcDelaysTableContainer');
   const cardsRow = document.getElementById('amcDelayCardsRow');
   if (!container) return;
 
   const records = getFilteredAmcReportRecords();
-  const overdueList = records.filter(r => r.status === 'Service Overdue' || r.status === 'Service Due Soon');
+  const overdueList = records.filter(r => r.serviceStatus === 'Overdue' || r.serviceStatus === 'Due Soon');
 
   // Summary breakdown: >60 days overdue, 30-60 days overdue, <30 days / due soon
   let criticalCount = 0; // >60 days
@@ -4555,7 +4871,7 @@ function renderAmcDelaysTable() {
 
   overdueList.forEach(r => {
     const days = Math.abs(r.serviceDaysLeft || 0);
-    if (r.status === 'Service Overdue') {
+    if (r.serviceStatus === 'Overdue') {
       if (days > 60) criticalCount++;
       else if (days >= 30) severeCount++;
       else moderateCount++;
@@ -4616,7 +4932,7 @@ function renderAmcDelaysTable() {
   `;
 
   let bodyHtml = sorted.map((r, i) => {
-    const isOverdue = r.status === 'Service Overdue';
+    const isOverdue = r.serviceStatus === 'Overdue';
     const days = Math.abs(r.serviceDaysLeft || 0);
 
     let severityBadge = '';
@@ -4661,6 +4977,43 @@ function renderAmcDelaysTable() {
       <tbody>${bodyHtml}</tbody>
     </table>
   `;
+}
+
+// Completed service delays: actual service date later than the scheduled due date.
+function renderAmcDelaysTable() {
+  const container = document.getElementById('amcDelaysTableContainer');
+  const cardsRow = document.getElementById('amcDelayCardsRow');
+  if (!container) return;
+
+  const records = getFilteredAmcReportRecords();
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  const delayedServices = allAmcServiceLogs
+    .filter(log => recordMap.has(log.amcId) && log.logType === 'Scheduled Service' && Number(log.delayDays) > 0)
+    .sort((a, b) => Number(b.delayDays) - Number(a.delayDays));
+  const totalDelayDays = delayedServices.reduce((sum, log) => sum + Number(log.delayDays || 0), 0);
+  const criticalCount = delayedServices.filter(log => Number(log.delayDays) > 60).length;
+  const severeCount = delayedServices.filter(log => Number(log.delayDays) >= 30 && Number(log.delayDays) <= 60).length;
+  const shortDelayCount = delayedServices.length - criticalCount - severeCount;
+
+  if (cardsRow) {
+    cardsRow.innerHTML = `
+      <div class="amc-sub-summary-card card-critical amc-delay-kpi-card" onclick="openAmcKpiDrilldown('completedLate')" title="View all services completed after the due date" role="button" tabindex="0"><div class="amc-sub-summary-info"><h5>Late Services Completed</h5><p>Completed after their scheduled due date · View details →</p></div><span class="amc-sub-summary-val" style="color:#dc2626;">${delayedServices.length}</span></div>
+      <div class="amc-sub-summary-card card-warning amc-delay-kpi-card" onclick="openAmcKpiDrilldown('delayDays')" title="View services contributing to total delay days" role="button" tabindex="0"><div class="amc-sub-summary-info"><h5>Total Delay Days</h5><p>Combined lateness of completed services · View details →</p></div><span class="amc-sub-summary-val" style="color:#ea580c;">${totalDelayDays}</span></div>
+      <div class="amc-sub-summary-card card-info amc-delay-kpi-card" onclick="openAmcKpiDrilldown('delaySeverity')" title="View delay severity breakdown" role="button" tabindex="0"><div class="amc-sub-summary-info"><h5>Critical / Severe / Short</h5><p>&gt;60d / 30–60d / under 30d late · View details →</p></div><span class="amc-sub-summary-val" style="color:#1e3a8a;">${criticalCount} / ${severeCount} / ${shortDelayCount}</span></div>`;
+  }
+
+  if (!delayedServices.length) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#15803d;font-weight:600;">No completed delayed service is recorded for the selected filters. Delay tracking begins automatically for each newly logged scheduled service.</div>';
+    return;
+  }
+
+  const rows = delayedServices.map((log, index) => {
+    const record = recordMap.get(log.amcId);
+    const days = Number(log.delayDays);
+    const severity = days > 60 ? 'Critical (>60d)' : days >= 30 ? 'Severe (30–60d)' : 'Short Delay (<30d)';
+    return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(record.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.id || '')}</div></td><td><strong>${escapeHtml(record.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.floor || '—')}</div></td><td>${fmtAMCDate(log.scheduledDueDate)}</td><td><strong>${fmtAMCDate(log.visitDate)}</strong></td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(record.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.contactInfo || '')}</div></td><td>${escapeHtml(log.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(log.description || '')}</div></td></tr>`;
+  }).join('');
+  container.innerHTML = `<table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── 3. Breakdown & Repair Hotspots Table ────────────────────────────────────
@@ -4771,7 +5124,7 @@ function renderAmcBreakdownsTable() {
   `;
 }
 
-// ── 4. Vendor Performance & SLA Table ──────────────────────────────────────
+// ── 4. Vendor Performance Table ────────────────────────────────────────────
 function renderAmcVendorsTable() {
   const container = document.getElementById('amcVendorsTableContainer');
   if (!container) return;
@@ -4800,7 +5153,6 @@ function renderAmcVendorsTable() {
         <th>Overdue Servicing</th>
         <th>Breakdown Calls</th>
         <th>Total Expenditure (₹)</th>
-        <th>SLA Compliance</th>
       </tr>
     </thead>
   `;
@@ -4817,9 +5169,6 @@ function renderAmcVendorsTable() {
     const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
     const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
 
-    const onTime = matching.length - overdue;
-    const sla = Math.round((onTime / matching.length) * 100);
-
     return `
       <tr>
         <td>${i + 1}</td>
@@ -4832,11 +5181,6 @@ function renderAmcVendorsTable() {
         <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue} Overdue</span>` : '<span style="color:#15803d;">0</span>'}</td>
         <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
         <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
-        <td>
-          <span class="pivot-tag" style="background:${sla >= 90 ? '#dcfce7' : sla >= 70 ? '#fef3c7' : '#fee2e2'};color:${sla >= 90 ? '#15803d' : sla >= 70 ? '#b45309' : '#b91c1c'};font-weight:800;">
-            ${sla}%
-          </span>
-        </td>
       </tr>
     `;
   }).join('');
@@ -5061,10 +5405,63 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
   const recordMap = new Map(records.map(r => [r.id, r]));
   const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
 
+  // Servicing Delay Analysis KPI cards: completed services where the actual
+  // visit happened after the scheduled due date.
+  if (['completedLate', 'delayDays', 'delaySeverity'].includes(kpiType)) {
+    const delayedLogs = logs
+      .filter(l => l.logType === 'Scheduled Service' && Number(l.delayDays) > 0)
+      .sort((a, b) => Number(b.delayDays) - Number(a.delayDays));
+    const totalDelayDays = delayedLogs.reduce((sum, l) => sum + Number(l.delayDays || 0), 0);
+    const critical = delayedLogs.filter(l => Number(l.delayDays) > 60).length;
+    const severe = delayedLogs.filter(l => Number(l.delayDays) >= 30 && Number(l.delayDays) <= 60).length;
+    const short = delayedLogs.length - critical - severe;
+    const config = {
+      completedLate: {
+        title: `Late Services Completed (${delayedLogs.length})`,
+        subtitle: 'Each row is a scheduled service completed after its recorded due date.',
+        statLabel: 'Completed Late Services', statValue: delayedLogs.length
+      },
+      delayDays: {
+        title: `Total Delay Days (${totalDelayDays} Days)`,
+        subtitle: 'Each row contributes its completion delay to the total shown above.',
+        statLabel: 'Combined Delay Days', statValue: totalDelayDays
+      },
+      delaySeverity: {
+        title: `Delay Severity Breakdown (${critical} / ${severe} / ${short})`,
+        subtitle: 'Critical: over 60 days; Severe: 30–60 days; Short: under 30 days late.',
+        statLabel: 'Completed Delayed Services', statValue: delayedLogs.length
+      }
+    }[kpiType];
+    if (titleEl) titleEl.textContent = config.title;
+    if (subtitleEl) subtitleEl.textContent = config.subtitle;
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 2"/></svg>';
+
+    const filtered = searchVal ? delayedLogs.filter(l => {
+      const r = recordMap.get(l.amcId) || {};
+      return [r.category, r.unit, r.floor, r.vendorName, r.contactInfo, l.technician, l.description, l.visitDate, l.scheduledDueDate].join(' ').toLowerCase().includes(searchVal);
+    }) : delayedLogs;
+    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${delayedLogs.length} completed delayed services`;
+
+    const rows = filtered.map((l, index) => {
+      const r = recordMap.get(l.amcId) || {};
+      const days = Number(l.delayDays);
+      const severity = days > 60 ? 'Critical (>60d)' : days >= 30 ? 'Severe (30–60d)' : 'Short Delay (<30d)';
+      return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(r.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.id || '')}</div></td><td><strong>${escapeHtml(r.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.floor || '—')}</div></td><td>${fmtAMCDate(l.scheduledDueDate)}</td><td><strong>${fmtAMCDate(l.visitDate)}</strong></td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(r.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.contactInfo || '')}</div></td><td>${escapeHtml(l.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(l.description || '')}</div></td></tr>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="amc-drill-summary-grid">
+        <div class="amc-drill-stat-chip chip-danger"><span class="chip-label">${config.statLabel}</span><span class="chip-val" style="color:#dc2626;">${config.statValue}</span></div>
+        <div class="amc-drill-stat-chip chip-warning"><span class="chip-label">Total Delay Days</span><span class="chip-val" style="color:#ea580c;">${totalDelayDays}</span></div>
+        <div class="amc-drill-stat-chip chip-danger"><span class="chip-label">Critical (&gt;60d)</span><span class="chip-val" style="color:#dc2626;">${critical}</span></div>
+        <div class="amc-drill-stat-chip chip-warning"><span class="chip-label">Severe (30–60d)</span><span class="chip-val" style="color:#ea580c;">${severe}</span></div>
+        <div class="amc-drill-stat-chip chip-success"><span class="chip-label">Short (&lt;30d)</span><span class="chip-val" style="color:#059669;">${short}</span></div>
+      </div>
+      <div class="amc-drill-table-wrap"><table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows || '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;">No matching completed delayed services.</td></tr>'}</tbody></table></div>`;
+  }
   // ═════════════════════════════════════════════════════════════════════════
   // CARD 1: TOTAL AMC ASSETS
   // ═════════════════════════════════════════════════════════════════════════
-  if (kpiType === 'assets') {
+  else if (kpiType === 'assets') {
     if (titleEl) titleEl.textContent = `Total AMC Assets & Contract Portfolio (${records.length} Assets)`;
     if (subtitleEl) subtitleEl.textContent = 'Category-wise and unit-wise breakdown of all registered equipment contracts';
     if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>';
@@ -5565,6 +5962,27 @@ function exportAmcDrilldownExcel() {
   const stamp = formatLocalDate(new Date());
   XLSX.writeFile(wb, `AMC_KPI_${currentDrillKpiType.toUpperCase()}_Breakdown_${stamp}.xlsx`);
   showToast('KPI breakdown downloaded to Excel.');
+}
+
+function printAmcDrilldownPdf() {
+  const body = document.getElementById('amcDrillBodyContainer');
+  const title = document.getElementById('amcDrillTitle')?.textContent || 'AMC KPI Details';
+  const subtitle = document.getElementById('amcDrillSubtitle')?.textContent || '';
+  if (!body || !body.querySelector('table')) {
+    showToast('No table data to export.', true);
+    return;
+  }
+
+  const printWindow = window.open('', '_blank', 'width=1200,height=800');
+  if (!printWindow) {
+    showToast('Please allow pop-ups to download the PDF.', true);
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>
+    body{font-family:Arial,sans-serif;color:#172554;padding:24px}h1{font-size:20px;margin:0 0 6px}p{font-size:12px;color:#475569;margin:0 0 18px}.amc-drill-summary-grid{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.amc-drill-stat-chip{border:1px solid #cbd5e1;border-radius:8px;padding:10px 14px;min-width:120px}.chip-label{display:block;font-size:11px;color:#475569}.chip-val{display:block;font-size:18px;font-weight:700;margin-top:3px}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#1e3a8a;color:#fff;padding:8px;text-align:left}td{border:1px solid #cbd5e1;padding:7px;vertical-align:top}.pivot-tag{display:inline-block;padding:3px 6px;border-radius:10px;background:#fef3c7;color:#92400e;font-weight:700}.tag-overdue{background:#fee2e2;color:#b91c1c}@media print{body{padding:0}table{font-size:9px}th,td{padding:5px}}</style></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)} · Generated ${new Date().toLocaleString('en-IN')}</p>${body.innerHTML}</body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 }
 
 // Close KPI drilldown modal on Escape
