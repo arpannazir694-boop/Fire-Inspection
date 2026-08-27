@@ -5,7 +5,8 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fire Safety Audit</title>
+  <title>Fire Safety-Application</title>
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dnrgcigsj/image/upload/v1787810920/ChatGPT_Image_Aug_27_2026_11_38_13_AM_bovvef.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://script.google.com">
@@ -148,7 +149,7 @@
           </button>
           <button class="rpt-export-btn" onclick="exportRptExcel()" title="Export to Excel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" style="width:20px;height:20px;">
+              stroke-linejoin="round" style="width:20px;height:20px;" class="legacy-export-icon">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="12" y1="18" x2="12" y2="12" />
@@ -607,13 +608,14 @@
               <p class="amc-section-subtitle"></p>
             </div>
             <div class="amc-toolbar-info-right">
-              <button class="amc-global-add-btn" type="button" onclick="openAmcForm()">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+              <button class="amc-global-add-btn amc-ai-reminder-btn" type="button" onclick="openAmcReminderDashboard()" title="AI Reminder — See contract expirations, renewals & servicing alerts">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"
                   stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  <circle cx="19" cy="5" r="3" fill="#f97316" stroke="none"/>
                 </svg>
-                + New AMC
+                AI Reminder
               </button>
               <button class="amc-global-add-btn" type="button" onclick="openAmcReportModal()" style="background-color:#0f766e;" title="Open AMC Analytics, Servicing Delays & Pivot Table Report">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
@@ -1464,7 +1466,219 @@
     </div>
   </div>
 
-  <!-- ─── AMC Report & Analysis Modal Dashboard ─────────────────────── -->
+  <!-- ─── AMC Delete Password Confirmation ─────────────────────────── -->
+  <div id="amcDeletePasswordModal" class="amc-delete-password-overlay hidden"
+    onclick="if(event.target===this)closeAmcDeletePasswordModal()">
+    <div class="amc-delete-password-card" role="dialog" aria-modal="true" aria-labelledby="amcDeletePasswordTitle">
+      <div class="amc-delete-password-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          <circle cx="12" cy="16" r="1" fill="currentColor" />
+        </svg>
+      </div>
+      <h4 id="amcDeletePasswordTitle">Confirm permanent deletion</h4>
+      <p>Enter the deletion password to permanently remove this AMC record and its complete service history.</p>
+      <form id="amcDeletePasswordForm" onsubmit="submitAmcDeletePassword(event)">
+        <label for="amcDeletePasswordInput">Password</label>
+        <div class="amc-delete-password-input-wrap">
+          <input type="password" id="amcDeletePasswordInput" autocomplete="off" placeholder="Enter password" required oninput="clearAmcDeletePasswordError()">
+          <button type="button" class="amc-password-toggle" onclick="toggleAmcDeletePasswordVisibility()" title="Show password" aria-label="Show password">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+              <circle cx="12" cy="12" r="2.5" />
+            </svg>
+          </button>
+        </div>
+        <div class="amc-delete-password-error hidden" id="amcDeletePasswordError" role="alert">Incorrect password. Please try again.</div>
+        <div class="amc-delete-password-actions">
+          <button type="button" class="amc-delete-password-cancel" onclick="closeAmcDeletePasswordModal()">Cancel</button>
+          <button type="submit" class="amc-delete-password-submit" id="amcDeletePasswordSubmitBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Confirm &amp; Delete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ─── AI Reminder Dashboard Modal ────────────────────────────── -->
+  <div id="amcReminderModal" class="amc-reminder-overlay hidden" onclick="if(event.target===this)closeAmcReminderDashboard()">
+    <div class="amc-reminder-box">
+      <!-- Header -->
+      <div class="amc-reminder-head">
+        <div class="amc-reminder-title-block">
+          <div class="amc-reminder-icon-wrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="amc-reminder-title">AI Reminder Dashboard</h2>
+            <p class="amc-reminder-subtitle"><span class="amcr-live-dot"></span>Live AMC alerts — contracts &amp; servicing at a glance</p>
+          </div>
+        </div>
+        <button class="amc-reminder-close-btn" onclick="closeAmcReminderDashboard()" title="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Summary bar -->
+      <div id="amcReminderSummaryBar" class="amc-reminder-summary-bar"></div>
+
+      <!-- Four-quadrant grid -->
+      <div class="amc-reminder-grid">
+
+        <div class="amcr-group-label">Contract Status</div>
+
+        <!-- 1. Contract Expired — NOT yet renewed -->
+        <div class="amc-reminder-card card-expired">
+          <div class="amc-reminder-card-head">
+            <span class="amc-reminder-card-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+            </span>
+            <span class="amc-reminder-card-title">Contract Expired &amp; Not Renewed</span>
+            <span class="amc-reminder-card-count" id="amcReminderCountExpired">0</span>
+          </div>
+          <div class="amc-reminder-card-body" id="amcReminderListExpired">
+            <p class="amc-reminder-empty">No expired contracts.</p>
+          </div>
+        </div>
+
+        <!-- 2. Contract Expiring Soon -->
+        <div class="amc-reminder-card card-expiring">
+          <div class="amc-reminder-card-head">
+            <span class="amc-reminder-card-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </span>
+            <span class="amc-reminder-card-title">Expiring Soon — Renew Now</span>
+            <span class="amc-reminder-card-count" id="amcReminderCountExpiring">0</span>
+          </div>
+          <div class="amc-reminder-card-body" id="amcReminderListExpiring">
+            <p class="amc-reminder-empty">No contracts expiring soon.</p>
+          </div>
+        </div>
+
+        <div class="amcr-group-label">Service Status</div>
+
+        <!-- 3. Servicing Overdue — NOT yet done -->
+        <div class="amc-reminder-card card-service-overdue">
+          <div class="amc-reminder-card-head">
+            <span class="amc-reminder-card-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+            <span class="amc-reminder-card-title">Servicing Overdue &amp; Not Done</span>
+            <span class="amc-reminder-card-count" id="amcReminderCountServiceOverdue">0</span>
+          </div>
+          <div class="amc-reminder-card-body" id="amcReminderListServiceOverdue">
+            <p class="amc-reminder-empty">No overdue servicing.</p>
+          </div>
+        </div>
+
+        <!-- 4. Servicing Due Soon (upcoming schedule) -->
+        <div class="amc-reminder-card card-service-due">
+          <div class="amc-reminder-card-head">
+            <span class="amc-reminder-card-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </span>
+            <span class="amc-reminder-card-title">Servicing Due Soon</span>
+            <span class="amc-reminder-card-count" id="amcReminderCountServiceDue">0</span>
+          </div>
+          <div class="amc-reminder-card-body" id="amcReminderListServiceDue">
+            <p class="amc-reminder-empty">No upcoming servicing due.</p>
+          </div>
+        </div>
+
+      </div><!-- /grid -->
+
+      <!-- Footer note -->
+      <div class="amc-reminder-footer">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;opacity:.6">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Data reflects current AMC records. Click any category card below to view &amp; act on records.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AI Reminder — Record Detail Card ──────────────────────── -->
+  <div id="amcReminderDetailModal" class="amcrd-overlay hidden" onclick="if(event.target===this)closeAmcReminderDetail()">
+    <div class="amcrd-box">
+      <div class="amcrd-head">
+        <div class="amcrd-head-left">
+          <span class="amcrd-cat-badge" id="amcrdCatBadge">
+            <img src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png" alt="Company logo" class="amcrd-cat-badge-logo">
+          </span>
+          <div>
+            <h3 class="amcrd-title" id="amcrdUnitTitle">—</h3>
+            <p class="amcrd-sub" id="amcrdFloorSub">—</p>
+          </div>
+        </div>
+        <div class="amcrd-head-right">
+          <span class="amcrd-status-pill" id="amcrdStatusPill">—</span>
+          <button class="amcrd-close-btn" onclick="closeAmcReminderDetail()" title="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="amcrd-body">
+        <div class="amcrd-alert-note" id="amcrdAlertNote"></div>
+
+        <div class="amcrd-grid">
+          <div class="amcrd-field"><span class="amcrd-label">Vendor</span><span class="amcrd-value" id="amcrdVendor">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Contact</span><span class="amcrd-value" id="amcrdContact">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Start Date</span><span class="amcrd-value" id="amcrdStart">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Expiry Date</span><span class="amcrd-value" id="amcrdExpiry">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Frequency</span><span class="amcrd-value" id="amcrdFrequency">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Last Service</span><span class="amcrd-value" id="amcrdLastService">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Next Due</span><span class="amcrd-value" id="amcrdNextDue">—</span></div>
+          <div class="amcrd-field"><span class="amcrd-label">Record ID</span><span class="amcrd-value amcrd-mono" id="amcrdRecordId">—</span></div>
+        </div>
+
+        <div class="amcrd-remarks-block">
+          <span class="amcrd-label">Remarks</span>
+          <p class="amcrd-remarks-text" id="amcrdRemarks">No remarks provided.</p>
+        </div>
+
+        <div class="amcrd-docs-block" id="amcrdDocsBlock" style="display:none;">
+          <span class="amcrd-label">Attachments</span>
+          <div class="amcrd-docs-list" id="amcrdDocsList"></div>
+        </div>
+      </div>
+
+      <div class="amcrd-footer">
+        <button class="amcrd-manage-btn" type="button" id="amcrdManageBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Manage This Record
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC Report &amp; Analysis Modal Dashboard ─────────────────────── -->
   <div id="amcReportModal" class="amc-report-modal hidden" onclick="if(event.target===this)closeAmcReportModal()">
     <div class="amc-report-box">
       <!-- Head -->
@@ -1647,7 +1861,7 @@
           </button>
           <button class="amc-rpt-tab-btn" id="amcRptTabBtnVendors" type="button" onclick="switchAmcReportTab('vendors')">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            4. Vendor Performance &amp; SLA
+            4. Vendor Performance
           </button>
         </div>
 
@@ -1677,7 +1891,7 @@
         <!-- Tab 2: Servicing Delays -->
         <div class="amc-rpt-tab-content hidden" id="amcRptTabContentDelays">
           <div class="amc-delay-cards-row" id="amcDelayCardsRow">
-            <!-- Dynamic stats for >60d, 30-60d, <30d -->
+            <!-- Dynamic summary of services completed after their due date -->
           </div>
           <div class="amc-pivot-table-wrap" id="amcDelaysTableContainer">
             <!-- Delays table rendered by JS -->
@@ -1722,6 +1936,10 @@
           <button type="button" class="amc-drill-head-btn btn-excel" onclick="exportAmcDrilldownExcel()" title="Export this drilldown view to Excel">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export Excel
+          </button>
+          <button type="button" class="amc-drill-head-btn btn-pdf" onclick="printAmcDrilldownPdf()" title="Open this drilldown view as a PDF-ready print page">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l3 3v17H6z"/><path d="M14 2v4h4"/><path d="M8 15h8M8 18h6M8 12h5"/></svg>
+            Download PDF
           </button>
           <button class="amc-close-btn" type="button" onclick="closeAmcKpiDrillModal()" title="Close" aria-label="Close KPI drilldown">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
