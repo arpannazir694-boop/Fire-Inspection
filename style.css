@@ -6366,6 +6366,842 @@ body.dark .amc-delete-warning-box p {
   transform: translateY(-1px);
 }
 
+/* Recognisable file-type marks layered over legacy export glyphs. */
+.rpt-export-btn { position: relative; }
+.rpt-export-btn::before { content: 'X'; display: grid; place-items: center; position: absolute; inset: 50% auto auto 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); border-radius: 2px; background: #217346; box-shadow: inset 3px 0 #107c41; color: #fff; font: 800 14px/1 Arial, sans-serif; pointer-events: none; }
+.rpt-export-btn .legacy-export-icon { opacity: 0; }
+
+.daily-export-btn, .amc-history-download-icon-btn, .amc-report-head-btn.btn-excel,
+.amc-drill-head-btn.btn-excel, .amc-drill-head-btn.btn-pdf { position: relative; }
+.daily-export-btn > svg, .amc-history-download-icon-btn > svg,
+.amc-report-head-btn.btn-excel > svg, .amc-drill-head-btn.btn-excel > svg,
+.amc-drill-head-btn.btn-pdf > svg { opacity: 0; }
+.daily-export-btn::before, .amc-history-download-icon-btn::before,
+.amc-report-head-btn.btn-excel::before, .amc-drill-head-btn.btn-excel::before,
+.amc-drill-head-btn.btn-pdf::before { display: grid; place-items: center; position: absolute; inset: 50% auto auto 11px; width: 18px; height: 18px; transform: translateY(-50%); border-radius: 2px; color: #fff; font-family: Arial, sans-serif; font-weight: 800; line-height: 1; pointer-events: none; }
+.daily-export-excel::before, .amc-history-download-excel::before,
+.amc-report-head-btn.btn-excel::before, .amc-drill-head-btn.btn-excel::before { content: 'X'; background: #217346; box-shadow: inset 3px 0 #107c41; font-size: 13px; }
+.daily-export-pdf::before, .amc-history-download-pdf::before,
+.amc-drill-head-btn.btn-pdf::before { content: 'PDF'; background: #e53935; font-size: 7px; letter-spacing: -.35px; }
+.amc-history-download-icon-btn::before, .amc-drill-head-btn::before { left: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); }
+.amc-history-download-excel::before, .amc-drill-head-btn.btn-excel::before { font-size: 10px; }
+.amc-history-download-pdf::before, .amc-drill-head-btn.btn-pdf::before { font-size: 5px; }
+
+/* Password gate for permanent AMC deletions */
+.amc-delete-password-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: mail-fade-in .2s ease;
+}
+
+.amc-delete-password-card {
+  width: min(410px, 100%);
+  padding: 30px;
+  box-sizing: border-box;
+  border: 1px solid rgba(254, 202, 202, .8);
+  border-radius: 18px;
+  background-color: var(--panel);
+  box-shadow: 0 25px 70px rgba(15, 23, 42, .42);
+  text-align: center;
+  animation: mail-slide-up .3s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.amc-delete-password-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.amc-delete-password-card h4 { margin: 0; color: #991b1b; font-family: var(--font-heading); font-size: 19px; }
+.amc-delete-password-card > p { margin: 9px 0 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.amc-delete-password-card form { text-align: left; }
+.amc-delete-password-card label { display: block; margin-bottom: 7px; color: var(--ink); font-size: 12px; font-weight: 700; }
+
+.amc-delete-password-input-wrap { position: relative; }
+.amc-delete-password-input-wrap input {
+  width: 100%;
+  padding: 11px 43px 11px 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background-color: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+.amc-delete-password-input-wrap input:focus { outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
+.amc-delete-password-input-wrap input.is-invalid { border-color: #dc2626; animation: amc-password-shake .32s ease; }
+.amc-password-toggle { position: absolute; top: 50%; right: 9px; display: grid; place-items: center; padding: 4px; transform: translateY(-50%); border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.amc-delete-password-error { margin-top: 8px; color: #dc2626; font-size: 12px; font-weight: 600; }
+.amc-delete-password-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.amc-delete-password-cancel, .amc-delete-password-submit { border-radius: 9px; padding: 10px 14px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.amc-delete-password-cancel { border: 1px solid var(--line); background: transparent; color: var(--ink); }
+.amc-delete-password-submit { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dc2626; background-color: #dc2626; color: #fff; box-shadow: 0 4px 12px rgba(220, 38, 38, .25); }
+.amc-delete-password-submit:hover { background-color: #b91c1c; border-color: #b91c1c; }
+.amc-delete-password-submit:disabled { opacity: .65; cursor: wait; }
+body.dark .amc-delete-password-icon { background-color: rgba(220, 38, 38, .16); }
+body.dark .amc-delete-password-card h4 { color: #fca5a5; }
+
+@keyframes amc-password-shake { 25%, 75% { transform: translateX(6px); } 50% { transform: translateX(-6px); } }
+
+
+/* ─────────────────────────────────────────────────────────────────────
+   AI REMINDER BUTTON (overrides default .amc-global-add-btn color)
+───────────────────────────────────────────────────────────────────── */
+.amc-ai-reminder-btn {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%) !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35) !important;
+  position: relative;
+}
+.amc-ai-reminder-btn:hover {
+  background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%) !important;
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.45) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   AI REMINDER DASHBOARD MODAL — "Signal Board" (light)
+   Same signature language as before — radar-sweep icon, corner-bracket
+   panels, status eyebrows — rebuilt for a clean light surface instead
+   of the dark HUD treatment.
+───────────────────────────────────────────────────────────────────── */
+.amc-reminder-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.amc-reminder-overlay.hidden {
+  display: none;
+}
+
+.amc-reminder-box {
+  --amcr-pink: #db2777;
+  --amcr-pink-soft: #fdf2f8;
+  --amcr-amber: #d97706;
+  --amcr-amber-soft: #fffbeb;
+  --amcr-red: #dc2626;
+  --amcr-red-soft: #fef2f2;
+  --amcr-cyan: #0891b2;
+  --amcr-cyan-soft: #ecfeff;
+  --amcr-ink: #0f172a;
+  --amcr-ink-soft: #64748b;
+  --amcr-line: #e7ebf2;
+  --amcr-panel-alt: #f8fafc;
+
+  position: relative;
+  background: #ffffff;
+  border: 1px solid var(--amcr-line);
+  border-radius: 20px;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.20);
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-heading, sans-serif);
+  color: var(--amcr-ink);
+  animation: amcReminderSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes amcReminderSlideIn {
+  from { opacity: 0; transform: translateY(26px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)  scale(1); }
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.amc-reminder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--amcr-line);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.amc-reminder-title-block {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.amc-reminder-icon-wrap {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--amcr-pink-soft);
+  border: 1px solid #f9a8d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--amcr-pink);
+  flex-shrink: 0;
+}
+.amc-reminder-icon-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, var(--amcr-pink) 10%, transparent 24%);
+  animation: amcrRadarSpin 2.8s linear infinite;
+  z-index: -1;
+  opacity: 0.55;
+}
+@keyframes amcrRadarSpin {
+  to { transform: rotate(360deg); }
+}
+
+.amc-reminder-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--amcr-ink);
+  margin: 0;
+}
+
+.amc-reminder-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: var(--amcr-ink-soft);
+  margin: 3px 0 0;
+}
+
+.amcr-live-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: amcrLivePulse 1.8s ease-out infinite;
+}
+@keyframes amcrLivePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70%  { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.amc-reminder-close-btn {
+  background: var(--amcr-panel-alt);
+  border: 1.5px solid var(--amcr-line);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--amcr-ink-soft);
+  transition: background 0.18s, color 0.18s, transform 0.25s, border-color 0.18s;
+  flex-shrink: 0;
+}
+.amc-reminder-close-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+  transform: rotate(90deg);
+}
+
+/* ── Summary strip ──────────────────────────────────────────────── */
+.amc-reminder-summary-bar {
+  display: flex;
+  align-items: center;
+  margin: 16px 26px 0;
+  padding: 11px 18px;
+  border-radius: 12px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.amc-reminder-summary-bar strong {
+  font-family: var(--font-heading, sans-serif);
+}
+.amcr-bar-critical {
+  background: linear-gradient(90deg, #fef2f2, #fdf2f8);
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.amcr-bar-warning {
+  background: linear-gradient(90deg, #fffbeb, #fff7ed);
+  color: #92400e;
+  border-color: #fde68a;
+}
+.amcr-bar-ok {
+  background: linear-gradient(90deg, #f0fdf4, #ecfdf5);
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.amcr-summary-ok { display: flex; align-items: center; }
+
+/* ── Group eyebrows: separates contract alerts from servicing alerts ── */
+.amcr-group-label {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px 2px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: #94a3b8;
+}
+.amcr-group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--amcr-line), transparent);
+}
+.amcr-group-label:first-child { padding-top: 0; }
+
+/* ── Grid ───────────────────────────────────────────────────────── */
+.amc-reminder-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  flex: 1;
+  overflow: hidden;
+  padding: 16px 26px 6px;
+  background: var(--amcr-panel-alt);
+}
+
+/* ── Panels ─────────────────────────────────────────────────────── */
+.amc-reminder-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid var(--amcr-line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.amc-reminder-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.09);
+}
+
+/* targeting-reticle corner accents — the signature detail, carried over */
+.amc-reminder-card::before,
+.amc-reminder-card::after {
+  content: "";
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+}
+.amc-reminder-card::before { top: -1px; left: -1px; border-top: 2.5px solid; border-left: 2.5px solid; border-radius: 14px 0 0 0; }
+.amc-reminder-card::after  { bottom: -1px; right: -1px; border-bottom: 2.5px solid; border-right: 2.5px solid; border-radius: 0 0 14px 0; }
+.card-expired::before,        .card-expired::after        { border-color: var(--amcr-pink); }
+.card-expiring::before,        .card-expiring::after        { border-color: var(--amcr-amber); }
+.card-service-overdue::before, .card-service-overdue::after { border-color: var(--amcr-red); }
+.card-service-due::before,     .card-service-due::after     { border-color: var(--amcr-cyan); }
+
+.amc-reminder-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--amcr-line);
+}
+.card-expired         .amc-reminder-card-head { background: var(--amcr-pink-soft); }
+.card-expiring         .amc-reminder-card-head { background: var(--amcr-amber-soft); }
+.card-service-overdue  .amc-reminder-card-head { background: var(--amcr-red-soft); }
+.card-service-due      .amc-reminder-card-head { background: var(--amcr-cyan-soft); }
+
+.amc-reminder-card-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+.card-expired         .amc-reminder-card-icon { color: var(--amcr-pink); box-shadow: inset 0 0 0 1px #f9a8d4; }
+.card-expiring         .amc-reminder-card-icon { color: var(--amcr-amber); box-shadow: inset 0 0 0 1px #fde68a; }
+.card-service-overdue  .amc-reminder-card-icon { color: var(--amcr-red); box-shadow: inset 0 0 0 1px #fecaca; }
+.card-service-due      .amc-reminder-card-icon { color: var(--amcr-cyan); box-shadow: inset 0 0 0 1px #a5f3fc; }
+
+.amc-reminder-card-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  line-height: 1.3;
+}
+
+/* count badge — small solid pill, tucked beside the title */
+.amc-reminder-card-count {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  flex-shrink: 0;
+}
+.card-expired         .amc-reminder-card-count { background: var(--amcr-pink); }
+.card-expiring         .amc-reminder-card-count { background: var(--amcr-amber); }
+.card-service-overdue  .amc-reminder-card-count { background: var(--amcr-red); }
+.card-service-due      .amc-reminder-card-count { background: var(--amcr-cyan); }
+
+/* Scrollable body */
+.amc-reminder-card-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 11px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 260px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.amc-reminder-card-body::-webkit-scrollbar { width: 4px; }
+.amc-reminder-card-body::-webkit-scrollbar-track { background: transparent; }
+.amc-reminder-card-body::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+.amc-reminder-card-body::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+/* Empty state */
+.amc-reminder-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+}
+.amc-reminder-empty svg { flex-shrink: 0; }
+
+/* ── Alert rows — clickable, each one opens the record's detail card ── */
+.amcr-row {
+  position: relative;
+  background: var(--amcr-panel-alt);
+  border: 1px solid var(--amcr-line);
+  border-left: 3px solid var(--amcr-line);
+  border-radius: 10px;
+  padding: 9px 26px 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s, background 0.15s;
+  animation: amcrRowIn 0.32s ease backwards;
+}
+.amcr-row:hover {
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.09);
+  transform: translateX(2px);
+}
+.amcr-row:active { transform: translateX(2px) scale(0.99); }
+.card-expired         .amcr-row { border-left-color: var(--amcr-pink); }
+.card-expiring         .amcr-row { border-left-color: var(--amcr-amber); }
+.card-service-overdue  .amcr-row { border-left-color: var(--amcr-red); }
+.card-service-due      .amcr-row { border-left-color: var(--amcr-cyan); }
+
+/* click affordance: quiet chevron, brightens on hover */
+.amcr-row::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid #cbd5e1;
+  border-right: 2px solid #cbd5e1;
+  transform: translateY(-50%) rotate(45deg);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.amcr-row:hover::after {
+  border-color: #64748b;
+  transform: translateY(-50%) rotate(45deg) translateX(2px);
+}
+
+@keyframes amcrRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.amcr-row:nth-child(1) { animation-delay: 0.02s; }
+.amcr-row:nth-child(2) { animation-delay: 0.06s; }
+.amcr-row:nth-child(3) { animation-delay: 0.10s; }
+.amcr-row:nth-child(4) { animation-delay: 0.14s; }
+.amcr-row:nth-child(5) { animation-delay: 0.18s; }
+.amcr-row:nth-child(n+6) { animation-delay: 0.22s; }
+
+.amcr-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.amcr-cat-chip {
+  font-family: var(--font-body, sans-serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.amcr-urgency-critical,
+.amcr-urgency-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px 3px 6px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.amcr-urgency-critical { color: #b91c1c; background: #fee2e2; }
+.amcr-urgency-warning  { color: #92400e; background: #fef3c7; }
+.amcr-urgency-critical::before,
+.amcr-urgency-warning::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.amcr-urgency-critical::before { background: #dc2626; }
+.amcr-urgency-warning::before  { background: #d97706; }
+
+.amcr-row-unit {
+  font-size: 12.5px;
+  color: var(--amcr-ink);
+}
+
+.amcr-row-vendor {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-body, sans-serif);
+  font-size: 11px;
+  color: var(--amcr-ink-soft);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.amc-reminder-footer {
+  display: flex;
+  align-items: center;
+  padding: 13px 26px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 11.5px;
+  color: var(--amcr-ink-soft);
+  border-top: 1px solid var(--amcr-line);
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+/* Responsive: stack to single column on narrow screens */
+@media (max-width: 600px) {
+  .amc-reminder-grid { grid-template-columns: 1fr; padding: 14px 16px 6px; }
+  .amc-reminder-summary-bar { margin: 14px 16px 0; }
+  .amc-reminder-head { padding: 18px 18px 14px; }
+  .amc-reminder-footer { padding: 12px 18px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   AI REMINDER — RECORD DETAIL CARD
+   Opens on top of the dashboard when an alert row is clicked; shows
+   every field for that single AMC record.
+───────────────────────────────────────────────────────────────────── */
+.amcrd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.amcrd-overlay.hidden { display: none; }
+
+.amcrd-box {
+  --amcrd-accent: #db2777;
+  --amcrd-accent-soft: #fdf2f8;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e7ebf2;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.25);
+  width: 100%;
+  max-width: 480px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-heading, sans-serif);
+  color: #0f172a;
+  animation: amcReminderSlideIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.amcrd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 20px 20px 16px;
+  background: var(--amcrd-accent-soft);
+  border-bottom: 1px solid #e7ebf2;
+  flex-shrink: 0;
+}
+.amcrd-head-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.amcrd-cat-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 5px;
+  border: 1.5px solid #e7ebf2;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.amcrd-cat-badge-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.amcrd-title {
+  font-size: 15.5px;
+  font-weight: 800;
+  margin: 0;
+  color: #0f172a;
+  word-break: break-word;
+}
+.amcrd-sub {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: #64748b;
+  margin: 3px 0 0;
+}
+.amcrd-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.amcrd-status-pill {
+  font-family: var(--font-body, sans-serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  background: var(--amcrd-accent);
+  color: #fff;
+}
+.amcrd-close-btn {
+  background: #ffffff;
+  border: 1.5px solid #e7ebf2;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748b;
+  transition: background 0.18s, color 0.18s, transform 0.2s, border-color 0.18s;
+  flex-shrink: 0;
+}
+.amcrd-close-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+  transform: rotate(90deg);
+}
+
+.amcrd-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.amcrd-body::-webkit-scrollbar { width: 4px; }
+.amcrd-body::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+
+.amcrd-alert-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.amcrd-alert-note.is-critical { background: #fef2f2; color: #b91c1c; }
+.amcrd-alert-note.is-warning  { background: #fffbeb; color: #92400e; }
+.amcrd-alert-note svg { flex-shrink: 0; }
+
+.amcrd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+  margin-bottom: 18px;
+}
+.amcrd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.amcrd-label {
+  font-family: var(--font-body, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+.amcrd-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  word-break: break-word;
+}
+.amcrd-mono {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.amcrd-remarks-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e7ebf2;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.amcrd-remarks-text {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #475569;
+  margin: 0;
+}
+
+.amcrd-docs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.amcrd-docs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.amcrd-doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e7ebf2;
+  padding: 6px 11px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.amcrd-doc-link:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.amcrd-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #e7ebf2;
+  flex-shrink: 0;
+}
+.amcrd-manage-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-heading, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: none;
+  border-radius: 10px;
+  padding: 11px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.amcrd-manage-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+}
+
+@media (max-width: 480px) {
+  .amcrd-grid { grid-template-columns: 1fr; }
+}
 /* ─────────────────────────────────────────────────────────────────────
    AMC REPORT & ANALYTICS DASHBOARD MODAL
 ───────────────────────────────────────────────────────────────────── */
@@ -6509,6 +7345,8 @@ body.dark .amc-report-icon-wrap {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Keeps the raised KPI card inside the scroll area instead of clipping it. */
+  padding-top: 8px;
   padding-right: 4px;
   padding-bottom: 16px;
   scrollbar-width: thin;
@@ -6617,6 +7455,7 @@ body.dark .amc-rpt-kpi-card:has(.icon-cost) {
 }
 
 .amc-rpt-kpi-card:hover {
+  z-index: 2;
   transform: translateY(-4px);
   border-color: #1e3a8a;
   box-shadow: 0 12px 28px rgba(30, 58, 138, 0.14);
@@ -7317,6 +8156,22 @@ body.dark .amc-drill-icon-wrap {
 .amc-drill-head-btn:hover {
   background-color: #047857;
   transform: translateY(-1px);
+}
+
+.amc-drill-head-btn.btn-pdf {
+  background-color: #b91c1c;
+}
+
+.amc-drill-head-btn.btn-pdf:hover {
+  background-color: #991b1b;
+}
+
+.amc-delay-kpi-card {
+  cursor: pointer;
+}
+
+.amc-delay-kpi-card:hover {
+  transform: translateY(-2px);
 }
 
 .amc-drill-toolbar {
