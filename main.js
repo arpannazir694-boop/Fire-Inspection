@@ -1155,15 +1155,13 @@ function filterPdfList() {
 }
 
 function formatPdfOnlyDate(date) {
-
-  return new Date(date).toLocaleDateString(
-    'en-GB',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    }
-  );
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return String(date);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
 }
 
 function formatPdfOnlyTime(date) {
@@ -1766,14 +1764,16 @@ function formatElapsed(ms) {
 }
 
 function formatDailyTimestamp(date) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const dd = date.getDate();
-  const mo = months[date.getMonth()];
-  const yy = date.getFullYear();
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mi = String(date.getMinutes()).padStart(2, '0');
-  const ss = String(date.getSeconds()).padStart(2, '0');
-  return `${dd} ${mo}, ${yy} ${hh}:${mi}:${ss}`;
+  if (!date) return '—';
+  const d = (date instanceof Date) ? date : new Date(date);
+  if (isNaN(d.getTime())) return String(date);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}-${mo}-${yy} ${hh}:${mi}:${ss}`;
 }
 
 async function dailySignOut() {
@@ -2845,9 +2845,38 @@ function refreshAmcData() {
 // Returns '—' for falsy input so callers don't need to guard themselves.
 function fmtAMCDate(dateStr) {
   if (!dateStr) return '—';
-  const [y, m, d] = String(dateStr).split('-');
-  if (!y || !m || !d) return dateStr; // fallback if format unexpected
-  return `${d}-${m}-${y}`;
+  if (dateStr instanceof Date) {
+    if (isNaN(dateStr.getTime())) return '—';
+    const dd = String(dateStr.getDate()).padStart(2, '0');
+    const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+    const yyyy = dateStr.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  }
+  const str = String(dateStr).trim();
+  if (!str || str === '-' || str === '—') return '—';
+  const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (isoMatch) {
+    const y = isoMatch[1];
+    const m = isoMatch[2].padStart(2, '0');
+    const d = isoMatch[3].padStart(2, '0');
+    return `${d}-${m}-${y}`;
+  }
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const d = dmyMatch[1].padStart(2, '0');
+    const m = dmyMatch[2].padStart(2, '0');
+    const y = dmyMatch[3];
+    return `${d}-${m}-${y}`;
+  }
+  return str;
+}
+
+// ── AMC contract cost display helper ─────────────────────────────────────────
+// Formats a contract cost value (₹, Indian grouping) for display.
+// Returns '—' for blank/null/undefined so callers don't need to guard.
+function fmtAmcCost(cost) {
+  if (cost === '' || cost === null || cost === undefined || isNaN(Number(cost))) return '—';
+  return `₹${Number(cost).toLocaleString('en-IN')}`;
 }
 
 // Mirrors AMC_FREQUENCY_DAYS in Code.gs — used only for the live client-side
@@ -3308,7 +3337,7 @@ function openAmcCategoryDetail(categoryKey) {
   const unitFilterEl = document.getElementById('amcFilterUnit');
   if (unitFilterEl) {
     const existingVal = unitFilterEl.value;
-    const units = [...new Set(state.factories.concat(allAmcData.map(r => r.unit)))].filter(Boolean);
+    const units = [...new Set(state.factories.concat(allAmcData.flatMap(r => amcSplitUnits(r.unit))))].filter(Boolean);
     unitFilterEl.innerHTML = '<option value="">All Units</option>' +
       units.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
     if (units.includes(existingVal)) unitFilterEl.value = existingVal;
@@ -3361,7 +3390,7 @@ function renderAmcTable() {
 
   const records = allAmcData.filter(r => {
     if (r.category !== currentAmcCategory) return false;
-    if (unitFilter && r.unit !== unitFilter) return false;
+    if (unitFilter && !amcSplitUnits(r.unit).includes(unitFilter)) return false;
     if (floorFilter && r.floor !== floorFilter) return false;
     if (statusFilter && r.status !== statusFilter) return false;
     if (searchQuery) {
@@ -3374,7 +3403,7 @@ function renderAmcTable() {
   if (badge) badge.textContent = `${records.length} Records`;
 
   if (!records.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:36px;color:#6b7280;">No AMC records matching current filter in <strong>${escapeHtml(currentAmcCategory)}</strong>. Click "+ Add Contract / Service" to create one.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:36px;color:#6b7280;">No AMC records matching current filter in <strong>${escapeHtml(currentAmcCategory)}</strong>. Click "+ Add Contract / Service" to create one.</td></tr>`;
     return;
   }
 
@@ -3412,6 +3441,7 @@ function renderAmcTable() {
           <div style="font-size:11.5px;color:#64748b;">${escapeHtml(r.contactInfo || '')}</div>
         </td>
         <td>${durationDisplay}</td>
+        <td>${(r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? `<strong>${fmtAmcCost(r.contractCost)}</strong>` : '<span style="color:#94a3b8;">—</span>'}</td>
         <td>${escapeHtml(r.frequency || 'Annual')}</td>
         <td>${fmtAMCDate(r.lastServiceDate)}</td>
         <td><strong class="${amcNextDuePulseClass(r)}">${fmtAMCDate(r.nextDueDate)}</strong></td>
@@ -3434,6 +3464,84 @@ function renderAmcTable() {
   }).join('');
 }
 
+// ── AMC Unit multi-select (form) ─────────────────────────────────────────
+// One AMC record can now cover several units under a single combined
+// contract (one vendor, one agreement, one total cost). The record is
+// still stored as ONE row — the units are joined into a single comma
+// separated string in the same "Unit" column as before, so nothing about
+// the record is split or duplicated: it's one combined entity everywhere
+// (filters, totals, exports) and simply becomes visible whenever any one
+// of its units is filtered on.
+let amcFormUnitsSelected = [];
+
+// Splits the stored/combined "Unit" string ("Unit A, Unit B") back into
+// individual unit names. Works fine on plain single-unit records too.
+function amcSplitUnits(unitStr) {
+  return String(unitStr || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function renderAmcUnitOptions() {
+  const panel = document.getElementById('amcFormUnitPanel');
+  if (!panel) return;
+  const units = state.factories || [];
+  if (!units.length) {
+    panel.innerHTML = `<div class="amc-unit-multiselect-empty">No units/factories found</div>`;
+    return;
+  }
+  panel.innerHTML = units.map(u => {
+    const checked = amcFormUnitsSelected.includes(u) ? 'checked' : '';
+    const safe = escapeHtml(u);
+    return `
+      <label class="amc-unit-multiselect-option">
+        <input type="checkbox" ${checked} onchange="toggleAmcFormUnit('${safe.replace(/'/g, "\\'")}')">
+        <span>${safe}</span>
+      </label>`;
+  }).join('');
+}
+
+function updateAmcFormUnitChips() {
+  const chipsEl = document.getElementById('amcFormUnitChips');
+  if (!chipsEl) return;
+  if (!amcFormUnitsSelected.length) {
+    chipsEl.textContent = 'Select unit(s)...';
+    chipsEl.classList.add('amc-unit-multiselect-placeholder');
+    return;
+  }
+  chipsEl.classList.remove('amc-unit-multiselect-placeholder');
+  chipsEl.textContent = amcFormUnitsSelected.join(', ');
+}
+
+function toggleAmcFormUnit(unit) {
+  const idx = amcFormUnitsSelected.indexOf(unit);
+  if (idx === -1) amcFormUnitsSelected.push(unit);
+  else amcFormUnitsSelected.splice(idx, 1);
+  renderAmcUnitOptions();
+  updateAmcFormUnitChips();
+}
+
+function toggleAmcUnitDropdown() {
+  const panel = document.getElementById('amcFormUnitPanel');
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+}
+
+function setAmcFormUnits(units) {
+  amcFormUnitsSelected = Array.isArray(units) ? units.slice() : amcSplitUnits(units);
+  renderAmcUnitOptions();
+  updateAmcFormUnitChips();
+}
+
+// Close the unit dropdown when clicking outside of it.
+document.addEventListener('click', (event) => {
+  const box = document.getElementById('amcUnitMultiselect');
+  if (box && !box.contains(event.target)) {
+    document.getElementById('amcFormUnitPanel')?.classList.add('hidden');
+  }
+});
+
 function openAmcForm(categoryKey = '', rowIndex = null) {
   const modal = document.getElementById('amcFormModal');
   const titleEl = document.getElementById('amcFormModalTitle');
@@ -3444,12 +3552,8 @@ function openAmcForm(categoryKey = '', rowIndex = null) {
   amcFilesSelected = [];
   renderAmcFileList();
 
-  // Populate Unit dropdown
-  const unitSel = document.getElementById('amcFormUnit');
-  if (unitSel) {
-    unitSel.innerHTML = '<option value="">Select unit...</option>' +
-      state.factories.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
-  }
+  // Reset/populate Unit multi-select
+  setAmcFormUnits([]);
 
   document.getElementById('amcFormRowIndex').value = '';
   document.getElementById('amcFormId').value = '';
@@ -3461,12 +3565,13 @@ function openAmcForm(categoryKey = '', rowIndex = null) {
       document.getElementById('amcFormRowIndex').value = record.rowIndex;
       document.getElementById('amcFormId').value = record.id;
       document.getElementById('amcFormCategory').value = record.category;
-      document.getElementById('amcFormUnit').value = record.unit;
+      setAmcFormUnits(amcSplitUnits(record.unit));
       document.getElementById('amcFormFloor').value = record.floor || '';
       document.getElementById('amcFormVendor').value = record.vendorName;
       document.getElementById('amcFormContact').value = record.contactInfo;
       document.getElementById('amcFormStartDate').value = record.startDate;
       document.getElementById('amcFormExpiryDate').value = record.expiryDate;
+      document.getElementById('amcFormCost').value = (record.contractCost !== '' && record.contractCost !== null && record.contractCost !== undefined) ? record.contractCost : '';
       document.getElementById('amcFormFrequency').value = record.frequency;
       document.getElementById('amcFormLastService').value = record.lastServiceDate;
       document.getElementById('amcFormNextDue').value = record.nextDueDate;
@@ -3511,6 +3616,16 @@ async function fetchAmcServiceLog(amcId) {
       google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcServiceLog(amcId));
   }
   return fetchJson(bustCache(`${WEB_APP_URL}?action=amcServiceLog&amcId=${encodeURIComponent(amcId)}`), {}, READ_REQUEST_TIMEOUT_MS);
+}
+
+// Past contract terms (previous vendors, dates, cost) for one AMC record —
+// archived automatically whenever that record is renewed.
+async function fetchAmcContractHistory(amcId) {
+  if (window.google && google.script && google.script.run) {
+    return new Promise((res, rej) =>
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcContractHistory(amcId));
+  }
+  return fetchJson(bustCache(`${WEB_APP_URL}?action=amcContractHistory&amcId=${encodeURIComponent(amcId)}`), {}, READ_REQUEST_TIMEOUT_MS);
 }
 
 async function loadAmcServiceLogForForm(amcId) {
@@ -3645,6 +3760,8 @@ function openAmcFormFromDetail() {
 function closeAmcForm() {
   const modal = document.getElementById('amcFormModal');
   if (modal) modal.classList.add('hidden');
+  document.getElementById('amcFormUnitPanel')?.classList.add('hidden');
+  amcFormUnitsSelected = [];
 }
 
 function editAmcRecord(rowIndex) {
@@ -3707,6 +3824,7 @@ function openAmcActionModal(recordId) {
   document.getElementById('amcSummaryVendor').textContent = record.vendorName ? `${record.vendorName} ${record.contactInfo ? '(' + record.contactInfo + ')' : ''}` : '—';
   document.getElementById('amcSummaryFrequency').textContent = record.frequency || 'Annual';
   document.getElementById('amcSummaryExpiry').textContent = fmtAMCDate(record.expiryDate);
+  document.getElementById('amcSummaryCost').textContent = fmtAmcCost(record.contractCost);
   document.getElementById('amcSummaryLastService').textContent = fmtAMCDate(record.lastServiceDate);
   document.getElementById('amcSummaryNextDue').textContent = fmtAMCDate(record.nextDueDate);
   applyAmcNextDuePulse(record.nextDueDate);
@@ -3761,6 +3879,7 @@ function openAmcActionModal(recordId) {
   // Pre-fill Tab 3: Renew Form
   document.getElementById('amcActionRenewVendor').value = record.vendorName || '';
   document.getElementById('amcActionRenewContact').value = record.contactInfo || '';
+  document.getElementById('amcActionRenewCost').value = (record.contractCost !== '' && record.contractCost !== null && record.contractCost !== undefined) ? record.contractCost : '';
   document.getElementById('amcActionRenewFrequency').value = record.frequency || 'Annual';
   document.getElementById('amcActionRenewStartDate').value = record.startDate || '';
   document.getElementById('amcActionRenewExpiryDate').value = record.expiryDate || '';
@@ -3831,10 +3950,73 @@ function toggleAmcFullDetails() {
   }
 }
 
+// Contract & Vendor History — every previous term (old vendor, dates, cost,
+// scope) this AMC record has had, archived automatically on each renewal.
+// Kept as its own panel, separate from the day-to-day service/breakdown
+// timeline, since it answers a different question: "who held this contract
+// before, and on what terms" rather than "what visits happened".
+async function loadAmcContractHistoryPanel(recordId) {
+  const timeline = document.getElementById('amcContractHistoryTimeline');
+  const countBadge = document.getElementById('amcContractHistoryCount');
+  if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">Loading contract history…</p>';
+
+  try {
+    const history = await fetchAmcContractHistory(recordId);
+    const list = Array.isArray(history) ? history : [];
+    if (countBadge) countBadge.textContent = `${list.length} Past Term${list.length === 1 ? '' : 's'}`;
+
+    // Store for the per-record Excel/PDF export buttons.
+    window._amcContractHistoryCache = list;
+
+    if (!list.length) {
+      if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">No renewals yet — this is the first contract term on record.</p>';
+      return;
+    }
+
+    if (timeline) {
+      timeline.innerHTML = list.map(term => {
+        const hasCost = term.contractCost !== '' && term.contractCost !== null && term.contractCost !== undefined;
+        const vendorChanged = term.renewedToVendor && term.renewedToVendor !== term.vendorName;
+        return `
+          <div class="amc-contract-history-entry">
+            <div class="amc-log-entry-top">
+              <span class="amc-log-type-badge">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>${escapeHtml(term.vendorName || 'Unknown Vendor')}
+              </span>
+              <span class="amc-log-date">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                ${escapeHtml(fmtAMCDate(term.startDate))} to ${escapeHtml(fmtAMCDate(term.expiryDate))}
+              </span>
+              ${hasCost ? `<span class="amc-log-cost">${escapeHtml(fmtAmcCost(term.contractCost))}</span>` : ''}
+            </div>
+            ${term.contactInfo ? `<div class="amc-log-tech">Contact: <strong>${escapeHtml(term.contactInfo)}</strong></div>` : ''}
+            ${term.frequency ? `<div class="amc-log-tech">Service Frequency: <strong>${escapeHtml(term.frequency)}</strong></div>` : ''}
+            ${term.remarks ? `<div class="amc-log-desc">${escapeHtml(term.remarks)}</div>` : ''}
+            ${vendorChanged
+              ? `<div class="amc-contract-history-renewed-tag">Renewed &rarr; ${escapeHtml(term.renewedToVendor)}</div>`
+              : (term.renewedToVendor ? `<div class="amc-contract-history-renewed-tag">Renewed with same vendor</div>` : '')}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    if (timeline) timeline.innerHTML = `<p class="amc-service-log-empty">Could not load contract history: ${escapeHtml(err.message || String(err))}</p>`;
+  }
+}
+
 async function loadAmcFullDetailsHistory(recordId) {
   const timeline = document.getElementById('amcFullHistoryTimeline');
   const countBadge = document.getElementById('amcFullHistoryCount');
   if (timeline) timeline.innerHTML = '<p class="amc-service-log-empty">Loading history…</p>';
+
+  loadAmcContractHistoryPanel(recordId);
 
   try {
     const logs = await fetchAmcServiceLog(recordId);
@@ -3931,6 +4113,26 @@ function downloadAmcHistoryExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Service History');
 
+  // Contract & Vendor History — past terms this record has had, if any.
+  const contractHistory = window._amcContractHistoryCache || [];
+  if (contractHistory.length) {
+    const chHeader = ['Vendor', 'Contact', 'Start Date', 'Expiry Date', 'Contract Cost (₹)', 'Frequency', 'Remarks', 'Renewed To'];
+    const chRows = contractHistory.map(h => [
+      h.vendorName || '-',
+      h.contactInfo || '-',
+      fmtAMCDate(h.startDate) || '-',
+      fmtAMCDate(h.expiryDate) || '-',
+      (h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? Number(h.contractCost) : '',
+      h.frequency || '-',
+      h.remarks || '-',
+      h.renewedToVendor || '-'
+    ]);
+    const wsHistory = XLSX.utils.aoa_to_sheet([['Contract & Vendor History (Past Terms)'], [], chHeader, ...chRows]);
+    wsHistory['!cols'] = [{ wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 40 }, { wch: 20 }];
+    wsHistory['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
+    XLSX.utils.book_append_sheet(wb, wsHistory, 'Contract History');
+  }
+
   const stamp = formatLocalDate(new Date());
   const unitSlug = (record.unit || 'AMC').replace(/[^a-z0-9]+/gi, '_');
   XLSX.writeFile(wb, `AMC_History_${unitSlug}_${stamp}.xlsx`);
@@ -4002,6 +4204,49 @@ function downloadAmcHistoryPdf() {
     alternateRowStyles: { fillColor: [246, 248, 247] },
     margin: { left: 40, right: 40 }
   });
+
+  // Contract & Vendor History — past terms this record has had, if any.
+  const contractHistory = window._amcContractHistoryCache || [];
+  if (contractHistory.length) {
+    let historyY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 90) + 26;
+    if (historyY > 700) { doc.addPage(); historyY = 40; }
+
+    doc.setFontSize(12);
+    doc.setTextColor(20, 30, 40);
+    doc.text('Contract & Vendor History (Past Terms)', 40, historyY);
+
+    doc.autoTable({
+      head: [['Vendor', 'Contact', 'Start', 'Expiry', 'Cost (₹)', 'Frequency', 'Renewed To']],
+      body: contractHistory.map(h => [
+        h.vendorName || '-',
+        h.contactInfo || '-',
+        fmtAMCDate(h.startDate) || '-',
+        fmtAMCDate(h.expiryDate) || '-',
+        (h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? String(h.contractCost) : '-',
+        h.frequency || '-',
+        h.renewedToVendor || '-'
+      ]),
+      startY: historyY + 10,
+      styles: {
+        font: fontName,
+        fontSize: 8.5,
+        cellPadding: 6,
+        textColor: [30, 40, 50],
+        lineColor: [225, 229, 233],
+        lineWidth: 0.5,
+        overflow: 'linebreak'
+      },
+      headStyles: {
+        font: fontName,
+        fontStyle: 'bold',
+        fillColor: [124, 58, 237],
+        textColor: 255,
+        fontSize: 8.5
+      },
+      alternateRowStyles: { fillColor: [246, 244, 253] },
+      margin: { left: 40, right: 40 }
+    });
+  }
 
   const stamp = formatLocalDate(new Date());
   const unitSlug = (record.unit || 'AMC').replace(/[^a-z0-9]+/gi, '_');
@@ -4159,15 +4404,22 @@ async function handleAmcContractRenewalSubmit(event) {
     id: amcActiveActionRecord.id,
     category: amcActiveActionRecord.category,
     unit: amcActiveActionRecord.unit,
+    floor: amcActiveActionRecord.floor || '',
     vendorName,
     contactInfo: document.getElementById('amcActionRenewContact')?.value.trim() || '',
     startDate: document.getElementById('amcActionRenewStartDate')?.value || '',
     expiryDate,
+    contractCost: document.getElementById('amcActionRenewCost')?.value || '',
     frequency: document.getElementById('amcActionRenewFrequency')?.value || 'Annual',
     lastServiceDate: amcActiveActionRecord.lastServiceDate,
     nextDueDate: amcActiveActionRecord.nextDueDate,
     remarks: document.getElementById('amcActionRenewRemarks')?.value.trim() || '',
-    attachments: []
+    existingAttachments: amcActiveActionRecord.attachments || [],
+    attachments: [],
+    // Tells the backend this is a renewal (not a plain edit), so the
+    // outgoing contract term gets archived into AMC Contract History
+    // before the live record is overwritten with the new term.
+    isRenewal: true
   };
 
   const btn = document.getElementById('amcRenewSaveBtn');
@@ -4318,12 +4570,13 @@ async function handleAmcFormSubmit(event) {
     rowIndex: document.getElementById('amcFormRowIndex').value || null,
     id: document.getElementById('amcFormId').value || null,
     category: document.getElementById('amcFormCategory').value,
-    unit: document.getElementById('amcFormUnit').value,
+    unit: amcFormUnitsSelected.join(', '),
     floor: document.getElementById('amcFormFloor').value,
     vendorName: document.getElementById('amcFormVendor').value.trim(),
     contactInfo: document.getElementById('amcFormContact').value.trim(),
     startDate: document.getElementById('amcFormStartDate').value,
     expiryDate: document.getElementById('amcFormExpiryDate').value,
+    contractCost: document.getElementById('amcFormCost').value || '',
     frequency: document.getElementById('amcFormFrequency').value,
     lastServiceDate: document.getElementById('amcFormLastService').value,
     nextDueDate: document.getElementById('amcFormNextDue').value,
@@ -4406,6 +4659,41 @@ async function fetchAllAmcServiceLogs(force = false) {
   return amcAllLogsPromise;
 }
 
+// All archived contract terms across every AMC record — powers the "Past
+// Vendors" rows in the Vendors tab and the Contract History export sheet,
+// so a vendor switch shows up in analysis even after the record moves on.
+let allAmcContractHistory = [];
+let amcAllHistoryPromise = null;
+let amcAllHistoryCachedAt = 0;
+
+async function fetchAllAmcContractHistory(force = false) {
+  const cacheIsFresh = Array.isArray(allAmcContractHistory) && allAmcContractHistory.length > 0 && (Date.now() - amcAllHistoryCachedAt) < AMC_PREFETCH_MAX_AGE_MS;
+  if (!force && cacheIsFresh) return allAmcContractHistory;
+  if (!force && amcAllHistoryPromise) return amcAllHistoryPromise;
+
+  let request;
+  if (window.google && google.script && google.script.run) {
+    request = new Promise((res, rej) =>
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej).getAmcContractHistory(''));
+  } else {
+    request = fetchJson(bustCache(`${WEB_APP_URL}?action=amcContractHistory&amcId=`), {}, READ_REQUEST_TIMEOUT_MS);
+  }
+
+  amcAllHistoryPromise = request
+    .then(data => {
+      allAmcContractHistory = Array.isArray(data) ? data : [];
+      amcAllHistoryCachedAt = Date.now();
+      return allAmcContractHistory;
+    })
+    .catch(err => {
+      amcAllHistoryPromise = null;
+      console.warn('Could not fetch all AMC contract history:', err);
+      return [];
+    });
+
+  return amcAllHistoryPromise;
+}
+
 async function openAmcReportModal() {
   const modal = document.getElementById('amcReportModal');
   if (!modal) return;
@@ -4421,7 +4709,8 @@ async function openAmcReportModal() {
   try {
     await Promise.all([
       loadAmcData(false),
-      fetchAllAmcServiceLogs(false)
+      fetchAllAmcServiceLogs(false),
+      fetchAllAmcContractHistory(false)
     ]);
   } catch (err) {
     console.error('Error opening AMC report data:', err);
@@ -4444,7 +4733,8 @@ async function refreshAmcReportData() {
   try {
     await Promise.all([
       loadAmcData(true),
-      fetchAllAmcServiceLogs(true)
+      fetchAllAmcServiceLogs(true),
+      fetchAllAmcContractHistory(true)
     ]);
     const updatedEl = document.getElementById('amcReportUpdatedAt');
     if (updatedEl) updatedEl.textContent = `Generated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
@@ -4460,7 +4750,7 @@ function populateAmcReportFilterDropdowns() {
   const unitFilterEl = document.getElementById('amcRptFilterUnit');
   if (unitFilterEl) {
     const currentVal = unitFilterEl.value;
-    const units = [...new Set(state.factories.concat(allAmcData.map(r => r.unit)))].filter(Boolean);
+    const units = [...new Set(state.factories.concat(allAmcData.flatMap(r => amcSplitUnits(r.unit))))].filter(Boolean);
     unitFilterEl.innerHTML = '<option value="">All Units</option>' +
       units.map(u => `<option value="${escapeHtml(u)}" ${u === currentVal ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('');
   }
@@ -4474,12 +4764,10 @@ function getFilteredAmcReportRecords() {
   const searchFilter = (document.getElementById('amcRptSearchInput')?.value || '').toLowerCase().trim();
 
   return allAmcData.filter(r => {
-    if (unitFilter && r.unit !== unitFilter) return false;
+    if (unitFilter && !amcSplitUnits(r.unit).includes(unitFilter)) return false;
     if (floorFilter && r.floor !== floorFilter) return false;
     if (categoryFilter && r.category !== categoryFilter) return false;
     if (statusFilter) {
-      // Service status is intentionally checked separately from the overall
-      // contract badge: a contract can be expired AND its servicing overdue.
       if (statusFilter === 'Overdue' && r.serviceStatus !== 'Overdue') return false;
       if (statusFilter === 'Due Soon' && r.serviceStatus !== 'Due Soon') return false;
       if (statusFilter === 'Expired' && r.status !== 'Expired') return false;
@@ -4542,8 +4830,8 @@ function updateAmcReportDashboard() {
   const filteredRecords = getFilteredAmcReportRecords();
   const recordIds = new Set(filteredRecords.map(r => r.id));
   const filteredLogs = allAmcServiceLogs.filter(l => recordIds.has(l.amcId));
+  const filteredHistory = allAmcContractHistory.filter(h => recordIds.has(h.recordId));
 
-  // 1. Calculate Top KPI Summary Cards
   const totalAssets = filteredRecords.length;
   const activeContracts = filteredRecords.filter(r => r.status === 'Active').length;
   const overdueCount = filteredRecords.filter(r => r.serviceStatus === 'Overdue').length;
@@ -4554,10 +4842,26 @@ function updateAmcReportDashboard() {
   const breakdownCount = filteredLogs.filter(l => l.logType === 'Breakdown Repair').length;
   const scheduledCount = filteredLogs.filter(l => l.logType === 'Scheduled Service').length;
 
-  const totalCost = filteredLogs.reduce((sum, l) => {
+  const currentContractCostTotal = filteredRecords.reduce((sum, r) => {
+    const num = parseFloat(r.contractCost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+  const pastContractCostTotal = filteredHistory.reduce((sum, h) => {
+    const num = parseFloat(h.contractCost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+  const totalContractCost = currentContractCostTotal + pastContractCostTotal;
+
+  const servicingCostTotal = filteredLogs.filter(l => l.logType === 'Scheduled Service').reduce((sum, l) => {
     const num = parseFloat(l.cost);
     return sum + (!isNaN(num) ? num : 0);
   }, 0);
+  const breakdownCostTotal = filteredLogs.filter(l => l.logType === 'Breakdown Repair').reduce((sum, l) => {
+    const num = parseFloat(l.cost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+  const totalMaintCost = servicingCostTotal + breakdownCostTotal;
+  const grandTotalCost = totalContractCost + totalMaintCost;
 
   document.getElementById('amcRptTotalAssets').textContent = totalAssets;
   document.getElementById('amcRptActiveSub').textContent = `${activeContracts} Active (${expiringContracts} Expiring)`;
@@ -4565,17 +4869,15 @@ function updateAmcReportDashboard() {
   document.getElementById('amcRptDueSoonSub').textContent = `${dueSoonCount} Due Soon`;
   document.getElementById('amcRptBreakdownCount').textContent = breakdownCount;
   document.getElementById('amcRptScheduledVisitsSub').textContent = `${scheduledCount} Scheduled Visits`;
-  document.getElementById('amcRptTotalCost').textContent = `₹${totalCost.toLocaleString('en-IN')}`;
-  document.getElementById('amcRptExpiredContractsSub').textContent = `${expiredContracts} Contract${expiredContracts === 1 ? '' : 's'} Expired`;
+  document.getElementById('amcRptTotalCost').textContent = `₹${grandTotalCost.toLocaleString('en-IN')}`;
+  document.getElementById('amcRptExpiredContractsSub').textContent = `Current ₹${currentContractCostTotal.toLocaleString('en-IN')} | Past ₹${pastContractCostTotal.toLocaleString('en-IN')} | Svc ₹${servicingCostTotal.toLocaleString('en-IN')} | Repair ₹${breakdownCostTotal.toLocaleString('en-IN')}`;
 
-  // 2. Render active tab
   if (currentAmcReportTab === 'pivot') renderAmcPivotTable();
   else if (currentAmcReportTab === 'delays') renderAmcDelaysTable();
   else if (currentAmcReportTab === 'breakdowns') renderAmcBreakdownsTable();
   else if (currentAmcReportTab === 'vendors') renderAmcVendorsTable();
 }
 
-// ── 1. Multi-Dimension Pivot Matrix Renderer ────────────────────────────────
 function renderAmcPivotTable() {
   const container = document.getElementById('amcPivotTableContainer');
   if (!container) return;
@@ -4583,6 +4885,7 @@ function renderAmcPivotTable() {
   const records = getFilteredAmcReportRecords();
   const recordIds = new Set(records.map(r => r.id));
   const logs = allAmcServiceLogs.filter(l => recordIds.has(l.amcId));
+  const history = allAmcContractHistory.filter(h => recordIds.has(h.recordId));
   const dimension = document.getElementById('amcPivotDimension')?.value || 'unit_floor';
 
   if (!records.length) {
@@ -4602,27 +4905,25 @@ function renderAmcPivotTable() {
   ];
 
   if (dimension === 'unit_floor') {
-    // Group rows by "Unit | Floor"
     const rowKeys = [...new Set(records.map(r => `${r.unit}|||${r.floor || 'All Floors'}`))].sort();
 
     let headHtml = `
       <thead>
         <tr>
           <th class="sticky-col" style="min-width:180px;">Unit &amp; Floor</th>
-          ${allCategories.map(cat => `<th style="min-width:120px;">${escapeHtml(cat)}</th>`).join('')}
-          <th style="min-width:130px;background-color:#172554;">Total Overview</th>
+          ${allCategories.map(cat => `<th style="min-width:130px;">${escapeHtml(cat)}</th>`).join('')}
+          <th style="min-width:150px;background-color:#172554;">Total Overview</th>
         </tr>
       </thead>
     `;
 
-    // Totals per category
     const catTotals = {};
-    allCategories.forEach(c => catTotals[c] = { total: 0, overdue: 0, breakdown: 0, cost: 0 });
-    let grandTotal = { total: 0, overdue: 0, breakdown: 0, cost: 0 };
+    allCategories.forEach(c => catTotals[c] = { total: 0, overdue: 0, breakdown: 0, currentCost: 0, pastCost: 0, maintCost: 0, cost: 0 });
+    let grandTotal = { total: 0, overdue: 0, breakdown: 0, currentCost: 0, pastCost: 0, maintCost: 0, cost: 0 };
 
     let bodyHtml = rowKeys.map(rowKey => {
       const [unit, floor] = rowKey.split('|||');
-      let rowTotal = { total: 0, overdue: 0, breakdown: 0, cost: 0 };
+      let rowTotal = { total: 0, overdue: 0, breakdown: 0, currentCost: 0, pastCost: 0, maintCost: 0, cost: 0 };
 
       const cells = allCategories.map(cat => {
         const matching = records.filter(r => r.unit === unit && (r.floor || 'All Floors') === floor && r.category === cat);
@@ -4634,17 +4935,30 @@ function renderAmcPivotTable() {
         const overdue = matching.filter(r => r.serviceStatus === 'Overdue').length;
         const matchingIds = new Set(matching.map(r => r.id));
         const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+        const matchingHistory = history.filter(h => matchingIds.has(h.recordId));
         const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
-        const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+        
+        const currentCost = matching.reduce((sum, r) => sum + (parseFloat(r.contractCost) || 0), 0);
+        const pastCost = matchingHistory.reduce((sum, h) => sum + (parseFloat(h.contractCost) || 0), 0);
+        const svcCost = matchingLogs.filter(l => l.logType === 'Scheduled Service').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+        const bkdCost = matchingLogs.filter(l => l.logType === 'Breakdown Repair').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+        const maintCost = svcCost + bkdCost;
+        const cost = currentCost + pastCost + maintCost;
 
         rowTotal.total += count;
         rowTotal.overdue += overdue;
         rowTotal.breakdown += breakdowns;
+        rowTotal.currentCost += currentCost;
+        rowTotal.pastCost += pastCost;
+        rowTotal.maintCost += maintCost;
         rowTotal.cost += cost;
 
         catTotals[cat].total += count;
         catTotals[cat].overdue += overdue;
         catTotals[cat].breakdown += breakdowns;
+        catTotals[cat].currentCost += currentCost;
+        catTotals[cat].pastCost += pastCost;
+        catTotals[cat].maintCost += maintCost;
         catTotals[cat].cost += cost;
 
         return `
@@ -4653,7 +4967,10 @@ function renderAmcPivotTable() {
               <span class="pivot-tag tag-active">${count} Asset${count > 1 ? 's' : ''}</span>
               ${overdue ? `<span class="pivot-tag tag-overdue">${overdue} Overdue</span>` : ''}
               ${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns} Repair${breakdowns > 1 ? 's' : ''}</span>` : ''}
-              ${cost > 0 ? `<span class="pivot-tag tag-cost">₹${cost.toLocaleString('en-IN')}</span>` : ''}
+              ${currentCost > 0 ? `<span class="pivot-tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;" title="Current Term Rate">Curr ₹${currentCost.toLocaleString('en-IN')}</span>` : ''}
+              ${pastCost > 0 ? `<span class="pivot-tag" style="background:#ede9fe;color:#5b21b6;font-size:10px;" title="Past Term Renewals">Past ₹${pastCost.toLocaleString('en-IN')}</span>` : ''}
+              ${maintCost > 0 ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-size:10px;" title="Svc ₹${svcCost.toLocaleString('en-IN')} + Repair ₹${bkdCost.toLocaleString('en-IN')}">Maint ₹${maintCost.toLocaleString('en-IN')}</span>` : ''}
+              ${cost > 0 ? `<span class="pivot-tag tag-cost" title="Current ₹${currentCost.toLocaleString('en-IN')} + Past ₹${pastCost.toLocaleString('en-IN')} + Maint ₹${maintCost.toLocaleString('en-IN')}">Total ₹${cost.toLocaleString('en-IN')}</span>` : ''}
             </div>
           </td>
         `;
@@ -4662,6 +4979,9 @@ function renderAmcPivotTable() {
       grandTotal.total += rowTotal.total;
       grandTotal.overdue += rowTotal.overdue;
       grandTotal.breakdown += rowTotal.breakdown;
+      grandTotal.currentCost += rowTotal.currentCost;
+      grandTotal.pastCost += rowTotal.pastCost;
+      grandTotal.maintCost += rowTotal.maintCost;
       grandTotal.cost += rowTotal.cost;
 
       return `
@@ -4673,10 +4993,13 @@ function renderAmcPivotTable() {
           ${cells}
           <td style="background-color:rgba(30,58,138,0.05);font-weight:700;">
             <div class="pivot-cell-box">
-              <strong style="color:#1e3a8a;">${rowTotal.total} Total</strong>
+              <strong style="color:#1e3a8a;">${rowTotal.total} Total Assets</strong>
               ${rowTotal.overdue ? `<span class="pivot-tag tag-overdue">${rowTotal.overdue} Overdue</span>` : ''}
               ${rowTotal.breakdown ? `<span class="pivot-tag tag-breakdown">${rowTotal.breakdown} Repairs</span>` : ''}
-              ${rowTotal.cost > 0 ? `<span class="pivot-tag tag-cost">₹${rowTotal.cost.toLocaleString('en-IN')}</span>` : ''}
+              ${rowTotal.currentCost > 0 ? `<span class="pivot-tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;">Curr ₹${rowTotal.currentCost.toLocaleString('en-IN')}</span>` : ''}
+              ${rowTotal.pastCost > 0 ? `<span class="pivot-tag" style="background:#ede9fe;color:#5b21b6;font-size:10px;">Past ₹${rowTotal.pastCost.toLocaleString('en-IN')}</span>` : ''}
+              ${rowTotal.maintCost > 0 ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-size:10px;">Maint ₹${rowTotal.maintCost.toLocaleString('en-IN')}</span>` : ''}
+              ${rowTotal.cost > 0 ? `<span class="pivot-tag tag-cost" style="font-weight:800;">Total ₹${rowTotal.cost.toLocaleString('en-IN')}</span>` : ''}
             </div>
           </td>
         </tr>
@@ -4696,7 +5019,10 @@ function renderAmcPivotTable() {
                   <strong>${ct.total}</strong>
                   ${ct.overdue ? `<span class="pivot-tag tag-overdue">${ct.overdue} Overdue</span>` : ''}
                   ${ct.breakdown ? `<span class="pivot-tag tag-breakdown">${ct.breakdown} Repairs</span>` : ''}
-                  ${ct.cost > 0 ? `<span class="pivot-tag tag-cost">₹${ct.cost.toLocaleString('en-IN')}</span>` : ''}
+                  ${ct.currentCost > 0 ? `<span class="pivot-tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;">Curr ₹${ct.currentCost.toLocaleString('en-IN')}</span>` : ''}
+                  ${ct.pastCost > 0 ? `<span class="pivot-tag" style="background:#ede9fe;color:#5b21b6;font-size:10px;">Past ₹${ct.pastCost.toLocaleString('en-IN')}</span>` : ''}
+                  ${ct.maintCost > 0 ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-size:10px;">Maint ₹${ct.maintCost.toLocaleString('en-IN')}</span>` : ''}
+                  ${ct.cost > 0 ? `<span class="pivot-tag tag-cost">Total ₹${ct.cost.toLocaleString('en-IN')}</span>` : ''}
                 </div>
               </td>
             `;
@@ -4705,7 +5031,10 @@ function renderAmcPivotTable() {
             <div class="pivot-cell-box">
               <span style="font-size:14px;font-weight:800;color:#ffffff;">${grandTotal.total} Assets</span>
               ${grandTotal.overdue ? `<span class="pivot-tag tag-overdue" style="background:#ffffff;color:#dc2626;">${grandTotal.overdue} Overdue</span>` : ''}
-              ${grandTotal.cost > 0 ? `<span class="pivot-tag" style="background:#ffffff;color:#1e3a8a;">₹${grandTotal.cost.toLocaleString('en-IN')}</span>` : ''}
+              ${grandTotal.currentCost > 0 ? `<span class="pivot-tag" style="background:#dbeafe;color:#1e3a8a;font-size:10.5px;">Curr ₹${grandTotal.currentCost.toLocaleString('en-IN')}</span>` : ''}
+              ${grandTotal.pastCost > 0 ? `<span class="pivot-tag" style="background:#ede9fe;color:#5b21b6;font-size:10.5px;">Past ₹${grandTotal.pastCost.toLocaleString('en-IN')}</span>` : ''}
+              ${grandTotal.maintCost > 0 ? `<span class="pivot-tag" style="background:#fef3c7;color:#92400e;font-size:10.5px;">Maint ₹${grandTotal.maintCost.toLocaleString('en-IN')}</span>` : ''}
+              ${grandTotal.cost > 0 ? `<span class="pivot-tag" style="background:#ffffff;color:#1e3a8a;font-weight:800;">Total ₹${grandTotal.cost.toLocaleString('en-IN')}</span>` : ''}
             </div>
           </td>
         </tr>
@@ -4720,7 +5049,6 @@ function renderAmcPivotTable() {
       </table>
     `;
   } else if (dimension === 'category_status') {
-    // Dimension 2: Category vs Status breakdown
     let headHtml = `
       <thead>
         <tr>
@@ -4732,7 +5060,12 @@ function renderAmcPivotTable() {
           <th>Service Due Soon</th>
           <th>Service Overdue</th>
           <th>Breakdown Repairs</th>
-          <th>Total Cost (₹)</th>
+          <th>Current Contract (₹)</th>
+          <th>Past Contracts (₹)</th>
+          <th>Total Contract (₹)</th>
+          <th>Routine Service Cost (₹)</th>
+          <th>Breakdown Repair Cost (₹)</th>
+          <th>Grand Total Spend (₹)</th>
           <th>Compliance Rate</th>
         </tr>
       </thead>
@@ -4753,6 +5086,11 @@ function renderAmcPivotTable() {
             <td style="color:#94a3b8;">0</td>
             <td style="color:#94a3b8;">0</td>
             <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">₹0</td>
+            <td style="color:#94a3b8;">₹0</td>
             <td style="color:#94a3b8;">100%</td>
           </tr>
         `;
@@ -4766,8 +5104,16 @@ function renderAmcPivotTable() {
 
       const matchingIds = new Set(matching.map(r => r.id));
       const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
+      const matchingHistory = history.filter(h => matchingIds.has(h.recordId));
       const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
-      const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      
+      const currentContractCost = matching.reduce((sum, r) => sum + (parseFloat(r.contractCost) || 0), 0);
+      const pastContractCost = matchingHistory.reduce((sum, h) => sum + (parseFloat(h.contractCost) || 0), 0);
+      const totalContractVal = currentContractCost + pastContractCost;
+
+      const servicingCost = matchingLogs.filter(l => l.logType === 'Scheduled Service').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      const breakdownCost = matchingLogs.filter(l => l.logType === 'Breakdown Repair').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      const cost = totalContractVal + servicingCost + breakdownCost;
 
       const onTrack = count - (overdue + expired);
       const compliance = Math.round((onTrack / count) * 100);
@@ -4782,7 +5128,12 @@ function renderAmcPivotTable() {
           <td>${dueSoon ? `<span class="pivot-tag tag-breakdown">${dueSoon}</span>` : '0'}</td>
           <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue}</span>` : '0'}</td>
           <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
-          <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+          <td style="color:#1d4ed8;font-weight:700;">₹${currentContractCost.toLocaleString('en-IN')}</td>
+          <td style="color:#7c3aed;font-weight:600;">₹${pastContractCost.toLocaleString('en-IN')}</td>
+          <td style="color:#1e3a8a;font-weight:700;">₹${totalContractVal.toLocaleString('en-IN')}</td>
+          <td style="color:#059669;font-weight:600;">₹${servicingCost.toLocaleString('en-IN')}</td>
+          <td style="color:#ea580c;font-weight:600;">₹${breakdownCost.toLocaleString('en-IN')}</td>
+          <td style="font-weight:800;color:#047857;">₹${cost.toLocaleString('en-IN')}</td>
           <td>
             <strong style="color:${compliance < 80 ? '#dc2626' : compliance < 100 ? '#ea580c' : '#15803d'};">
               ${compliance}%
@@ -4799,8 +5150,10 @@ function renderAmcPivotTable() {
       </table>
     `;
   } else if (dimension === 'vendor_category') {
-    // Dimension 3: Vendor vs Category Coverage
-    const vendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))].sort();
+    const currentVendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))];
+    const currentVendorSet = new Set(currentVendors);
+    const pastVendors = [...new Set(history.map(h => h.vendorName).filter(Boolean))].filter(v => !currentVendorSet.has(v));
+    const vendors = [...currentVendors, ...pastVendors].sort();
 
     let headHtml = `
       <thead>
@@ -4812,6 +5165,11 @@ function renderAmcPivotTable() {
           <th>Active</th>
           <th>Overdue Visits</th>
           <th>Breakdowns</th>
+          <th>Live Term (₹)</th>
+          <th>Past Terms (₹)</th>
+          <th>Total Contract (₹)</th>
+          <th>Routine Service Spend (₹)</th>
+          <th>Breakdown Repair Spend (₹)</th>
           <th>Total Spend (₹)</th>
         </tr>
       </thead>
@@ -4819,29 +5177,43 @@ function renderAmcPivotTable() {
 
     let bodyHtml = vendors.map(vendor => {
       const matching = records.filter(r => r.vendorName === vendor);
-      const cats = [...new Set(matching.map(r => r.category))].join(', ');
-      const units = [...new Set(matching.map(r => r.unit))].join(', ');
+      const historyMatching = history.filter(h => h.vendorName === vendor);
+
+      const cats = [...new Set([...matching.map(r => r.category), ...historyMatching.map(h => h.category)])].join(', ');
+      const units = [...new Set([...matching.map(r => r.unit), ...historyMatching.map(h => h.unit)])].join(', ');
       const active = matching.filter(r => r.status === 'Active').length;
       const overdue = matching.filter(r => r.serviceStatus === 'Overdue').length;
 
       const matchingIds = new Set(matching.map(r => r.id));
       const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
       const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
-      const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      
+      const liveContractCost = matching.reduce((sum, r) => sum + (parseFloat(r.contractCost) || 0), 0);
+      const pastContractCost = historyMatching.reduce((sum, h) => sum + (parseFloat(h.contractCost) || 0), 0);
+      const totalContractVal = liveContractCost + pastContractCost;
+
+      const servicingCost = matchingLogs.filter(l => l.logType === 'Scheduled Service').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      const breakdownCost = matchingLogs.filter(l => l.logType === 'Breakdown Repair').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+      const cost = totalContractVal + servicingCost + breakdownCost;
 
       return `
         <tr>
           <td class="sticky-col">
             <strong>${escapeHtml(vendor)}</strong>
-            <div style="font-size:11px;color:var(--muted);">${escapeHtml(matching[0]?.contactInfo || '')}</div>
+            <div style="font-size:11px;color:var(--muted);">${escapeHtml(matching[0]?.contactInfo || historyMatching[0]?.contactInfo || '')}</div>
           </td>
           <td>${escapeHtml(cats)}</td>
           <td>${escapeHtml(units)}</td>
-          <td><strong>${matching.length}</strong></td>
+          <td><strong>${matching.length + historyMatching.length}</strong></td>
           <td><span class="pivot-tag tag-active">${active}</span></td>
           <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue}</span>` : '0'}</td>
           <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
-          <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+          <td><span style="color:#1d4ed8;font-weight:700;">${liveContractCost > 0 ? '₹' + liveContractCost.toLocaleString('en-IN') : '—'}</span></td>
+          <td><span style="color:#7c3aed;font-weight:600;">${pastContractCost > 0 ? '₹' + pastContractCost.toLocaleString('en-IN') : '—'}</span></td>
+          <td><strong style="color:#1e3a8a;">${totalContractVal > 0 ? '₹' + totalContractVal.toLocaleString('en-IN') : '—'}</strong></td>
+          <td><span style="color:#059669;font-weight:600;">₹${servicingCost.toLocaleString('en-IN')}</span></td>
+          <td><span style="color:#ea580c;font-weight:600;">₹${breakdownCost.toLocaleString('en-IN')}</span></td>
+          <td title="Live ₹${liveContractCost.toLocaleString('en-IN')} + Past ₹${pastContractCost.toLocaleString('en-IN')} + Service ₹${servicingCost.toLocaleString('en-IN')} + Breakdown ₹${breakdownCost.toLocaleString('en-IN')}"><strong style="color:#047857;">₹${cost.toLocaleString('en-IN')}</strong></td>
         </tr>
       `;
     }).join('');
@@ -4855,7 +5227,6 @@ function renderAmcPivotTable() {
   }
 }
 
-// ── 2. Servicing Delay Analysis Table ───────────────────────────────────────
 function renderAmcOpenServiceDelays() {
   const container = document.getElementById('amcDelaysTableContainer');
   const cardsRow = document.getElementById('amcDelayCardsRow');
@@ -4864,10 +5235,9 @@ function renderAmcOpenServiceDelays() {
   const records = getFilteredAmcReportRecords();
   const overdueList = records.filter(r => r.serviceStatus === 'Overdue' || r.serviceStatus === 'Due Soon');
 
-  // Summary breakdown: >60 days overdue, 30-60 days overdue, <30 days / due soon
-  let criticalCount = 0; // >60 days
-  let severeCount = 0;   // 30-60 days
-  let moderateCount = 0; // <30 days overdue or due soon
+  let criticalCount = 0; 
+  let severeCount = 0;   
+  let moderateCount = 0; 
 
   overdueList.forEach(r => {
     const days = Math.abs(r.serviceDaysLeft || 0);
@@ -4911,7 +5281,6 @@ function renderAmcOpenServiceDelays() {
     return;
   }
 
-  // Sort by highest delay first
   const sorted = [...overdueList].sort((a, b) => (a.serviceDaysLeft || 0) - (b.serviceDaysLeft || 0));
 
   let headHtml = `
@@ -4924,6 +5293,7 @@ function renderAmcOpenServiceDelays() {
         <th>Vendor Agency</th>
         <th>Last Serviced</th>
         <th>Next Due Date</th>
+        <th>Contract Cost (₹)</th>
         <th>Delay Duration</th>
         <th>Severity Level</th>
         <th>Action</th>
@@ -4944,6 +5314,8 @@ function renderAmcOpenServiceDelays() {
       severityBadge = '<span class="pivot-tag" style="background:#e0f2fe;color:#0369a1;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Service Due Soon</span>';
     }
 
+    const cc = (r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? Number(r.contractCost) : 0;
+
     return `
       <tr>
         <td>${i + 1}</td>
@@ -4956,6 +5328,7 @@ function renderAmcOpenServiceDelays() {
         </td>
         <td>${fmtAMCDate(r.lastServiceDate)}</td>
         <td><strong class="${amcNextDuePulseClass(r)}">${fmtAMCDate(r.nextDueDate)}</strong></td>
+        <td style="color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td>
         <td>
           <strong style="color:${isOverdue ? '#dc2626' : '#ea580c'};">
             ${isOverdue ? `${days} Days Overdue` : `Due in ${days} Days`}
@@ -4979,7 +5352,6 @@ function renderAmcOpenServiceDelays() {
   `;
 }
 
-// Completed service delays: actual service date later than the scheduled due date.
 function renderAmcDelaysTable() {
   const container = document.getElementById('amcDelaysTableContainer');
   const cardsRow = document.getElementById('amcDelayCardsRow');
@@ -5008,15 +5380,16 @@ function renderAmcDelaysTable() {
   }
 
   const rows = delayedServices.map((log, index) => {
-    const record = recordMap.get(log.amcId);
+    const record = recordMap.get(log.amcId) || {};
     const days = Number(log.delayDays);
     const severity = days > 60 ? 'Critical (>60d)' : days >= 30 ? 'Severe (30–60d)' : 'Short Delay (<30d)';
-    return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(record.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.id || '')}</div></td><td><strong>${escapeHtml(record.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.floor || '—')}</div></td><td>${fmtAMCDate(log.scheduledDueDate)}</td><td><strong>${fmtAMCDate(log.visitDate)}</strong></td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(record.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.contactInfo || '')}</div></td><td>${escapeHtml(log.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(log.description || '')}</div></td></tr>`;
+    const cc = (record.contractCost !== '' && record.contractCost !== null && record.contractCost !== undefined) ? Number(record.contractCost) : 0;
+    const logCost = (log.cost !== '' && log.cost !== null && log.cost !== undefined) ? Number(log.cost) : 0;
+    return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(record.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.id || '')}</div></td><td><strong>${escapeHtml(record.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.floor || '—')}</div></td><td>${fmtAMCDate(log.scheduledDueDate)}</td><td><strong>${fmtAMCDate(log.visitDate)}</strong></td><td style="color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td><td style="color:#059669;font-weight:600;">${logCost > 0 ? '₹' + logCost.toLocaleString('en-IN') : '₹0'}</td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(record.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(record.contactInfo || '')}</div></td><td>${escapeHtml(log.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(log.description || '')}</div></td></tr>`;
   }).join('');
-  container.innerHTML = `<table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows}</tbody></table>`;
+  container.innerHTML = `<table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Contract Value (₹)</th><th>Visit Cost (₹)</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-// ── 3. Breakdown & Repair Hotspots Table ────────────────────────────────────
 function renderAmcBreakdownsTable() {
   const container = document.getElementById('amcBreakdownsTableContainer');
   const summaryRow = document.getElementById('amcBreakdownSummaryRow');
@@ -5025,16 +5398,30 @@ function renderAmcBreakdownsTable() {
   const records = getFilteredAmcReportRecords();
   const recordMap = new Map(records.map(r => [r.id, r]));
   const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId) && l.logType === 'Breakdown Repair');
+  const history = allAmcContractHistory.filter(h => recordMap.has(h.recordId));
 
   const totalBreakdowns = logs.length;
-  const totalCost = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+  const totalRepairCost = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
 
-  // Group by equipment ID to find recurring breakdowns
   const equipFailures = {};
+  const affectedUnitIds = new Set();
   logs.forEach(l => {
     equipFailures[l.amcId] = (equipFailures[l.amcId] || 0) + 1;
+    affectedUnitIds.add(l.amcId);
   });
   const recurringCount = Object.values(equipFailures).filter(c => c > 1).length;
+
+  const affectedCurrentContractCost = [...affectedUnitIds].reduce((sum, id) => {
+    const rec = recordMap.get(id);
+    const num = parseFloat(rec?.contractCost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+  const affectedPastContractCost = history.filter(h => affectedUnitIds.has(h.recordId)).reduce((sum, h) => {
+    const num = parseFloat(h.contractCost);
+    return sum + (!isNaN(num) ? num : 0);
+  }, 0);
+  const totalAffectedContractVal = affectedCurrentContractCost + affectedPastContractCost;
+  const totalAffectedSpend = totalAffectedContractVal + totalRepairCost;
 
   if (summaryRow) {
     summaryRow.innerHTML = `
@@ -5054,10 +5441,17 @@ function renderAmcBreakdownsTable() {
       </div>
       <div class="amc-sub-summary-card card-info">
         <div class="amc-sub-summary-info">
-          <h5>Total Breakdown Repair Spend</h5>
-          <p>Direct parts &amp; emergency repair cost</p>
+          <h5>Breakdown Repair Spend</h5>
+          <p>Emergency parts &amp; service cost</p>
         </div>
-        <span class="amc-sub-summary-val" style="color:#1e3a8a;">₹${totalCost.toLocaleString('en-IN')}</span>
+        <span class="amc-sub-summary-val" style="color:#ea580c;">₹${totalRepairCost.toLocaleString('en-IN')}</span>
+      </div>
+      <div class="amc-sub-summary-card card-info">
+        <div class="amc-sub-summary-info">
+          <h5>Contract Value (Current + Past)</h5>
+          <p>Current ₹${affectedCurrentContractCost.toLocaleString('en-IN')} | Past ₹${affectedPastContractCost.toLocaleString('en-IN')}</p>
+        </div>
+        <span class="amc-sub-summary-val" style="color:#1d4ed8;">₹${totalAffectedContractVal.toLocaleString('en-IN')}</span>
       </div>
     `;
   }
@@ -5077,7 +5471,10 @@ function renderAmcBreakdownsTable() {
         <th>Floor</th>
         <th>Vendor / Tech</th>
         <th>Failure Description / Work Done</th>
-        <th>Cost (₹)</th>
+        <th>Current Term (₹)</th>
+        <th>Past Terms (₹)</th>
+        <th>Repair Cost (₹)</th>
+        <th>Total Lifetime Spend (₹)</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -5086,6 +5483,12 @@ function renderAmcBreakdownsTable() {
   let bodyHtml = logs.map((l, i) => {
     const parentRec = recordMap.get(l.amcId) || {};
     const failCount = equipFailures[l.amcId] || 1;
+    const currentVal = parseFloat(parentRec.contractCost) || 0;
+    const pastVal = history.filter(h => h.recordId === l.amcId).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const repairVal = parseFloat(l.cost) || 0;
+
+    const assetRepairs = logs.filter(log => log.amcId === l.amcId).reduce((s, log) => s + (parseFloat(log.cost) || 0), 0);
+    const cumulativeAssetTotal = currentVal + pastVal + assetRepairs;
 
     return `
       <tr>
@@ -5101,11 +5504,20 @@ function renderAmcBreakdownsTable() {
           <div>${escapeHtml(parentRec.vendorName || '—')}</div>
           <div style="font-size:11px;color:var(--muted);">${escapeHtml(l.technician ? 'Tech: ' + l.technician : '')}</div>
         </td>
-        <td style="max-width:280px;text-align:left;">
+        <td style="max-width:260px;text-align:left;">
           <div style="font-size:12px;color:var(--ink);">${escapeHtml(l.description || 'Breakdown repair')}</div>
         </td>
-        <td>
-          <strong style="color:#1e3a8a;">${(l.cost !== '' && l.cost !== null && l.cost !== undefined) ? '₹' + Number(l.cost).toLocaleString('en-IN') : '—'}</strong>
+        <td style="color:#1d4ed8;font-weight:700;">
+          ${currentVal > 0 ? '₹' + currentVal.toLocaleString('en-IN') : '—'}
+        </td>
+        <td style="color:#7c3aed;font-weight:600;">
+          ${pastVal > 0 ? '₹' + pastVal.toLocaleString('en-IN') : '—'}
+        </td>
+        <td style="color:#ea580c;font-weight:700;">
+          ${repairVal > 0 ? '₹' + repairVal.toLocaleString('en-IN') : '₹0'}
+        </td>
+        <td title="Current ₹${currentVal.toLocaleString('en-IN')} + Past ₹${pastVal.toLocaleString('en-IN')} + Cumulative Repairs ₹${assetRepairs.toLocaleString('en-IN')}">
+          <strong style="color:#047857;">₹${cumulativeAssetTotal.toLocaleString('en-IN')}</strong>
         </td>
         <td>
           <button class="amc-take-action-btn" type="button" onclick="closeAmcReportModal();openAmcActionModal('${escapeHtml(parentRec.id)}')">
@@ -5124,7 +5536,6 @@ function renderAmcBreakdownsTable() {
   `;
 }
 
-// ── 4. Vendor Performance Table ────────────────────────────────────────────
 function renderAmcVendorsTable() {
   const container = document.getElementById('amcVendorsTableContainer');
   if (!container) return;
@@ -5132,8 +5543,13 @@ function renderAmcVendorsTable() {
   const records = getFilteredAmcReportRecords();
   const recordMap = new Map(records.map(r => [r.id, r]));
   const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+  const history = allAmcContractHistory.filter(h => recordMap.has(h.recordId));
 
-  const vendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))].sort();
+  const currentVendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))];
+  const currentVendorSet = new Set(currentVendors);
+  const pastVendors = [...new Set(history.map(h => h.vendorName).filter(Boolean))]
+    .filter(v => !currentVendorSet.has(v));
+  const vendors = [...currentVendors, ...pastVendors].sort();
 
   if (!vendors.length) {
     container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">No vendor records found for current filter.</div>';
@@ -5145,6 +5561,7 @@ function renderAmcVendorsTable() {
       <tr>
         <th style="width:40px;">#</th>
         <th class="sticky-col">Vendor / Agency Name</th>
+        <th>Status</th>
         <th>Contact Details</th>
         <th>Maintained Categories</th>
         <th>Units Serviced</th>
@@ -5152,35 +5569,59 @@ function renderAmcVendorsTable() {
         <th>Active</th>
         <th>Overdue Servicing</th>
         <th>Breakdown Calls</th>
-        <th>Total Expenditure (₹)</th>
+        <th>Live Term (₹)</th>
+        <th>Past Terms (₹)</th>
+        <th>Total Contract (₹)</th>
+        <th>Routine Service Spend (₹)</th>
+        <th>Breakdown Repair Spend (₹)</th>
+        <th>Total Spend (₹)</th>
       </tr>
     </thead>
   `;
 
   let bodyHtml = vendors.map((vendor, i) => {
+    const isCurrent = currentVendorSet.has(vendor);
     const matching = records.filter(r => r.vendorName === vendor);
-    const cats = [...new Set(matching.map(r => r.category))].join(', ');
-    const units = [...new Set(matching.map(r => r.unit))].join(', ');
+    const historyMatching = history.filter(h => h.vendorName === vendor);
+
+    const cats = [...new Set([...matching.map(r => r.category), ...historyMatching.map(h => h.category)])].filter(Boolean).join(', ');
+    const units = [...new Set([...matching.map(r => r.unit), ...historyMatching.map(h => h.unit)])].filter(Boolean).join(', ');
     const active = matching.filter(r => r.status === 'Active').length;
     const overdue = matching.filter(r => r.status === 'Service Overdue').length;
 
     const matchingIds = new Set(matching.map(r => r.id));
     const matchingLogs = logs.filter(l => matchingIds.has(l.amcId));
     const breakdowns = matchingLogs.filter(l => l.logType === 'Breakdown Repair').length;
-    const cost = matchingLogs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+    
+    const liveContractCost = matching.reduce((sum, r) => sum + (parseFloat(r.contractCost) || 0), 0);
+    const pastContractCost = historyMatching.reduce((sum, h) => sum + (parseFloat(h.contractCost) || 0), 0);
+    const totalContractVal = liveContractCost + pastContractCost;
+
+    const servicingSpend = matchingLogs.filter(l => l.logType === 'Scheduled Service').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+    const breakdownSpend = matchingLogs.filter(l => l.logType === 'Breakdown Repair').reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
+    const totalVendorCost = totalContractVal + servicingSpend + breakdownSpend;
+
+    const contact = matching[0]?.contactInfo || historyMatching[0]?.contactInfo || '—';
+    const totalContracts = matching.length + historyMatching.length;
 
     return `
-      <tr>
+      <tr${!isCurrent ? ' style="opacity:0.82;"' : ''}>
         <td>${i + 1}</td>
         <td class="sticky-col"><strong>${escapeHtml(vendor)}</strong></td>
-        <td>${escapeHtml(matching[0]?.contactInfo || '—')}</td>
+        <td>${isCurrent ? '<span class="pivot-tag tag-active">Current</span>' : '<span class="pivot-tag" style="background:#ede9fe;color:#5b21b6;">Past Vendor</span>'}</td>
+        <td>${escapeHtml(contact)}</td>
         <td>${escapeHtml(cats)}</td>
         <td>${escapeHtml(units)}</td>
-        <td><strong>${matching.length}</strong></td>
+        <td><strong>${totalContracts}</strong></td>
         <td><span class="pivot-tag tag-active">${active}</span></td>
         <td>${overdue ? `<span class="pivot-tag tag-overdue">${overdue} Overdue</span>` : '<span style="color:#15803d;">0</span>'}</td>
         <td>${breakdowns ? `<span class="pivot-tag tag-breakdown">${breakdowns}</span>` : '0'}</td>
-        <td><strong>₹${cost.toLocaleString('en-IN')}</strong></td>
+        <td><span style="color:#1d4ed8;font-weight:700;">${liveContractCost > 0 ? '₹' + liveContractCost.toLocaleString('en-IN') : '—'}</span></td>
+        <td><span style="color:#7c3aed;font-weight:600;">${pastContractCost > 0 ? '₹' + pastContractCost.toLocaleString('en-IN') : '—'}</span></td>
+        <td><strong style="color:#1e3a8a;">${totalContractVal > 0 ? '₹' + totalContractVal.toLocaleString('en-IN') : '—'}</strong></td>
+        <td style="color:#059669;font-weight:600;">₹${servicingSpend.toLocaleString('en-IN')}</td>
+        <td style="color:#ea580c;font-weight:600;">₹${breakdownSpend.toLocaleString('en-IN')}</td>
+        <td title="Live ₹${liveContractCost.toLocaleString('en-IN')} + Past ₹${pastContractCost.toLocaleString('en-IN')} + Service ₹${servicingSpend.toLocaleString('en-IN')} + Breakdown ₹${breakdownSpend.toLocaleString('en-IN')}"><strong style="color:#047857;">₹${totalVendorCost.toLocaleString('en-IN')}</strong></td>
       </tr>
     `;
   }).join('');
@@ -5208,36 +5649,55 @@ function exportAmcAnalysisExcel() {
 
   const recordMap = new Map(records.map(r => [r.id, r]));
   const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+  const history = allAmcContractHistory.filter(h => recordMap.has(h.recordId));
   const wb = XLSX.utils.book_new();
 
   // ── Sheet 1: Master Records List
   const masterHeaders = [
     'Record ID', 'Category', 'Unit', 'Floor', 'Vendor', 'Contact',
-    'Start Date', 'Expiry Date', 'Frequency', 'Last Service Date', 'Next Due Date',
-    'Status', 'Remarks'
+    'Start Date', 'Expiry Date', 'Current Term Cost (₹)', 'Past Terms Cost (₹)', 'Total Contract Value (₹)',
+    'Routine Service Spend (₹)', 'Breakdown Repair Spend (₹)', 'Grand Total Asset Cost (₹)',
+    'Frequency', 'Last Service Date', 'Next Due Date', 'Status', 'Remarks'
   ];
-  const masterRows = records.map(r => [
-    r.id || '',
-    r.category || '',
-    r.unit || '',
-    r.floor || '',
-    r.vendorName || '',
-    r.contactInfo || '',
-    r.startDate || '',
-    r.expiryDate || '',
-    r.frequency || '',
-    r.lastServiceDate || '',
-    r.nextDueDate || '',
-    r.status || '',
-    r.remarks || ''
-  ]);
-  const wsMaster = XLSX.utils.aoa_to_sheet([['AMC MASTER EQUIPMENT & CONTRACT RECORDS'], [], masterHeaders, ...masterRows]);
-  wsMaster['!cols'] = [{ wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 35 }];
+  const masterRows = records.map(r => {
+    const rLogs = logs.filter(l => l.amcId === r.id);
+    const cc = (r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? Number(r.contractCost) : 0;
+    const pastCost = history.filter(h => h.recordId === r.id).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totContract = cc + pastCost;
+
+    const svcC = rLogs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const bkdC = rLogs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const totAsset = totContract + svcC + bkdC;
+
+    return [
+      r.id || '',
+      r.category || '',
+      r.unit || '',
+      r.floor || '',
+      r.vendorName || '',
+      r.contactInfo || '',
+      r.startDate || '',
+      r.expiryDate || '',
+      cc,
+      pastCost,
+      totContract,
+      svcC,
+      bkdC,
+      totAsset,
+      r.frequency || '',
+      r.lastServiceDate || '',
+      r.nextDueDate || '',
+      r.status || '',
+      r.remarks || ''
+    ];
+  });
+  const wsMaster = XLSX.utils.aoa_to_sheet([['AMC MASTER EQUIPMENT & CONTRACT RECORDS (WITH LIFECYCLE FINANCIALS)'], [], masterHeaders, ...masterRows]);
+  wsMaster['!cols'] = [{ wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 35 }];
   XLSX.utils.book_append_sheet(wb, wsMaster, 'AMC Master Records');
 
   // ── Sheet 2: Servicing Delays Report
   const overdueList = records.filter(r => r.status === 'Service Overdue' || r.status === 'Service Due Soon');
-  const delayHeaders = ['Unit', 'Floor', 'Category', 'Vendor', 'Last Serviced', 'Next Due Date', 'Days Overdue', 'Status'];
+  const delayHeaders = ['Unit', 'Floor', 'Category', 'Vendor', 'Last Serviced', 'Next Due Date', 'Contract Cost (₹)', 'Days Overdue', 'Status'];
   const delayRows = overdueList.map(r => [
     r.unit || '',
     r.floor || '',
@@ -5245,18 +5705,23 @@ function exportAmcAnalysisExcel() {
     r.vendorName || '',
     r.lastServiceDate || '',
     r.nextDueDate || '',
+    (r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? Number(r.contractCost) : '',
     Math.abs(r.serviceDaysLeft || 0),
     r.status || ''
   ]);
   const wsDelays = XLSX.utils.aoa_to_sheet([['AMC SERVICING DELAY & OVERDUE REPORT'], [], delayHeaders, ...delayRows]);
-  wsDelays['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
+  wsDelays['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, wsDelays, 'Servicing Delays');
 
   // ── Sheet 3: Breakdown & Repair Logs
   const breakdownLogs = logs.filter(l => l.logType === 'Breakdown Repair');
-  const breakdownHeaders = ['Visit Date', 'Category', 'Unit', 'Floor', 'Vendor', 'Technician', 'Repair Cost (₹)', 'Issue Description'];
+  const breakdownHeaders = ['Visit Date', 'Category', 'Unit', 'Floor', 'Vendor', 'Technician', 'Current Term (₹)', 'Past Terms (₹)', 'Repair Cost (₹)', 'Lifetime Asset Spend (₹)', 'Issue Description'];
   const breakdownRows = breakdownLogs.map(l => {
     const p = recordMap.get(l.amcId) || {};
+    const curVal = (p.contractCost !== '' && p.contractCost !== null && p.contractCost !== undefined) ? Number(p.contractCost) : 0;
+    const pastVal = history.filter(h => h.recordId === l.amcId).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const rc = l.cost !== '' && l.cost !== null && l.cost !== undefined ? Number(l.cost) : 0;
+    const assetRepairs = logs.filter(log => log.amcId === l.amcId && log.logType === 'Breakdown Repair').reduce((s, log) => s + (parseFloat(log.cost) || 0), 0);
     return [
       l.visitDate || '',
       p.category || '',
@@ -5264,13 +5729,39 @@ function exportAmcAnalysisExcel() {
       p.floor || '',
       p.vendorName || '',
       l.technician || '',
-      l.cost !== '' && l.cost !== null && l.cost !== undefined ? Number(l.cost) : '',
+      curVal,
+      pastVal,
+      rc,
+      curVal + pastVal + assetRepairs,
       l.description || ''
     ];
   });
-  const wsBreakdown = XLSX.utils.aoa_to_sheet([['BREAKDOWN & EMERGENCY REPAIR HOTSPOTS'], [], breakdownHeaders, ...breakdownRows]);
-  wsBreakdown['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 45 }];
+  const wsBreakdown = XLSX.utils.aoa_to_sheet([['BREAKDOWN & EMERGENCY REPAIR HOTSPOTS (WITH LIFECYCLE CONTRACT VALUE)'], [], breakdownHeaders, ...breakdownRows]);
+  wsBreakdown['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 45 }];
   XLSX.utils.book_append_sheet(wb, wsBreakdown, 'Breakdown Repairs');
+
+  // ── Sheet 4: Contract Renewal History (previous vendors & terms)
+  const historyHeaders = [
+    'Record ID', 'Category', 'Unit', 'Floor', 'Vendor (Past Term)', 'Contact',
+    'Start Date', 'Expiry Date', 'Contract Cost (₹)', 'Frequency', 'Remarks', 'Renewed To Vendor'
+  ];
+  const historyRows = history.map(h => [
+    h.recordId || '',
+    h.category || '',
+    h.unit || '',
+    h.floor || '',
+    h.vendorName || '',
+    h.contactInfo || '',
+    h.startDate || '',
+    h.expiryDate || '',
+    (h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? Number(h.contractCost) : '',
+    h.frequency || '',
+    h.remarks || '',
+    h.renewedToVendor || ''
+  ]);
+  const wsHistory = XLSX.utils.aoa_to_sheet([['AMC CONTRACT RENEWAL HISTORY (PAST VENDORS & TERMS)'], [], historyHeaders, ...(historyRows.length ? historyRows : [['No renewals recorded yet for the current filter.']])]);
+  wsHistory['!cols'] = [{ wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 35 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsHistory, 'Contract Renewal History');
 
   const stamp = formatLocalDate(new Date());
   XLSX.writeFile(wb, `AMC_Report_Analysis_${stamp}.xlsx`);
@@ -5310,12 +5801,13 @@ function printAmcAnalysisReport() {
         <td>${escapeHtml(r.vendorName || '')}</td>
         <td>${escapeHtml(r.startDate || '')}</td>
         <td>${escapeHtml(r.expiryDate || '')}</td>
+        <td>${(r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? escapeHtml(fmtAmcCost(r.contractCost)) : '-'}</td>
         <td>${escapeHtml(r.frequency || '')}</td>
         <td>${escapeHtml(r.lastServiceDate || '')}</td>
         <td>${escapeHtml(r.nextDueDate || '')}</td>
         <td>${escapeHtml(r.status || '')}</td>
       </tr>
-    `).join('') : `<tr><td colspan="11" class="amc-kpi-print-empty">No records found.</td></tr>`;
+    `).join('') : `<tr><td colspan="12" class="amc-kpi-print-empty">No records found.</td></tr>`;
   }
 
   // Table 2: Servicing Delay & Overdue Report
@@ -5358,6 +5850,24 @@ function printAmcAnalysisReport() {
     }).join('') : `<tr><td colspan="8" class="amc-kpi-print-empty">No breakdown repair logs.</td></tr>`;
   }
 
+  // Table 4: Contract Renewal History (past vendors & terms)
+  const historyBody = document.getElementById('amcPrintHistoryBody');
+  if (historyBody) {
+    const history = allAmcContractHistory.filter(h => recordMap.has(h.recordId));
+    historyBody.innerHTML = history.length ? history.map(h => `
+      <tr>
+        <td>${escapeHtml(h.recordId || '')}</td>
+        <td>${escapeHtml(h.unit || '')}</td>
+        <td>${escapeHtml(h.floor || '')}</td>
+        <td>${escapeHtml(h.vendorName || '')}</td>
+        <td>${escapeHtml(h.startDate || '')}</td>
+        <td>${escapeHtml(h.expiryDate || '')}</td>
+        <td>${(h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? escapeHtml(fmtAmcCost(h.contractCost)) : '-'}</td>
+        <td>${escapeHtml(h.renewedToVendor || '')}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="8" class="amc-kpi-print-empty">No contract renewals recorded yet.</td></tr>`;
+  }
+
   const dateEl = document.getElementById('amcKpiPrintDate');
   if (dateEl) {
     const now = new Date();
@@ -5372,6 +5882,7 @@ function printAmcAnalysisReport() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 let currentDrillKpiType = 'assets';
+let currentDrillSubView = 'assets_category';
 
 function openAmcKpiDrilldown(kpiType) {
   currentDrillKpiType = kpiType;
@@ -5379,8 +5890,51 @@ function openAmcKpiDrilldown(kpiType) {
   const searchInput = document.getElementById('amcDrillSearchInput');
   if (searchInput) searchInput.value = '';
 
+  const select = document.getElementById('amcDrillViewSelect');
+  if (select) {
+    if (kpiType === 'spend') {
+      select.innerHTML = `
+        <option value="spend_category">1. Category-wise Cost Distribution Matrix (Current + Past + Maint)</option>
+        <option value="spend_vendor">2. Vendor-wise Financial Matrix (Live + Past Terms + Service)</option>
+        <option value="spend_equipment">3. Equipment Contract &amp; Maintenance Summary (A to Z Lifecycle)</option>
+        <option value="spend_history">4. Past Contract Renewal Terms History Archive</option>
+        <option value="spend_logs">5. Detailed Expense &amp; Service Logs</option>
+      `;
+      currentDrillSubView = 'spend_category';
+    } else if (kpiType === 'assets') {
+      select.innerHTML = `
+        <option value="assets_category">1. Category Summary &amp; Financial Matrix</option>
+        <option value="assets_equipment">2. Individual Equipment Asset Records</option>
+      `;
+      currentDrillSubView = 'assets_category';
+    } else if (kpiType === 'breakdowns') {
+      select.innerHTML = `
+        <option value="breakdowns_category">1. Breakdown Cost vs Contract Value by Category</option>
+        <option value="breakdowns_logs">2. Breakdown &amp; Emergency Repair Logs</option>
+      `;
+      currentDrillSubView = 'breakdowns_category';
+    } else if (kpiType === 'overdue') {
+      select.innerHTML = `
+        <option value="overdue_schedule">1. Equipment Servicing Schedule List</option>
+      `;
+      currentDrillSubView = 'overdue_schedule';
+    } else if (['completedLate', 'delayDays', 'delaySeverity'].includes(kpiType)) {
+      select.innerHTML = `
+        <option value="delay_services">1. Completed Delayed Services List</option>
+      `;
+      currentDrillSubView = 'delay_services';
+    }
+    select.value = currentDrillSubView;
+  }
+
   if (modal) modal.classList.remove('hidden');
   renderAmcDrilldownContent(kpiType);
+}
+
+function changeAmcDrilldownView(newSubView) {
+  currentDrillSubView = newSubView;
+  const searchVal = (document.getElementById('amcDrillSearchInput')?.value || '').toLowerCase().trim();
+  renderAmcDrilldownContent(currentDrillKpiType, searchVal);
 }
 
 function closeAmcKpiDrillModal() {
@@ -5404,9 +5958,11 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
   const records = getFilteredAmcReportRecords();
   const recordMap = new Map(records.map(r => [r.id, r]));
   const logs = allAmcServiceLogs.filter(l => recordMap.has(l.amcId));
+  const history = allAmcContractHistory.filter(h => recordMap.has(h.recordId));
 
-  // Servicing Delay Analysis KPI cards: completed services where the actual
-  // visit happened after the scheduled due date.
+  // ═════════════════════════════════════════════════════════════════════════
+  // SERVICING DELAY ANALYSIS KPI CARDS
+  // ═════════════════════════════════════════════════════════════════════════
   if (['completedLate', 'delayDays', 'delaySeverity'].includes(kpiType)) {
     const delayedLogs = logs
       .filter(l => l.logType === 'Scheduled Service' && Number(l.delayDays) > 0)
@@ -5446,8 +6002,11 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
       const r = recordMap.get(l.amcId) || {};
       const days = Number(l.delayDays);
       const severity = days > 60 ? 'Critical (>60d)' : days >= 30 ? 'Severe (30–60d)' : 'Short Delay (<30d)';
-      return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(r.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.id || '')}</div></td><td><strong>${escapeHtml(r.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.floor || '—')}</div></td><td>${fmtAMCDate(l.scheduledDueDate)}</td><td><strong>${fmtAMCDate(l.visitDate)}</strong></td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(r.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.contactInfo || '')}</div></td><td>${escapeHtml(l.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(l.description || '')}</div></td></tr>`;
+      const cc = (r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? Number(r.contractCost) : 0;
+      const logCost = (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? Number(l.cost) : 0;
+      return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(r.category || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.id || '')}</div></td><td><strong>${escapeHtml(r.unit || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.floor || '—')}</div></td><td>${fmtAMCDate(l.scheduledDueDate)}</td><td><strong>${fmtAMCDate(l.visitDate)}</strong></td><td style="color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td><td style="color:#059669;font-weight:600;">${logCost > 0 ? '₹' + logCost.toLocaleString('en-IN') : '₹0'}</td><td><strong style="color:#dc2626;">${days} day${days === 1 ? '' : 's'} late</strong></td><td><span class="pivot-tag ${days > 60 ? 'tag-overdue' : 'tag-breakdown'}">${severity}</span></td><td><strong>${escapeHtml(r.vendorName || '—')}</strong><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.contactInfo || '')}</div></td><td>${escapeHtml(log.technician || '—')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(log.description || '')}</div></td></tr>`;
     }).join('');
+
     container.innerHTML = `
       <div class="amc-drill-summary-grid">
         <div class="amc-drill-stat-chip chip-danger"><span class="chip-label">${config.statLabel}</span><span class="chip-val" style="color:#dc2626;">${config.statValue}</span></div>
@@ -5456,139 +6015,206 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
         <div class="amc-drill-stat-chip chip-warning"><span class="chip-label">Severe (30–60d)</span><span class="chip-val" style="color:#ea580c;">${severe}</span></div>
         <div class="amc-drill-stat-chip chip-success"><span class="chip-label">Short (&lt;30d)</span><span class="chip-val" style="color:#059669;">${short}</span></div>
       </div>
-      <div class="amc-drill-table-wrap"><table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows || '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;">No matching completed delayed services.</td></tr>'}</tbody></table></div>`;
+      <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;"><table class="amc-pivot-table"><thead><tr><th>#</th><th>AMC Service</th><th>Location</th><th>Scheduled Due</th><th>Actual Service Date</th><th>Contract Value (₹)</th><th>Visit Cost (₹)</th><th>Completion Delay</th><th>Severity</th><th>Vendor / Contact</th><th>Technician / Work Done</th></tr></thead><tbody>${rows || '<tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8;">No matching completed delayed services.</td></tr>'}</tbody></table></div>`;
   }
   // ═════════════════════════════════════════════════════════════════════════
-  // CARD 1: TOTAL AMC ASSETS
+  // CARD 1: TOTAL AMC ASSETS & PORTFOLIO
   // ═════════════════════════════════════════════════════════════════════════
   else if (kpiType === 'assets') {
     if (titleEl) titleEl.textContent = `Total AMC Assets & Contract Portfolio (${records.length} Assets)`;
-    if (subtitleEl) subtitleEl.textContent = 'Category-wise and unit-wise breakdown of all registered equipment contracts';
+    if (subtitleEl) subtitleEl.textContent = 'Category-wise, financial rate, and equipment-wise breakdown of all registered maintenance contracts';
     if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>';
-
-    let filtered = records;
-    if (searchVal) {
-      filtered = records.filter(r => [r.category, r.unit, r.floor, r.vendorName, r.status, r.id, r.remarks].join(' ').toLowerCase().includes(searchVal));
-    }
 
     const total = records.length;
     const active = records.filter(r => r.status === 'Active').length;
     const expiring = records.filter(r => r.status === 'Expiring Soon').length;
     const expired = records.filter(r => r.status === 'Expired').length;
-    const overdue = records.filter(r => r.status === 'Service Overdue').length;
 
-    // Category summary pivot
-    const catMap = {};
-    records.forEach(r => {
-      if (!catMap[r.category]) catMap[r.category] = { total: 0, active: 0, expiring: 0, expired: 0, overdue: 0, units: new Set() };
-      catMap[r.category].total++;
-      if (r.status === 'Active') catMap[r.category].active++;
-      if (r.status === 'Expiring Soon') catMap[r.category].expiring++;
-      if (r.status === 'Expired') catMap[r.category].expired++;
-      if (r.status === 'Service Overdue') catMap[r.category].overdue++;
-      if (r.unit) catMap[r.category].units.add(r.unit);
-    });
+    const currentContractVal = records.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastContractVal = history.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totalContractValue = currentContractVal + pastContractVal;
+    const totalMaintSpend = logs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const totalPortfolioCost = totalContractValue + totalMaintSpend;
 
-    let catPivotRows = Object.entries(catMap).map(([cat, s]) => `
-      <tr>
-        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
-        <td style="text-align:center;font-weight:800;font-size:13.5px;color:#1e3a8a;">${s.total}</td>
-        <td style="text-align:center;"><span class="pivot-tag tag-active">${s.active} Active</span></td>
-        <td style="text-align:center;">${s.expiring ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-weight:700;">${s.expiring} Expiring</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
-        <td style="text-align:center;">${s.expired ? `<span class="pivot-tag tag-overdue">${s.expired} Expired</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
-        <td style="text-align:center;">${s.overdue ? `<span class="pivot-tag tag-overdue">${s.overdue} Overdue</span>` : '<span style="color:#15803d;font-weight:700;">0</span>'}</td>
-        <td style="text-align:center;font-size:12px;font-weight:600;color:var(--ink);">${escapeHtml([...s.units].join(', '))}</td>
-      </tr>
-    `).join('');
-
-    let listRows = filtered.map((r, i) => `
-      <tr>
-        <td style="text-align:center;">${i + 1}</td>
-        <td style="text-align:center;"><code>${escapeHtml(r.id)}</code></td>
-        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(r.category)}</span></td>
-        <td style="text-align:center;font-weight:700;">${escapeHtml(r.unit)}</td>
-        <td style="text-align:center;">${escapeHtml(r.floor || 'All Floors')}</td>
-        <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
-        <td style="text-align:center;">${fmtAMCDate(r.startDate)}</td>
-        <td style="text-align:center;font-weight:700;">${fmtAMCDate(r.expiryDate)}</td>
-        <td style="text-align:center;">
-          <span class="pivot-tag ${r.status === 'Active' ? 'tag-active' : r.status === 'Expired' ? 'tag-overdue' : 'tag-breakdown'}">
-            ${escapeHtml(r.status)}
-          </span>
-        </td>
-        <td style="text-align:center;">
-          <button type="button" class="amc-drill-action-btn" onclick="closeAmcKpiDrillModal();openAmcActionModal('${escapeHtml(r.id)}')">
-            Action &rarr;
-          </button>
-        </td>
-      </tr>
-    `).join('');
-
-    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${total} equipment assets`;
-
-    container.innerHTML = `
+    const summaryChipsHtml = `
       <div class="amc-drill-summary-grid">
         <div class="amc-drill-stat-chip chip-total">
           <span class="chip-label">Total Assets</span>
           <span class="chip-val" style="color:#1e3a8a;">${total}</span>
         </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Current Term Value</span>
+          <span class="chip-val" style="color:#1d4ed8;">₹${currentContractVal.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-purple">
+          <span class="chip-label">Past Terms Value</span>
+          <span class="chip-val" style="color:#7c3aed;">₹${pastContractVal.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-warning">
+          <span class="chip-label">Total Maint Spend</span>
+          <span class="chip-val" style="color:#ea580c;">₹${totalMaintSpend.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Combined Portfolio Cost</span>
+          <span class="chip-val" style="color:#047857;">₹${totalPortfolioCost.toLocaleString('en-IN')}</span>
+        </div>
         <div class="amc-drill-stat-chip chip-success">
           <span class="chip-label">Active Contracts</span>
           <span class="chip-val" style="color:#059669;">${active}</span>
         </div>
-        <div class="amc-drill-stat-chip chip-warning">
-          <span class="chip-label">Expiring Soon (< 30d)</span>
-          <span class="chip-val" style="color:#ea580c;">${expiring}</span>
-        </div>
-        <div class="amc-drill-stat-chip chip-danger">
-          <span class="chip-label">Expired</span>
-          <span class="chip-val" style="color:#dc2626;">${expired}</span>
-        </div>
-        <div class="amc-drill-stat-chip chip-purple">
-          <span class="chip-label">Categories Covered</span>
-          <span class="chip-val" style="color:#7c3aed;">${Object.keys(catMap).length}</span>
-        </div>
-      </div>
-
-      <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Category Summary Matrix</h4>
-      <div class="amc-drill-pivot-wrap">
-        <table class="amc-pivot-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;">Equipment Category</th>
-              <th style="text-align:center;">Total Assets</th>
-              <th style="text-align:center;">Active</th>
-              <th style="text-align:center;">Expiring Soon</th>
-              <th style="text-align:center;">Expired</th>
-              <th style="text-align:center;">Service Overdue</th>
-              <th style="text-align:center;">Units Covering</th>
-            </tr>
-          </thead>
-          <tbody>${catPivotRows}</tbody>
-        </table>
-      </div>
-
-      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>Individual Equipment Records (${filtered.length})</h4>
-      <div class="amc-drill-table-wrap">
-        <table class="amc-pivot-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;">#</th>
-              <th style="text-align:center;">Record ID</th>
-              <th style="text-align:center;">Category</th>
-              <th style="text-align:center;">Unit</th>
-              <th style="text-align:center;">Floor</th>
-              <th style="text-align:center;">Vendor</th>
-              <th style="text-align:center;">Start Date</th>
-              <th style="text-align:center;">Expiry Date</th>
-              <th style="text-align:center;">Contract Status</th>
-              <th style="text-align:center;">Take Action</th>
-            </tr>
-          </thead>
-          <tbody>${listRows || '<tr><td colspan="10" style="padding:24px;text-align:center;color:#94a3b8;">No matching assets found.</td></tr>'}</tbody>
-        </table>
       </div>
     `;
+
+    let selectedTableHtml = '';
+
+    if (currentDrillSubView === 'assets_category') {
+      const catMap = {};
+      records.forEach(r => {
+        if (!catMap[r.category]) catMap[r.category] = { total: 0, active: 0, expiring: 0, expired: 0, overdue: 0, currentCost: 0, pastCost: 0, maintSpend: 0, units: new Set() };
+        catMap[r.category].total++;
+        if (r.status === 'Active') catMap[r.category].active++;
+        if (r.status === 'Expiring Soon') catMap[r.category].expiring++;
+        if (r.status === 'Expired') catMap[r.category].expired++;
+        if (r.status === 'Service Overdue') catMap[r.category].overdue++;
+        catMap[r.category].currentCost += (parseFloat(r.contractCost) || 0);
+        if (r.unit) catMap[r.category].units.add(r.unit);
+      });
+
+      history.forEach(h => {
+        const cat = h.category || 'General';
+        if (catMap[cat]) catMap[cat].pastCost += (parseFloat(h.contractCost) || 0);
+      });
+
+      logs.forEach(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        const cat = parent.category || 'General';
+        if (catMap[cat]) {
+          catMap[cat].maintSpend += (parseFloat(l.cost) || 0);
+        }
+      });
+
+      let catEntries = Object.entries(catMap);
+      if (searchVal) {
+        catEntries = catEntries.filter(([cat, s]) => [cat, ...s.units].join(' ').toLowerCase().includes(searchVal));
+      }
+
+      let catPivotRows = catEntries.map(([cat, s]) => {
+        const combined = s.currentCost + s.pastCost + s.maintSpend;
+        return `
+          <tr>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+            <td style="text-align:center;font-weight:800;font-size:13.5px;color:#1e3a8a;">${s.total}</td>
+            <td style="text-align:center;"><span class="pivot-tag tag-active">${s.active} Active</span></td>
+            <td style="text-align:center;">${s.expiring ? `<span class="pivot-tag" style="background:#fef3c7;color:#b45309;font-weight:700;">${s.expiring} Expiring</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
+            <td style="text-align:center;">${s.expired ? `<span class="pivot-tag tag-overdue">${s.expired} Expired</span>` : '<span style="color:#94a3b8;">0</span>'}</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">₹${s.currentCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600;">₹${s.pastCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#ea580c;font-weight:700;">₹${s.maintSpend.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;font-weight:800;color:#047857;font-size:13.5px;">₹${combined.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;font-size:12px;font-weight:600;color:var(--ink);">${escapeHtml([...s.units].join(', '))}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${catEntries.length} of ${Object.keys(catMap).length} categories | Total Portfolio: ₹${totalPortfolioCost.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>1. Category Summary &amp; Financial Matrix</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Equipment Category</th>
+                <th style="text-align:center;">Total Assets</th>
+                <th style="text-align:center;">Active</th>
+                <th style="text-align:center;">Expiring Soon</th>
+                <th style="text-align:center;">Expired</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Maint Spend (₹)</th>
+                <th style="text-align:center;">Combined Total (₹)</th>
+                <th style="text-align:center;">Units Covering</th>
+              </tr>
+            </thead>
+            <tbody>${catPivotRows || '<tr><td colspan="10" style="padding:24px;text-align:center;color:#94a3b8;">No matching categories found.</td></tr>'}</tbody>
+          </table>
+        </div>
+      `;
+    } else {
+      let filtered = records;
+      if (searchVal) {
+        filtered = records.filter(r => [r.category, r.unit, r.floor, r.vendorName, r.status, r.id, r.remarks].join(' ').toLowerCase().includes(searchVal));
+      }
+
+      let listRows = filtered.map((r, i) => {
+        const cc = parseFloat(r.contractCost) || 0;
+        const pastCost = history.filter(h => h.recordId === r.id).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+        const rLogs = logs.filter(l => l.amcId === r.id);
+        const svcC = rLogs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+        const bkdC = rLogs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+        const totAsset = cc + pastCost + svcC + bkdC;
+
+        return `
+          <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td style="text-align:center;"><code>${escapeHtml(r.id)}</code></td>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(r.category)}</span></td>
+            <td style="text-align:center;font-weight:700;">${escapeHtml(r.unit)}</td>
+            <td style="text-align:center;">${escapeHtml(r.floor || 'All Floors')}</td>
+            <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
+            <td style="text-align:center;">${fmtAMCDate(r.startDate)}</td>
+            <td style="text-align:center;font-weight:700;">${fmtAMCDate(r.expiryDate)}</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600;">${pastCost > 0 ? '₹' + pastCost.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;color:#059669;font-weight:600;">${svcC > 0 ? '₹' + svcC.toLocaleString('en-IN') : '₹0'}</td>
+            <td style="text-align:center;color:#ea580c;font-weight:600;">${bkdC > 0 ? '₹' + bkdC.toLocaleString('en-IN') : '₹0'}</td>
+            <td style="text-align:center;font-weight:800;color:#047857;">₹${totAsset.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;">
+              <span class="pivot-tag ${r.status === 'Active' ? 'tag-active' : r.status === 'Expired' ? 'tag-overdue' : 'tag-breakdown'}">
+                ${escapeHtml(r.status)}
+              </span>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="amc-drill-action-btn" onclick="closeAmcKpiDrillModal();openAmcActionModal('${escapeHtml(r.id)}')">
+                Action &rarr;
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${total} equipment assets | Total Portfolio: ₹${totalPortfolioCost.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>2. Individual Equipment Asset Records &amp; Lifetime Financial Breakdown (${filtered.length})</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">#</th>
+                <th style="text-align:center;">Record ID</th>
+                <th style="text-align:center;">Category</th>
+                <th style="text-align:center;">Unit</th>
+                <th style="text-align:center;">Floor</th>
+                <th style="text-align:center;">Vendor</th>
+                <th style="text-align:center;">Start Date</th>
+                <th style="text-align:center;">Expiry Date</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Routine Svc (₹)</th>
+                <th style="text-align:center;">Repair Cost (₹)</th>
+                <th style="text-align:center;">Total Cost (₹)</th>
+                <th style="text-align:center;">Contract Status</th>
+                <th style="text-align:center;">Take Action</th>
+              </tr>
+            </thead>
+            <tbody>${listRows || '<tr><td colspan="15" style="padding:24px;text-align:center;color:#94a3b8;">No matching assets found.</td></tr>'}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    container.innerHTML = summaryChipsHtml + selectedTableHtml;
   }
   // ═════════════════════════════════════════════════════════════════════════
   // CARD 2: SERVICING OVERDUE & DUE SCHEDULE
@@ -5599,7 +6225,7 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
     const onTrackList = records.filter(r => !overdueList.includes(r) && !dueSoonList.includes(r));
 
     if (titleEl) titleEl.textContent = `Servicing Schedule & Status Tracker (${overdueList.length} Overdue, ${dueSoonList.length} Due Soon)`;
-    if (subtitleEl) subtitleEl.textContent = 'Detailed servicing timeline and compliance status across all equipment';
+    if (subtitleEl) subtitleEl.textContent = 'Detailed servicing timeline, contract value at risk, and compliance status across equipment';
     if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
     const sortedAll = [...overdueList, ...dueSoonList, ...onTrackList];
@@ -5613,16 +6239,19 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
       ? Math.abs([...overdueList].sort((a, b) => (a.serviceDaysLeft || 0) - (b.serviceDaysLeft || 0))[0]?.serviceDaysLeft || 0)
       : 0;
 
+    const overdueContractCost = overdueList.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+
     let rows = filtered.map((r, i) => {
       const isOverdue = r.status === 'Service Overdue' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft < 0);
       const isDueSoon = r.status === 'Service Due Soon' || (r.serviceDaysLeft !== undefined && r.serviceDaysLeft >= 0 && r.serviceDaysLeft <= 14);
       const days = r.serviceDaysLeft !== undefined ? Math.abs(r.serviceDaysLeft) : null;
+      const cc = (r.contractCost !== '' && r.contractCost !== null && r.contractCost !== undefined) ? Number(r.contractCost) : 0;
 
       let statusBadge = '<span class="pivot-tag tag-active"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>On Track</span>';
       if (isOverdue) {
         statusBadge = `<span class="pivot-tag tag-overdue"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><path d="M12 9v4"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 17h.01"/></svg>${days !== null ? `${days}d Overdue` : 'Overdue'}</span>`;
       } else if (isDueSoon) {
-        statusBadge = `<span class="pivot-tag tag-breakdown">⏳ ${days !== null ? `Due in ${days}d` : 'Due Soon'}</span>`;
+        statusBadge = `<span class="pivot-tag tag-breakdown"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${days !== null ? `Due in ${days}d` : 'Due Soon'}</span>`;
       }
 
       return `
@@ -5635,6 +6264,7 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
           <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
           <td style="text-align:center;">${fmtAMCDate(r.lastServiceDate)}</td>
           <td style="text-align:center;font-weight:700;color:#1e3a8a;">${fmtAMCDate(r.nextDueDate)}</td>
+          <td style="text-align:center;color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td>
           <td style="text-align:center;">${escapeHtml(r.frequency || 'Annual')}</td>
           <td style="text-align:center;">${statusBadge}</td>
           <td style="text-align:center;">
@@ -5646,13 +6276,17 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
       `;
     }).join('');
 
-    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} equipment servicing records`;
+    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} equipment servicing records | Overdue Contract Value: ₹${overdueContractCost.toLocaleString('en-IN')}`;
 
     container.innerHTML = `
       <div class="amc-drill-summary-grid">
         <div class="amc-drill-stat-chip ${overdueList.length ? 'chip-danger' : 'chip-success'}">
           <span class="chip-label">Overdue Servicing</span>
           <span class="chip-val" style="color:${overdueList.length ? '#dc2626' : '#059669'};">${overdueList.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Overdue Contract Value</span>
+          <span class="chip-val" style="color:#1d4ed8;">₹${overdueContractCost.toLocaleString('en-IN')}</span>
         </div>
         <div class="amc-drill-stat-chip ${dueSoonList.length ? 'chip-warning' : 'chip-success'}">
           <span class="chip-label">Due Soon (< 14d)</span>
@@ -5668,8 +6302,8 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
         </div>
       </div>
 
-      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Equipment Servicing Schedule List (${filtered.length})</h4>
-      <div class="amc-drill-table-wrap">
+      <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Equipment Servicing Schedule List (${filtered.length})</h4>
+      <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
         <table class="amc-pivot-table">
           <thead>
             <tr>
@@ -5681,12 +6315,13 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
               <th style="text-align:center;">Vendor</th>
               <th style="text-align:center;">Last Serviced</th>
               <th style="text-align:center;">Next Due Date</th>
+              <th style="text-align:center;">Contract Cost (₹)</th>
               <th style="text-align:center;">Frequency</th>
               <th style="text-align:center;">Servicing Status</th>
               <th style="text-align:center;">Take Action</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="11" style="padding:28px;text-align:center;color:#94a3b8;">No equipment records found.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="12" style="padding:28px;text-align:center;color:#94a3b8;">No equipment records found.</td></tr>'}</tbody>
         </table>
       </div>
     `;
@@ -5699,247 +6334,570 @@ function renderAmcDrilldownContent(kpiType, searchVal = '') {
     const scheduledLogs = logs.filter(l => l.logType === 'Scheduled Service');
 
     if (titleEl) titleEl.textContent = `Breakdowns Logged & Service History (${breakdownLogs.length} Breakdowns, ${scheduledLogs.length} Scheduled)`;
-    if (subtitleEl) subtitleEl.textContent = 'Complete log of emergency breakdown repairs and scheduled maintenance visits';
+    if (subtitleEl) subtitleEl.textContent = 'Complete log of emergency breakdown repairs, routine maintenance visits, and contract financial comparison';
     if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
 
-    let filtered = logs;
-    if (searchVal) {
-      filtered = logs.filter(l => {
-        const parent = recordMap.get(l.amcId) || {};
-        return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
-      });
-    }
-
     const totalRepairCost = breakdownLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const totalScheduledCost = scheduledLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
 
-    // Breakdown count by category pivot
-    const catBreakdowns = {};
-    breakdownLogs.forEach(l => {
-      const parent = recordMap.get(l.amcId) || {};
-      const cat = parent.category || 'General';
-      if (!catBreakdowns[cat]) catBreakdowns[cat] = { count: 0, cost: 0 };
-      catBreakdowns[cat].count++;
-      catBreakdowns[cat].cost += (parseFloat(l.cost) || 0);
-    });
+    const affectedUnitIds = new Set(breakdownLogs.map(l => l.amcId));
+    const affectedCurrentContractCost = [...affectedUnitIds].reduce((sum, id) => {
+      const rec = recordMap.get(id);
+      const num = parseFloat(rec?.contractCost);
+      return sum + (!isNaN(num) ? num : 0);
+    }, 0);
+    const affectedPastContractCost = history.filter(h => affectedUnitIds.has(h.recordId)).reduce((sum, h) => {
+      const num = parseFloat(h.contractCost);
+      return sum + (!isNaN(num) ? num : 0);
+    }, 0);
+    const totalAffectedContractCost = affectedCurrentContractCost + affectedPastContractCost;
+    const totalBreakdownSectionSpend = totalRepairCost + totalAffectedContractCost;
 
-    let catBreakdownRows = Object.entries(catBreakdowns).map(([cat, s]) => `
-      <tr>
-        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
-        <td style="text-align:center;"><span class="pivot-tag tag-breakdown" style="font-weight:800;">${s.count} Incidents</span></td>
-        <td style="text-align:center;font-weight:800;color:#c2410c;font-size:13.5px;">₹${s.cost.toLocaleString('en-IN')}</td>
-      </tr>
-    `).join('');
-
-    let rows = filtered.map((l, i) => {
-      const parent = recordMap.get(l.amcId) || {};
-      const isBreakdown = l.logType === 'Breakdown Repair';
-      const costVal = parseFloat(l.cost);
-
-      return `
-        <tr>
-          <td style="text-align:center;">${i + 1}</td>
-          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
-          <td style="text-align:center;"><strong>${fmtAMCDate(l.visitDate)}</strong></td>
-          <td style="text-align:center;">
-            <span class="pivot-tag ${isBreakdown ? 'tag-breakdown' : 'tag-active'}" style="font-weight:700;">
-              ${isBreakdown ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Breakdown Repair' : '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Scheduled Service'}
-            </span>
-          </td>
-          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || 'General')}</span></td>
-          <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
-          <td style="text-align:center;">${escapeHtml(l.technician || '—')}</td>
-          <td style="text-align:center;font-size:12px;max-width:280px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
-          <td style="text-align:center;font-weight:800;color:${!isNaN(costVal) && costVal > 0 ? '#c2410c' : '#64748b'};">
-            ${!isNaN(costVal) && costVal > 0 ? `₹${costVal.toLocaleString('en-IN')}` : '₹0'}
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${logs.length} logged visits`;
-
-    container.innerHTML = `
+    const summaryChipsHtml = `
       <div class="amc-drill-summary-grid">
-        <div class="amc-drill-stat-chip chip-warning">
-          <span class="chip-label">Breakdowns Logged</span>
-          <span class="chip-val" style="color:#ea580c;">${breakdownLogs.length}</span>
-        </div>
-        <div class="amc-drill-stat-chip chip-success">
-          <span class="chip-label">Scheduled Visits</span>
-          <span class="chip-val" style="color:#059669;">${scheduledLogs.length}</span>
-        </div>
         <div class="amc-drill-stat-chip chip-danger">
-          <span class="chip-label">Breakdown Repair Cost</span>
-          <span class="chip-val" style="color:#dc2626;">₹${totalRepairCost.toLocaleString('en-IN')}</span>
+          <span class="chip-label">Total Breakdowns</span>
+          <span class="chip-val" style="color:#dc2626;">${breakdownLogs.length}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-warning">
+          <span class="chip-label">Total Repair Cost</span>
+          <span class="chip-val" style="color:#ea580c;">₹${totalRepairCost.toLocaleString('en-IN')}</span>
         </div>
         <div class="amc-drill-stat-chip chip-total">
-          <span class="chip-label">Total Visits Logged</span>
-          <span class="chip-val" style="color:#1e3a8a;">${logs.length}</span>
+          <span class="chip-label">Affected Contract Value</span>
+          <span class="chip-val" style="color:#1d4ed8;">₹${totalAffectedContractCost.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-success">
+          <span class="chip-label">Combined Breakdown Spend</span>
+          <span class="chip-val" style="color:#047857;">₹${totalBreakdownSectionSpend.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Scheduled Visits</span>
+          <span class="chip-val" style="color:#1e3a8a;">${scheduledLogs.length}</span>
         </div>
       </div>
+    `;
 
-      ${Object.keys(catBreakdowns).length ? `
-        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Breakdown Hotspots by Category</h4>
-        <div class="amc-drill-pivot-wrap">
+    let selectedTableHtml = '';
+
+    if (currentDrillSubView === 'breakdowns_category') {
+      const catBreakdowns = {};
+      breakdownLogs.forEach(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        const cat = parent.category || 'General';
+        if (!catBreakdowns[cat]) catBreakdowns[cat] = { count: 0, cost: 0, currentVal: 0, pastVal: 0, assetIds: new Set() };
+        catBreakdowns[cat].count++;
+        catBreakdowns[cat].cost += (parseFloat(l.cost) || 0);
+        if (l.amcId) catBreakdowns[cat].assetIds.add(l.amcId);
+      });
+
+      Object.keys(catBreakdowns).forEach(cat => {
+        catBreakdowns[cat].currentVal = [...catBreakdowns[cat].assetIds].reduce((sum, id) => {
+          const rec = recordMap.get(id);
+          const num = parseFloat(rec?.contractCost);
+          return sum + (!isNaN(num) ? num : 0);
+        }, 0);
+        catBreakdowns[cat].pastVal = history.filter(h => catBreakdowns[cat].assetIds.has(h.recordId)).reduce((sum, h) => {
+          const num = parseFloat(h.contractCost);
+          return sum + (!isNaN(num) ? num : 0);
+        }, 0);
+      });
+
+      let catEntries = Object.entries(catBreakdowns);
+      if (searchVal) {
+        catEntries = catEntries.filter(([cat]) => cat.toLowerCase().includes(searchVal));
+      }
+
+      let catBreakdownRows = catEntries.map(([cat, s]) => `
+        <tr>
+          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+          <td style="text-align:center;"><span class="pivot-tag tag-breakdown" style="font-weight:800;">${s.count} Incidents</span></td>
+          <td style="text-align:center;font-weight:800;color:#c2410c;font-size:13.5px;">₹${s.cost.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:700;color:#1d4ed8;">₹${s.currentVal.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:600;color:#7c3aed;">₹${s.pastVal.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:800;color:#047857;font-size:13.5px;">₹${(s.cost + s.currentVal + s.pastVal).toLocaleString('en-IN')}</td>
+        </tr>
+      `).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${catEntries.length} of ${Object.keys(catBreakdowns).length} categories with breakdown repairs`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>1. Breakdown Cost vs Contract Value by Category</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
           <table class="amc-pivot-table">
             <thead>
               <tr>
                 <th style="text-align:center;">Equipment Category</th>
                 <th style="text-align:center;">Breakdown Incidents</th>
-                <th style="text-align:center;">Total Repair Cost (₹)</th>
+                <th style="text-align:center;">Repair Cost (₹)</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Total Cumulative Spend (₹)</th>
               </tr>
             </thead>
-            <tbody>${catBreakdownRows}</tbody>
+            <tbody>
+              ${catBreakdownRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8;">No breakdown data recorded yet.</td></tr>'}
+            </tbody>
           </table>
         </div>
-      ` : ''}
+      `;
+    } else {
+      let filtered = logs;
+      if (searchVal) {
+        filtered = logs.filter(l => {
+          const parent = recordMap.get(l.amcId) || {};
+          return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
+        });
+      }
 
-      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Maintenance &amp; Breakdown Log Entries (${filtered.length})</h4>
-      <div class="amc-drill-table-wrap">
-        <table class="amc-pivot-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;">#</th>
-              <th style="text-align:center;">Log ID</th>
-              <th style="text-align:center;">Visit Date</th>
-              <th style="text-align:center;">Log Type</th>
-              <th style="text-align:center;">Category</th>
-              <th style="text-align:center;">Unit &amp; Floor</th>
-              <th style="text-align:center;">Technician</th>
-              <th style="text-align:center;">Issue / Action Taken</th>
-              <th style="text-align:center;">Cost (₹)</th>
-            </tr>
-          </thead>
-          <tbody>${rows || '<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;">No service or breakdown logs found.</td></tr>'}</tbody>
-        </table>
-      </div>
-    `;
-  }
-  // ═════════════════════════════════════════════════════════════════════════
-  // CARD 4: TOTAL REPAIR / SPEND ANALYSIS
-  // ═════════════════════════════════════════════════════════════════════════
-  else if (kpiType === 'spend') {
-    const totalSpend = logs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
-    const breakdownCost = logs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
-    const scheduledCost = logs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
-    const expiredCount = records.filter(r => r.status === 'Expired').length;
-
-    if (titleEl) titleEl.textContent = `Total Repair & Spend Breakdown (₹${totalSpend.toLocaleString('en-IN')})`;
-    if (subtitleEl) subtitleEl.textContent = `Financial breakdown of maintenance spend by equipment category, vendor, and individual visits`;
-    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>';
-
-    // Spend by category pivot
-    const catSpend = {};
-    logs.forEach(l => {
-      const parent = recordMap.get(l.amcId) || {};
-      const cat = parent.category || 'General';
-      if (!catSpend[cat]) catSpend[cat] = { total: 0, breakdownCost: 0, scheduledCost: 0, count: 0 };
-      const c = parseFloat(l.cost) || 0;
-      catSpend[cat].total += c;
-      catSpend[cat].count++;
-      if (l.logType === 'Breakdown Repair') catSpend[cat].breakdownCost += c;
-      else catSpend[cat].scheduledCost += c;
-    });
-
-    let catSpendRows = Object.entries(catSpend).map(([cat, s]) => `
-      <tr>
-        <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
-        <td style="text-align:center;font-weight:700;">${s.count} Visits</td>
-        <td style="text-align:center;color:#059669;font-weight:700;">₹${s.scheduledCost.toLocaleString('en-IN')}</td>
-        <td style="text-align:center;color:#ea580c;font-weight:700;">₹${s.breakdownCost.toLocaleString('en-IN')}</td>
-        <td style="text-align:center;font-weight:800;color:#1e3a8a;font-size:14px;">₹${s.total.toLocaleString('en-IN')}</td>
-      </tr>
-    `).join('');
-
-    let filteredLogs = logs;
-    if (searchVal) {
-      filteredLogs = logs.filter(l => {
+      let rows = filtered.map((l, i) => {
         const parent = recordMap.get(l.amcId) || {};
-        return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
-      });
+        const isBreakdown = l.logType === 'Breakdown Repair';
+        const costVal = parseFloat(l.cost) || 0;
+        const currentVal = parseFloat(parent.contractCost) || 0;
+        const pastVal = history.filter(h => h.recordId === l.amcId).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+
+        return `
+          <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+            <td style="text-align:center;"><strong>${fmtAMCDate(l.visitDate)}</strong></td>
+            <td style="text-align:center;">
+              <span class="pivot-tag ${isBreakdown ? 'tag-breakdown' : 'tag-active'}" style="font-weight:700;">
+                ${isBreakdown ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9L4.3 20.7a1 1 0 0 1-1.4-1.4L10.2 12A6 6 0 0 1 14.7 6.3z"/></svg>Breakdown' : '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Scheduled'}
+              </span>
+            </td>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || '—')}</span></td>
+            <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
+            <td style="text-align:center;">${escapeHtml(parent.vendorName || '—')}</td>
+            <td style="text-align:center;font-size:12px;max-width:260px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">${currentVal > 0 ? '₹' + currentVal.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600;">${pastVal > 0 ? '₹' + pastVal.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;font-weight:800;color:${costVal > 0 ? '#c2410c' : '#64748b'};font-size:13px;">₹${costVal.toLocaleString('en-IN')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${filtered.length} of ${logs.length} logged visits | Breakdown Repair Cost: ₹${totalRepairCost.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>2. Breakdown &amp; Emergency Service Visit Log (${filtered.length})</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">#</th>
+                <th style="text-align:center;">Log ID</th>
+                <th style="text-align:center;">Visit Date</th>
+                <th style="text-align:center;">Type</th>
+                <th style="text-align:center;">Category</th>
+                <th style="text-align:center;">Unit &amp; Floor</th>
+                <th style="text-align:center;">Vendor</th>
+                <th style="text-align:center;">Description</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Visit Cost (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8;">No matching breakdown or service logs.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
-    let costRows = filteredLogs.map((l, i) => {
-      const parent = recordMap.get(l.amcId) || {};
-      const c = parseFloat(l.cost) || 0;
+    container.innerHTML = summaryChipsHtml + selectedTableHtml;
+  }
+  // ═════════════════════════════════════════════════════════════════════════
+  // CARD 4: TOTAL AMC COST & FINANCIAL EXPENDITURE ANALYSIS (A TO Z LIFECYCLE)
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (kpiType === 'spend') {
+    const currentContractGrand = records.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastContractGrand = history.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totalContractGrand = currentContractGrand + pastContractGrand;
 
-      return `
-        <tr>
-          <td style="text-align:center;">${i + 1}</td>
-          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
-          <td style="text-align:center;">${fmtAMCDate(l.visitDate)}</td>
-          <td style="text-align:center;"><span class="pivot-tag ${l.logType === 'Breakdown Repair' ? 'tag-breakdown' : 'tag-active'}">${escapeHtml(l.logType)}</span></td>
-          <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || '—')}</span></td>
-          <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
-          <td style="text-align:center;">${escapeHtml(parent.vendorName || '—')}</td>
-          <td style="text-align:center;font-size:12px;max-width:280px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
-          <td style="text-align:center;font-weight:800;color:${c > 0 ? '#047857' : '#64748b'};font-size:13px;">₹${c.toLocaleString('en-IN')}</td>
-        </tr>
-      `;
-    }).join('');
+    const breakdownCost = logs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const scheduledCost = logs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const totalSpend = totalContractGrand + scheduledCost + breakdownCost;
+    const avgPerAsset = records.length ? Math.round(totalSpend / records.length) : 0;
 
-    if (statsTextEl) statsTextEl.textContent = `Showing ₹${totalSpend.toLocaleString('en-IN')} total maintenance expenditure across ${logs.length} visits`;
+    if (titleEl) titleEl.textContent = `Total AMC Lifetime Expenditure Analysis (₹${totalSpend.toLocaleString('en-IN')})`;
+    if (subtitleEl) subtitleEl.textContent = `Complete A to Z Lifecycle Cost: Current Contract (₹${currentContractGrand.toLocaleString('en-IN')}) + Past Renewals (₹${pastContractGrand.toLocaleString('en-IN')}) + Routine Servicing (₹${scheduledCost.toLocaleString('en-IN')}) + Breakdown Repairs (₹${breakdownCost.toLocaleString('en-IN')})`;
+    if (iconWrap) iconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>';
 
-    container.innerHTML = `
+    const summaryChipsHtml = `
       <div class="amc-drill-summary-grid">
         <div class="amc-drill-stat-chip chip-success">
-          <span class="chip-label">Total Spend</span>
+          <span class="chip-label">Grand Total A-to-Z Spend</span>
           <span class="chip-val" style="color:#047857;">₹${totalSpend.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Current Contract Term</span>
+          <span class="chip-val" style="color:#1d4ed8;">₹${currentContractGrand.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-purple">
+          <span class="chip-label">Past Renewal Terms</span>
+          <span class="chip-val" style="color:#7c3aed;">₹${pastContractGrand.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amc-drill-stat-chip chip-total">
+          <span class="chip-label">Routine Servicing Cost</span>
+          <span class="chip-val" style="color:#1e3a8a;">₹${scheduledCost.toLocaleString('en-IN')}</span>
         </div>
         <div class="amc-drill-stat-chip chip-warning">
           <span class="chip-label">Breakdown Repair Cost</span>
           <span class="chip-val" style="color:#ea580c;">₹${breakdownCost.toLocaleString('en-IN')}</span>
         </div>
-        <div class="amc-drill-stat-chip chip-total">
-          <span class="chip-label">Scheduled Service Cost</span>
-          <span class="chip-val" style="color:#1e3a8a;">₹${scheduledCost.toLocaleString('en-IN')}</span>
+        <div class="amc-drill-stat-chip chip-purple">
+          <span class="chip-label">Avg Lifetime / Asset</span>
+          <span class="chip-val" style="color:#7c3aed;">₹${avgPerAsset.toLocaleString('en-IN')}</span>
         </div>
-        <div class="amc-drill-stat-chip chip-danger">
-          <span class="chip-label">Expired Contracts</span>
-          <span class="chip-val" style="color:#dc2626;">${expiredCount}</span>
-        </div>
-      </div>
-
-      <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>Spend Matrix by Equipment Category</h4>
-      <div class="amc-drill-pivot-wrap">
-        <table class="amc-pivot-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;">Equipment Category</th>
-              <th style="text-align:center;">Total Visits</th>
-              <th style="text-align:center;">Scheduled Spend (₹)</th>
-              <th style="text-align:center;">Breakdown Spend (₹)</th>
-              <th style="text-align:center;">Grand Total Spend (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${catSpendRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8;">No cost data recorded yet.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-
-      <h4 style="margin:16px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Individual Invoice &amp; Cost Logs (${filteredLogs.length})</h4>
-      <div class="amc-drill-table-wrap">
-        <table class="amc-pivot-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;">#</th>
-              <th style="text-align:center;">Log ID</th>
-              <th style="text-align:center;">Visit Date</th>
-              <th style="text-align:center;">Log Type</th>
-              <th style="text-align:center;">Category</th>
-              <th style="text-align:center;">Unit &amp; Floor</th>
-              <th style="text-align:center;">Vendor</th>
-              <th style="text-align:center;">Description</th>
-              <th style="text-align:center;">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${costRows || '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;">No cost entries found for current filter.</td></tr>'}
-          </tbody>
-        </table>
       </div>
     `;
+
+    let selectedTableHtml = '';
+
+    // 1. Category-wise Cost Distribution Matrix
+    if (currentDrillSubView === 'spend_category') {
+      const catSpend = {};
+      records.forEach(r => {
+        const cat = r.category || 'General';
+        if (!catSpend[cat]) catSpend[cat] = { assets: 0, currentCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, visits: 0 };
+        catSpend[cat].assets++;
+        catSpend[cat].currentCost += (parseFloat(r.contractCost) || 0);
+      });
+      history.forEach(h => {
+        const cat = h.category || 'General';
+        if (!catSpend[cat]) catSpend[cat] = { assets: 0, currentCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, visits: 0 };
+        catSpend[cat].pastCost += (parseFloat(h.contractCost) || 0);
+      });
+      logs.forEach(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        const cat = parent.category || 'General';
+        if (!catSpend[cat]) catSpend[cat] = { assets: 0, currentCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, visits: 0 };
+        const c = parseFloat(l.cost) || 0;
+        catSpend[cat].visits++;
+        if (l.logType === 'Breakdown Repair') catSpend[cat].breakdownCost += c;
+        else catSpend[cat].scheduledCost += c;
+      });
+      Object.values(catSpend).forEach(s => { s.total = s.currentCost + s.pastCost + s.scheduledCost + s.breakdownCost; });
+
+      let catEntries = Object.entries(catSpend).sort((a, b) => b[1].total - a[1].total);
+      if (searchVal) {
+        catEntries = catEntries.filter(([cat]) => cat.toLowerCase().includes(searchVal));
+      }
+
+      let catSpendRows = catEntries.map(([cat, s]) => {
+        const pct = totalSpend > 0 ? Math.round((s.total / totalSpend) * 100) : 0;
+        const totContract = s.currentCost + s.pastCost;
+        return `
+          <tr>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(cat)}</span></td>
+            <td style="text-align:center;font-weight:700;">${s.assets} Assets</td>
+            <td style="text-align:center;font-weight:600;">${s.visits} Visits</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">₹${s.currentCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600;">₹${s.pastCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#1e3a8a;font-weight:700;">₹${totContract.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#059669;font-weight:700;">₹${s.scheduledCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#ea580c;font-weight:700;">₹${s.breakdownCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;font-weight:800;color:#047857;font-size:14px;">₹${s.total.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;font-weight:700;color:#1e3a8a;">${pct}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${catEntries.length} of ${Object.keys(catSpend).length} categories | Total A-to-Z Spend: ₹${totalSpend.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>1. Category-wise Cost Distribution Matrix (Current + Past + Maint)</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Equipment Category</th>
+                <th style="text-align:center;">Total Assets</th>
+                <th style="text-align:center;">Visits</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Total Contract (₹)</th>
+                <th style="text-align:center;">Routine Service (₹)</th>
+                <th style="text-align:center;">Breakdown Repair (₹)</th>
+                <th style="text-align:center;">Grand Total (₹)</th>
+                <th style="text-align:center;">% Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${catSpendRows || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#94a3b8;">No matching cost data recorded.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    // 2. Vendor-wise Financial Matrix
+    else if (currentDrillSubView === 'spend_vendor') {
+      const vendorSpend = {};
+      records.forEach(r => {
+        const v = r.vendorName || 'Direct / Unspecified';
+        if (!vendorSpend[v]) vendorSpend[v] = { contracts: 0, liveCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, categories: new Set() };
+        vendorSpend[v].contracts++;
+        vendorSpend[v].liveCost += (parseFloat(r.contractCost) || 0);
+        if (r.category) vendorSpend[v].categories.add(r.category);
+      });
+      history.forEach(h => {
+        const v = h.vendorName || 'Direct / Unspecified';
+        if (!vendorSpend[v]) vendorSpend[v] = { contracts: 0, liveCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, categories: new Set() };
+        vendorSpend[v].contracts++;
+        vendorSpend[v].pastCost += (parseFloat(h.contractCost) || 0);
+        if (h.category) vendorSpend[v].categories.add(h.category);
+      });
+      logs.forEach(l => {
+        const parent = recordMap.get(l.amcId) || {};
+        const v = parent.vendorName || 'Direct / Unspecified';
+        if (!vendorSpend[v]) vendorSpend[v] = { contracts: 0, liveCost: 0, pastCost: 0, scheduledCost: 0, breakdownCost: 0, total: 0, categories: new Set() };
+        const c = parseFloat(l.cost) || 0;
+        if (l.logType === 'Breakdown Repair') vendorSpend[v].breakdownCost += c;
+        else vendorSpend[v].scheduledCost += c;
+      });
+      Object.values(vendorSpend).forEach(s => { s.total = s.liveCost + s.pastCost + s.scheduledCost + s.breakdownCost; });
+
+      let vendorEntries = Object.entries(vendorSpend).sort((a, b) => b[1].total - a[1].total);
+      if (searchVal) {
+        vendorEntries = vendorEntries.filter(([v, s]) => [v, ...s.categories].join(' ').toLowerCase().includes(searchVal));
+      }
+
+      let vendorSpendRows = vendorEntries.map(([v, s]) => {
+        const totContract = s.liveCost + s.pastCost;
+        return `
+          <tr>
+            <td style="text-align:center;"><strong>${escapeHtml(v)}</strong></td>
+            <td style="text-align:center;font-size:11.5px;color:var(--muted);">${escapeHtml([...s.categories].join(', '))}</td>
+            <td style="text-align:center;font-weight:700;">${s.contracts}</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">₹${s.liveCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600;">₹${s.pastCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#1e3a8a;font-weight:700;">₹${totContract.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#059669;font-weight:600;">₹${s.scheduledCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#ea580c;font-weight:600;">₹${s.breakdownCost.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;font-weight:800;color:#047857;font-size:13.5px;">₹${s.total.toLocaleString('en-IN')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${vendorEntries.length} of ${Object.keys(vendorSpend).length} vendors | Total Spend: ₹${totalSpend.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>2. Vendor-wise Financial Matrix (Live + Past Terms + Service)</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Vendor Agency</th>
+                <th style="text-align:center;">Covered Categories</th>
+                <th style="text-align:center;">Contracts</th>
+                <th style="text-align:center;">Live Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Total Contract (₹)</th>
+                <th style="text-align:center;">Routine Service Spend (₹)</th>
+                <th style="text-align:center;">Breakdown Spend (₹)</th>
+                <th style="text-align:center;">Total Vendor Payout (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${vendorSpendRows || '<tr><td colspan="9" style="padding:20px;text-align:center;color:#94a3b8;">No matching vendor expenditure recorded.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    // 3. Equipment Contract & Maintenance Summary
+    else if (currentDrillSubView === 'spend_equipment') {
+      let filteredRecordsForSpend = records;
+      if (searchVal) {
+        filteredRecordsForSpend = records.filter(r =>
+          [r.id, r.category, r.unit, r.floor, r.vendorName, r.status].join(' ').toLowerCase().includes(searchVal)
+        );
+      }
+
+      let contractRows = filteredRecordsForSpend.map((r, i) => {
+        const cc = parseFloat(r.contractCost) || 0;
+        const pastCost = history.filter(h => h.recordId === r.id).reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+        const totContract = cc + pastCost;
+
+        const rLogs = logs.filter(l => l.amcId === r.id);
+        const svcC = rLogs.filter(l => l.logType === 'Scheduled Service').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+        const bkdC = rLogs.filter(l => l.logType === 'Breakdown Repair').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+        const totAsset = totContract + svcC + bkdC;
+
+        return `
+          <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td style="text-align:center;"><code>${escapeHtml(r.id || '—')}</code></td>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(r.category || '—')}</span></td>
+            <td style="text-align:center;font-weight:700;">${escapeHtml(r.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(r.floor || 'All Floors')})</span></td>
+            <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
+            <td style="text-align:center;">${escapeHtml(r.startDate || '—')}</td>
+            <td style="text-align:center;">${escapeHtml(r.expiryDate || '—')}</td>
+            <td style="text-align:center;font-weight:700;color:#1d4ed8;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;font-weight:600;color:#7c3aed;">${pastCost > 0 ? '₹' + pastCost.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;font-weight:700;color:#1e3a8a;">${totContract > 0 ? '₹' + totContract.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;font-weight:600;color:#059669;">${svcC > 0 ? '₹' + svcC.toLocaleString('en-IN') : '₹0'}</td>
+            <td style="text-align:center;font-weight:600;color:#ea580c;">${bkdC > 0 ? '₹' + bkdC.toLocaleString('en-IN') : '₹0'}</td>
+            <td style="text-align:center;font-weight:800;color:#047857;">₹${totAsset.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;"><span class="pivot-tag ${r.status === 'Active' ? 'tag-active' : r.status === 'Expired' ? 'tag-overdue' : 'tag-breakdown'}">${escapeHtml(r.status || '—')}</span></td>
+            <td style="text-align:center;">
+              <button type="button" class="amc-drill-action-btn" onclick="closeAmcKpiDrillModal();openAmcActionModal('${escapeHtml(r.id)}')">
+                View &rarr;
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${filteredRecordsForSpend.length} of ${records.length} equipment asset summaries`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><path d="M12 12v4"/></svg>3. Individual Equipment Contract &amp; Maintenance Summary (A to Z Lifecycle)</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">#</th>
+                <th style="text-align:center;">Record ID</th>
+                <th style="text-align:center;">Category</th>
+                <th style="text-align:center;">Unit & Floor</th>
+                <th style="text-align:center;">Vendor</th>
+                <th style="text-align:center;">Start Date</th>
+                <th style="text-align:center;">Expiry Date</th>
+                <th style="text-align:center;">Current Term (₹)</th>
+                <th style="text-align:center;">Past Terms (₹)</th>
+                <th style="text-align:center;">Total Contract (₹)</th>
+                <th style="text-align:center;">Routine Svc (₹)</th>
+                <th style="text-align:center;">Breakdown (₹)</th>
+                <th style="text-align:center;">Lifetime Total (₹)</th>
+                <th style="text-align:center;">Contract Status</th>
+                <th style="text-align:center;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${contractRows || '<tr><td colspan="15" style="padding:24px;text-align:center;color:#94a3b8;">No contract records found.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    // 4. Past Contract Renewal Terms History Archive
+    else if (currentDrillSubView === 'spend_history') {
+      let filteredHistory = history;
+      if (searchVal) {
+        filteredHistory = history.filter(h =>
+          [h.recordId, h.category, h.unit, h.floor, h.vendorName, h.contactInfo, h.remarks, h.renewedToVendor].join(' ').toLowerCase().includes(searchVal)
+        );
+      }
+
+      let historyRows = filteredHistory.map((h, i) => {
+        const hc = parseFloat(h.contractCost) || 0;
+        return `
+          <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td style="text-align:center;"><code>${escapeHtml(h.recordId || '—')}</code></td>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(h.category || '—')}</span></td>
+            <td style="text-align:center;font-weight:700;">${escapeHtml(h.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(h.floor || 'All Floors')})</span></td>
+            <td style="text-align:center;"><strong>${escapeHtml(h.vendorName || '—')}</strong></td>
+            <td style="text-align:center;font-size:12px;">${escapeHtml(h.contactInfo || '—')}</td>
+            <td style="text-align:center;">${fmtAMCDate(h.startDate)} – ${fmtAMCDate(h.expiryDate)}</td>
+            <td style="text-align:center;font-weight:800;color:#7c3aed;font-size:13.5px;">₹${hc.toLocaleString('en-IN')}</td>
+            <td style="text-align:center;color:#047857;font-weight:700;">${escapeHtml(h.renewedToVendor || '—')}</td>
+            <td style="text-align:center;font-size:12px;max-width:220px;white-space:normal;">${escapeHtml(h.remarks || '—')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${filteredHistory.length} of ${history.length} past renewal terms | Past Contract Total: ₹${pastContractGrand.toLocaleString('en-IN')}`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>4. Past Contract Renewal Terms History Archive (${filteredHistory.length})</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">#</th>
+                <th style="text-align:center;">Record ID</th>
+                <th style="text-align:center;">Category</th>
+                <th style="text-align:center;">Unit & Floor</th>
+                <th style="text-align:center;">Past Vendor</th>
+                <th style="text-align:center;">Contact</th>
+                <th style="text-align:center;">Term Period</th>
+                <th style="text-align:center;">Contract Cost (₹)</th>
+                <th style="text-align:center;">Renewed To</th>
+                <th style="text-align:center;">Renewal Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historyRows || '<tr><td colspan="10" style="padding:24px;text-align:center;color:#94a3b8;">No past contract renewals found for this filter.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    // 5. Detailed Log of Maintenance & Repair Expenses
+    else {
+      let filteredLogs = logs;
+      if (searchVal) {
+        filteredLogs = logs.filter(l => {
+          const parent = recordMap.get(l.amcId) || {};
+          return [l.logId, l.logType, l.technician, l.description, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase().includes(searchVal);
+        });
+      }
+
+      let costRows = filteredLogs.map((l, i) => {
+        const parent = recordMap.get(l.amcId) || {};
+        const c = parseFloat(l.cost) || 0;
+        const cc = parseFloat(parent.contractCost) || 0;
+
+        return `
+          <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+            <td style="text-align:center;">${fmtAMCDate(l.visitDate)}</td>
+            <td style="text-align:center;"><span class="pivot-tag ${l.logType === 'Breakdown Repair' ? 'tag-breakdown' : 'tag-active'}">${escapeHtml(l.logType)}</span></td>
+            <td style="text-align:center;"><span class="cat-pill">${escapeHtml(parent.category || '—')}</span></td>
+            <td style="text-align:center;font-weight:700;">${escapeHtml(parent.unit || '—')} <span style="font-weight:400;color:#64748b;">(${escapeHtml(parent.floor || 'All Floors')})</span></td>
+            <td style="text-align:center;">${escapeHtml(parent.vendorName || '—')}</td>
+            <td style="text-align:center;font-size:12px;max-width:260px;white-space:normal;">${escapeHtml(l.description || '—')}</td>
+            <td style="text-align:center;color:#1d4ed8;font-weight:700;">${cc > 0 ? '₹' + cc.toLocaleString('en-IN') : '—'}</td>
+            <td style="text-align:center;font-weight:800;color:${c > 0 ? '#047857' : '#64748b'};font-size:13px;">₹${c.toLocaleString('en-IN')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (statsTextEl) statsTextEl.textContent = `Showing ${filteredLogs.length} of ${logs.length} expense log entries`;
+
+      selectedTableHtml = `
+        <h4 style="margin:12px 0 6px;font-family:var(--font-heading);font-size:14px;color:var(--ink);font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>5. Detailed Log of Maintenance &amp; Repair Expenses (${filteredLogs.length})</h4>
+        <div class="amc-drill-table-wrap" style="height:420px;max-height:420px;">
+          <table class="amc-pivot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">#</th>
+                <th style="text-align:center;">Log ID</th>
+                <th style="text-align:center;">Visit Date</th>
+                <th style="text-align:center;">Log Type</th>
+                <th style="text-align:center;">Category</th>
+                <th style="text-align:center;">Unit &amp; Floor</th>
+                <th style="text-align:center;">Vendor</th>
+                <th style="text-align:center;">Description</th>
+                <th style="text-align:center;">Current Rate (₹)</th>
+                <th style="text-align:center;">Visit Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${costRows || '<tr><td colspan="10" style="padding:24px;text-align:center;color:#94a3b8;">No cost entries found for current filter.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    container.innerHTML = summaryChipsHtml + selectedTableHtml;
   }
 }
 
@@ -5949,7 +6907,7 @@ function exportAmcDrilldownExcel() {
     return;
   }
 
-  const table = document.querySelector('#amcDrillBodyContainer table:last-of-type');
+  const table = document.querySelector('#amcDrillBodyContainer table');
   if (!table) {
     showToast('No table data to export.', true);
     return;
@@ -5957,10 +6915,11 @@ function exportAmcDrilldownExcel() {
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.table_to_sheet(table);
-  XLSX.utils.book_append_sheet(wb, ws, 'KPI Breakdown');
+  const sheetName = (currentDrillSubView || currentDrillKpiType).substring(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
   const stamp = formatLocalDate(new Date());
-  XLSX.writeFile(wb, `AMC_KPI_${currentDrillKpiType.toUpperCase()}_Breakdown_${stamp}.xlsx`);
+  XLSX.writeFile(wb, `AMC_KPI_${(currentDrillSubView || currentDrillKpiType).toUpperCase()}_${stamp}.xlsx`);
   showToast('KPI breakdown downloaded to Excel.');
 }
 
@@ -5992,5 +6951,2247 @@ document.addEventListener('keydown', e => {
     if (drillModal && !drillModal.classList.contains('hidden')) {
       closeAmcKpiDrillModal();
     }
+    const histModal = document.getElementById('amcHistoryAnalysisModal');
+    if (histModal && !histModal.classList.contains('hidden')) {
+      closeAmcHistoryAnalysisCard();
+    }
   }
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AMC COMPREHENSIVE HISTORY & LIFECYCLE INTELLIGENCE CONTROLLER
+// ═════════════════════════════════════════════════════════════════════════════
+
+let currentAmcHistTab = 'category';
+let currentAmcHistTimelineView = 'stream';
+
+async function openAmcHistoryIntelligenceCard() {
+  const modal = document.getElementById('amcHistoryAnalysisModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  const updatedEl = document.getElementById('amcHistUpdatedAt');
+  if (updatedEl) {
+    updatedEl.textContent = `Analyzed: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  // Pre-populate filter dropdowns
+  populateAmcHistFilterDropdowns();
+
+  // Load live records, past contract terms and all service/breakdown logs concurrently
+  try {
+    await Promise.all([
+      loadAmcData(false),
+      fetchAllAmcServiceLogs(false),
+      fetchAllAmcContractHistory(false)
+    ]);
+  } catch (err) {
+    console.error('Error loading AMC history intelligence data:', err);
+  }
+
+  // Refresh dropdowns with complete datasets
+  populateAmcHistFilterDropdowns();
+
+  // Render dashboard metrics and active tab
+  renderAmcHistoryDashboard();
+}
+
+function closeAmcHistoryAnalysisCard() {
+  const modal = document.getElementById('amcHistoryAnalysisModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function refreshAmcHistoryData() {
+  showToast('Refreshing AMC history data…');
+  try {
+    await Promise.all([
+      loadAmcData(true),
+      fetchAllAmcServiceLogs(true),
+      fetchAllAmcContractHistory(true)
+    ]);
+    const updatedEl = document.getElementById('amcHistUpdatedAt');
+    if (updatedEl) {
+      updatedEl.textContent = `Analyzed: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    populateAmcHistFilterDropdowns();
+    renderAmcHistoryDashboard();
+    showToast('History intelligence updated.');
+  } catch (err) {
+    showToast(`History refresh failed: ${err.message || err}`, true);
+  }
+}
+
+function switchAmcHistTab(tabId) {
+  currentAmcHistTab = tabId;
+  const tabIds = ['category', 'unit', 'vendor', 'timeline'];
+  tabIds.forEach(id => {
+    const btn = document.getElementById(`amcHistTabBtn${id.charAt(0).toUpperCase() + id.slice(1)}`);
+    const content = document.getElementById(`amcHistTabContent${id.charAt(0).toUpperCase() + id.slice(1)}`);
+    if (btn) btn.classList.toggle('active', id === tabId);
+    if (content) content.classList.toggle('hidden', id !== tabId);
+  });
+}
+
+function switchAmcHistTimelineView(viewType) {
+  currentAmcHistTimelineView = viewType;
+  const viewMap = {
+    stream: 'amcHistSubBtnStream',
+    terms: 'amcHistSubBtnTerms',
+    logs: 'amcHistSubBtnLogs'
+  };
+  Object.entries(viewMap).forEach(([key, btnId]) => {
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.toggle('active', key === viewType);
+  });
+  renderAmcHistTimeline();
+}
+
+function populateAmcHistFilterDropdowns() {
+  const unitEl = document.getElementById('amcHistFilterUnit');
+  if (unitEl) {
+    const curUnit = unitEl.value;
+    const allUnits = [...new Set([
+      ...state.factories,
+      ...allAmcData.flatMap(r => amcSplitUnits(r.unit)),
+      ...allAmcContractHistory.flatMap(h => amcSplitUnits(h.unit))
+    ])].filter(Boolean).sort();
+    unitEl.innerHTML = '<option value="">All Units</option>' +
+      allUnits.map(u => `<option value="${escapeHtml(u)}" ${u === curUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('');
+  }
+
+  const vendorEl = document.getElementById('amcHistFilterVendor');
+  if (vendorEl) {
+    const curVendor = vendorEl.value;
+    const allVendors = [...new Set([
+      ...allAmcData.map(r => r.vendorName),
+      ...allAmcContractHistory.map(h => h.vendorName)
+    ])].filter(Boolean).sort();
+    vendorEl.innerHTML = '<option value="">All Vendors</option>' +
+      allVendors.map(v => `<option value="${escapeHtml(v)}" ${v === curVendor ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('');
+  }
+}
+
+function applyAmcHistFilters() {
+  renderAmcHistoryDashboard();
+}
+
+function resetAmcHistFilters() {
+  const unitEl = document.getElementById('amcHistFilterUnit');
+  const catEl = document.getElementById('amcHistFilterCategory');
+  const vendorEl = document.getElementById('amcHistFilterVendor');
+  const searchEl = document.getElementById('amcHistSearchInput');
+  if (unitEl) unitEl.value = '';
+  if (catEl) catEl.value = '';
+  if (vendorEl) vendorEl.value = '';
+  if (searchEl) searchEl.value = '';
+  renderAmcHistoryDashboard();
+}
+
+function getFilteredAmcHistoryData() {
+  const unitFilter = document.getElementById('amcHistFilterUnit')?.value || '';
+  const catFilter = document.getElementById('amcHistFilterCategory')?.value || '';
+  const vendorFilter = document.getElementById('amcHistFilterVendor')?.value || '';
+  const searchFilter = (document.getElementById('amcHistSearchInput')?.value || '').toLowerCase().trim();
+
+  // Match live records
+  const filteredRecords = allAmcData.filter(r => {
+    if (unitFilter && !amcSplitUnits(r.unit).includes(unitFilter)) return false;
+    if (catFilter && r.category !== catFilter) return false;
+    if (vendorFilter && r.vendorName !== vendorFilter) return false;
+    if (searchFilter) {
+      const q = [r.id, r.category, r.unit, r.floor, r.vendorName, r.contactInfo, r.remarks, r.status].join(' ').toLowerCase();
+      if (!q.includes(searchFilter)) return false;
+    }
+    return true;
+  });
+
+  const recordIdSet = new Set(filteredRecords.map(r => r.id));
+
+  // Match archived contract terms
+  const filteredHistory = allAmcContractHistory.filter(h => {
+    if (unitFilter && !amcSplitUnits(h.unit).includes(unitFilter)) return false;
+    if (catFilter && h.category !== catFilter) return false;
+    if (vendorFilter && h.vendorName !== vendorFilter) return false;
+    if (searchFilter) {
+      const q = [h.recordId, h.category, h.unit, h.floor, h.vendorName, h.contactInfo, h.remarks, h.renewedToVendor].join(' ').toLowerCase();
+      if (!q.includes(searchFilter)) return false;
+    }
+    return true;
+  });
+
+  // All known record IDs matching the filter
+  const allMatchingIds = new Set([...filteredRecords.map(r => r.id), ...filteredHistory.map(h => h.recordId)]);
+
+  // Master map for record details lookup
+  const recordMap = new Map();
+  allAmcData.forEach(r => recordMap.set(r.id, r));
+  allAmcContractHistory.forEach(h => {
+    if (!recordMap.has(h.recordId)) {
+      recordMap.set(h.recordId, {
+        id: h.recordId,
+        category: h.category,
+        unit: h.unit,
+        floor: h.floor,
+        vendorName: h.vendorName,
+        contactInfo: h.contactInfo,
+        status: 'Archived Term'
+      });
+    }
+  });
+
+  // Match service and repair logs
+  const filteredLogs = allAmcServiceLogs.filter(l => {
+    if (allMatchingIds.size > 0 && !allMatchingIds.has(l.amcId)) return false;
+    if (searchFilter) {
+      const parent = recordMap.get(l.amcId) || {};
+      const q = [l.logId, l.logType, l.technician, l.description, l.workDone, l.partsReplaced, parent.category, parent.unit, parent.floor, parent.vendorName].join(' ').toLowerCase();
+      if (!q.includes(searchFilter)) return false;
+    }
+    return true;
+  });
+
+  return {
+    records: filteredRecords,
+    history: filteredHistory,
+    logs: filteredLogs,
+    recordMap: recordMap
+  };
+}
+
+function renderAmcHistoryDashboard() {
+  const data = getFilteredAmcHistoryData();
+  const { records, history, logs, recordMap } = data;
+
+  // 1. TOP METRIC STRIPS CALCULATION
+  const liveCost = records.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+  const pastCost = history.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+  const totalTermValue = liveCost + pastCost;
+  const totalTermsCount = records.length + history.length;
+
+  const routineLogs = logs.filter(l => l.logType === 'Scheduled Service');
+  const breakdownLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+  const routineSpend = routineLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+  const breakdownSpend = breakdownLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+  const grandHistoricSpend = totalTermValue + routineSpend + breakdownSpend;
+
+  const categories = [...new Set([...records.map(r => r.category), ...history.map(h => h.category)])].filter(Boolean);
+  const units = [...new Set([...records.flatMap(r => amcSplitUnits(r.unit)), ...history.flatMap(h => amcSplitUnits(h.unit))])].filter(Boolean);
+
+  const liveVendors = new Set(records.map(r => r.vendorName).filter(Boolean));
+  const pastOnlyVendors = new Set(history.map(h => h.vendorName).filter(Boolean).filter(v => !liveVendors.has(v)));
+  const totalVendorsCount = liveVendors.size + pastOnlyVendors.size;
+  const renewalTransitions = history.filter(h => h.renewedToVendor && h.renewedToVendor !== h.vendorName).length;
+
+  // Top Category by count
+  const catCountMap = {};
+  records.forEach(r => { if (r.category) catCountMap[r.category] = (catCountMap[r.category] || 0) + 1; });
+  history.forEach(h => { if (h.category) catCountMap[h.category] = (catCountMap[h.category] || 0) + 1; });
+  const topCatEntry = Object.entries(catCountMap).sort((a, b) => b[1] - a[1])[0];
+  const topCatText = topCatEntry ? `${topCatEntry[0]} (${topCatEntry[1]} Terms)` : '—';
+
+  // Populate Metric Tiles
+  const setEl = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
+
+  setEl('amcHistKpiTotalTerms', totalTermsCount);
+  setEl('amcHistKpiTermsSub', `${records.length} Active | ${history.length} Archived Past Terms`);
+  setEl('amcHistKpiTermsVal', `₹${totalTermValue.toLocaleString('en-IN')} Total Term Value`);
+
+  setEl('amcHistKpiTotalCats', categories.length);
+  setEl('amcHistKpiCatsSub', `Active Across ${categories.length} Categories`);
+  setEl('amcHistKpiTopCat', `Top Category: ${topCatText}`);
+
+  setEl('amcHistKpiTotalUnits', units.length);
+  setEl('amcHistKpiUnitsSub', `${records.length} Current Equipment Assets`);
+  setEl('amcHistKpiUnitsCost', `₹${grandHistoricSpend.toLocaleString('en-IN')} Total Lifecycle Spend`);
+
+  setEl('amcHistKpiTotalVendors', totalVendorsCount);
+  setEl('amcHistKpiVendorsSub', `${liveVendors.size} Live Partners | ${pastOnlyVendors.size} Past Vendors`);
+  setEl('amcHistKpiVendorRenewals', `${renewalTransitions} Vendor Switches Recorded`);
+
+  setEl('amcHistKpiTotalVisits', logs.length);
+  setEl('amcHistKpiVisitsSub', `${routineLogs.length} Routine | ${breakdownLogs.length} Breakdown Repairs`);
+  setEl('amcHistKpiGrandSpend', `₹${grandHistoricSpend.toLocaleString('en-IN')} Lifetime Grand Spend`);
+
+  // Render individual tabs
+  renderAmcHistCategoryAnalysis(data);
+  renderAmcHistUnitAnalysis(data);
+  renderAmcHistVendorAnalysis(data);
+  renderAmcHistTimeline();
+}
+
+// ── TAB 1: Category-Wise History Analysis ─────────────────────────────────────
+function renderAmcHistCategoryAnalysis(data) {
+  const { records, history, logs } = data;
+  const cardsContainer = document.getElementById('amcHistCategoryCardsGrid');
+  const tableContainer = document.getElementById('amcHistCategoryTableContainer');
+  if (!cardsContainer || !tableContainer) return;
+
+  const categories = [...new Set([...records.map(r => r.category), ...history.map(h => h.category)])].filter(Boolean).sort();
+
+  if (!categories.length) {
+    cardsContainer.innerHTML = '';
+    tableContainer.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No category history records found for the selected filter.</div>';
+    return;
+  }
+
+  const catDataList = categories.map(cat => {
+    const liveRecs = records.filter(r => r.category === cat);
+    const pastRecs = history.filter(h => h.category === cat);
+    const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+    const catLogs = logs.filter(l => recIds.has(l.amcId));
+
+    const curCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totContract = curCost + pastCost;
+
+    const routineL = catLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = catLogs.filter(l => l.logType === 'Breakdown Repair');
+    const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const grandTotal = totContract + routineC + bkdC;
+
+    const liveVendors = [...new Set(liveRecs.map(r => r.vendorName).filter(Boolean))];
+    const pastVendors = [...new Set(pastRecs.map(h => h.vendorName).filter(Boolean))];
+    const allVendors = [...new Set([...liveVendors, ...pastVendors])];
+
+    return {
+      category: cat,
+      liveCount: liveRecs.length,
+      pastCount: pastRecs.length,
+      totalTerms: liveRecs.length + pastRecs.length,
+      curCost,
+      pastCost,
+      totContract,
+      routineCount: routineL.length,
+      routineCost: routineC,
+      bkdCount: bkdL.length,
+      bkdCost: bkdC,
+      grandTotal,
+      allVendors,
+      liveVendors,
+      pastVendors
+    };
+  });
+
+  // Render Category Cards (Sharp Rectangular Warm Cards with SVG Icons)
+  cardsContainer.innerHTML = catDataList.map(c => `
+    <div class="amc-hist-card-box-item">
+      <div class="amc-hist-card-header">
+        <div class="amc-hist-card-title">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          ${escapeHtml(c.category)}
+        </div>
+        <span class="hist-tag tag-live">${c.totalTerms} Terms</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Active Contracts:</span>
+        <span class="amc-hist-stat-val">${c.liveCount} (₹${c.curCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Past Terms Archived:</span>
+        <span class="amc-hist-stat-val">${c.pastCount} (₹${c.pastCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Routine Visits / Spend:</span>
+        <span class="amc-hist-stat-val" style="color:#059669;">${c.routineCount} visits (₹${c.routineCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Breakdown Calls / Spend:</span>
+        <span class="amc-hist-stat-val" style="color:#c2410c;">${c.bkdCount} calls (₹${c.bkdCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-footer">
+        <span style="font-size:11px;color:#78350f;font-weight:700;">Lifetime Spend:</span>
+        <strong style="color:#7c2d12;font-size:13.5px;font-family:var(--font-heading);">₹${c.grandTotal.toLocaleString('en-IN')}</strong>
+      </div>
+    </div>
+  `).join('');
+
+  // Render Category Matrix Table
+  const tableRows = catDataList.map((c, i) => `
+    <tr>
+      <td style="text-align:center;">${i + 1}</td>
+      <td style="text-align:center;"><strong>${escapeHtml(c.category)}</strong></td>
+      <td style="text-align:center;"><span class="hist-tag tag-live">${c.liveCount}</span></td>
+      <td style="text-align:center;"><span class="hist-tag tag-past">${c.pastCount}</span></td>
+      <td style="text-align:center;"><strong>${c.totalTerms}</strong></td>
+      <td style="text-align:center;color:#1d4ed8;font-weight:700;">₹${c.curCost.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#7c3aed;font-weight:600;">₹${c.pastCost.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#1e3a8a;font-weight:800;">₹${c.totContract.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#059669;font-weight:600;">${c.routineCount} (₹${c.routineCost.toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#ea580c;font-weight:600;">${c.bkdCount} (₹${c.bkdCost.toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#7c2d12;font-weight:800;font-size:12.5px;">₹${c.grandTotal.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;font-size:11px;color:#572a11;">${escapeHtml(c.allVendors.join(', ') || '—')}</td>
+    </tr>
+  `).join('');
+
+  tableContainer.innerHTML = `
+    <table class="amc-hist-table">
+      <thead>
+        <tr>
+          <th style="width:35px;text-align:center;">#</th>
+          <th style="text-align:center;">Category Name</th>
+          <th style="text-align:center;">Live</th>
+          <th style="text-align:center;">Past Terms</th>
+          <th style="text-align:center;">Total Terms</th>
+          <th style="text-align:center;">Live Term (₹)</th>
+          <th style="text-align:center;">Past Terms (₹)</th>
+          <th style="text-align:center;">Total Contract (₹)</th>
+          <th style="text-align:center;">Routine Visits</th>
+          <th style="text-align:center;">Breakdown Repairs</th>
+          <th style="text-align:center;">Grand Total Spend (₹)</th>
+          <th style="text-align:center;">Vendors Associated</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
+// ── TAB 2: Unit-Wise History Analysis (WITH MULTI-UNIT SPLIT CALCULATION) ─────
+function renderAmcHistUnitAnalysis(data) {
+  const { records, history, logs, recordMap } = data;
+  const cardsContainer = document.getElementById('amcHistUnitCardsGrid');
+  const tableContainer = document.getElementById('amcHistUnitTableContainer');
+  if (!cardsContainer || !tableContainer) return;
+
+  const units = [...new Set([
+    ...records.flatMap(r => amcSplitUnits(r.unit)),
+    ...history.flatMap(h => amcSplitUnits(h.unit))
+  ])].filter(Boolean).sort();
+
+  if (!units.length) {
+    cardsContainer.innerHTML = '';
+    tableContainer.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No unit history records found for current filter.</div>';
+    return;
+  }
+
+  const unitDataList = units.map(u => {
+    const liveRecs = records.filter(r => amcSplitUnits(r.unit).includes(u));
+    const pastRecs = history.filter(h => amcSplitUnits(h.unit).includes(u));
+    const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+    const unitLogs = logs.filter(l => recIds.has(l.amcId));
+
+    // SPLIT COST LOGIC: When a contract spans multiple units, divide the cost equally among them
+    const curCost = liveRecs.reduce((s, r) => {
+      const uCount = Math.max(1, amcSplitUnits(r.unit).length);
+      const fullCost = parseFloat(r.contractCost) || 0;
+      return s + (fullCost / uCount);
+    }, 0);
+
+    const pastCost = pastRecs.reduce((s, h) => {
+      const uCount = Math.max(1, amcSplitUnits(h.unit).length);
+      const fullCost = parseFloat(h.contractCost) || 0;
+      return s + (fullCost / uCount);
+    }, 0);
+
+    const totContract = curCost + pastCost;
+
+    const routineL = unitLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = unitLogs.filter(l => l.logType === 'Breakdown Repair');
+
+    const routineC = routineL.reduce((s, l) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const uCount = Math.max(1, amcSplitUnits(parent.unit).length);
+      const fullCost = parseFloat(l.cost) || 0;
+      return s + (fullCost / uCount);
+    }, 0);
+
+    const bkdC = bkdL.reduce((s, l) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const uCount = Math.max(1, amcSplitUnits(parent.unit).length);
+      const fullCost = parseFloat(l.cost) || 0;
+      return s + (fullCost / uCount);
+    }, 0);
+
+    const grandTotal = totContract + routineC + bkdC;
+
+    const cats = [...new Set([...liveRecs.map(r => r.category), ...pastRecs.map(h => h.category)])].filter(Boolean);
+    const vendors = [...new Set([...liveRecs.map(r => r.vendorName), ...pastRecs.map(h => h.vendorName)])].filter(Boolean);
+
+    return {
+      unit: u,
+      liveCount: liveRecs.length,
+      pastCount: pastRecs.length,
+      totalTerms: liveRecs.length + pastRecs.length,
+      curCost,
+      pastCost,
+      totContract,
+      routineCount: routineL.length,
+      routineCost: routineC,
+      bkdCount: bkdL.length,
+      bkdCost: bkdC,
+      grandTotal,
+      categories: cats,
+      vendors: vendors
+    };
+  });
+
+  // Render Unit Cards with SVG Icons
+  cardsContainer.innerHTML = unitDataList.map(u => `
+    <div class="amc-hist-card-box-item">
+      <div class="amc-hist-card-header">
+        <div class="amc-hist-card-title">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M2 20h20M5 20V8l7 4V4l7 4v12"/></svg>
+          ${escapeHtml(u.unit)}
+        </div>
+        <span class="hist-tag tag-live">${u.categories.length} Categories</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Live Equipment / Past:</span>
+        <span class="amc-hist-stat-val">${u.liveCount} Live | ${u.pastCount} Past</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Split Contract Value:</span>
+        <span class="amc-hist-stat-val" style="color:#1d4ed8;">₹${Math.round(u.totContract).toLocaleString('en-IN')}</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Routine Service Logs:</span>
+        <span class="amc-hist-stat-val" style="color:#059669;">${u.routineCount} visits (₹${Math.round(u.routineCost).toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Breakdown Calls:</span>
+        <span class="amc-hist-stat-val" style="color:#c2410c;">${u.bkdCount} calls (₹${Math.round(u.bkdCost).toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-footer">
+        <span style="font-size:11px;color:#78350f;font-weight:700;">Split Lifetime Spend:</span>
+        <strong style="color:#7c2d12;font-size:13.5px;font-family:var(--font-heading);">₹${Math.round(u.grandTotal).toLocaleString('en-IN')}</strong>
+      </div>
+    </div>
+  `).join('');
+
+  // Render Unit Matrix Table
+  const tableRows = unitDataList.map((u, i) => `
+    <tr>
+      <td style="text-align:center;">${i + 1}</td>
+      <td style="text-align:center;"><strong>${escapeHtml(u.unit)}</strong></td>
+      <td style="text-align:center;font-size:11px;color:#572a11;">${escapeHtml(u.categories.join(', ') || '—')}</td>
+      <td style="text-align:center;"><span class="hist-tag tag-live">${u.liveCount}</span></td>
+      <td style="text-align:center;"><span class="hist-tag tag-past">${u.pastCount}</span></td>
+      <td style="text-align:center;color:#1d4ed8;font-weight:700;">₹${Math.round(u.curCost).toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#7c3aed;font-weight:600;">₹${Math.round(u.pastCost).toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#1e3a8a;font-weight:800;">₹${Math.round(u.totContract).toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#059669;font-weight:600;">${u.routineCount} (₹${Math.round(u.routineCost).toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#ea580c;font-weight:600;">${u.bkdCount} (₹${Math.round(u.bkdCost).toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#7c2d12;font-weight:800;font-size:12.5px;">₹${Math.round(u.grandTotal).toLocaleString('en-IN')}</td>
+      <td style="text-align:center;font-size:11px;color:#572a11;">${escapeHtml(u.vendors.join(', ') || '—')}</td>
+    </tr>
+  `).join('');
+
+  tableContainer.innerHTML = `
+    <table class="amc-hist-table">
+      <thead>
+        <tr>
+          <th style="width:35px;text-align:center;">#</th>
+          <th style="text-align:center;">Facility / Unit</th>
+          <th style="text-align:center;">Categories Serviced</th>
+          <th style="text-align:center;">Live Assets</th>
+          <th style="text-align:center;">Past Terms</th>
+          <th style="text-align:center;">Live Value (₹)</th>
+          <th style="text-align:center;">Past Value (₹)</th>
+          <th style="text-align:center;">Split Contract Value (₹)</th>
+          <th style="text-align:center;">Routine Visits</th>
+          <th style="text-align:center;">Breakdown Repairs</th>
+          <th style="text-align:center;">Grand Total Spend (₹)</th>
+          <th style="text-align:center;">Vendors History</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
+// ── TAB 3: Vendor-Wise History Analysis ───────────────────────────────────────
+function renderAmcHistVendorAnalysis(data) {
+  const { records, history, logs } = data;
+  const cardsContainer = document.getElementById('amcHistVendorCardsGrid');
+  const tableContainer = document.getElementById('amcHistVendorTableContainer');
+  if (!cardsContainer || !tableContainer) return;
+
+  const currentVendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))];
+  const currentVendorSet = new Set(currentVendors);
+  const pastVendors = [...new Set(history.map(h => h.vendorName).filter(Boolean))]
+    .filter(v => !currentVendorSet.has(v));
+  const allVendors = [...currentVendors, ...pastVendors].sort();
+
+  if (!allVendors.length) {
+    cardsContainer.innerHTML = '';
+    tableContainer.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No vendor history records found for current filter.</div>';
+    return;
+  }
+
+  const vendorDataList = allVendors.map(vendor => {
+    const isLive = currentVendorSet.has(vendor);
+    const liveRecs = records.filter(r => r.vendorName === vendor);
+    const pastRecs = history.filter(h => h.vendorName === vendor);
+    const liveIds = new Set(liveRecs.map(r => r.id));
+    const pastIds = new Set(pastRecs.map(h => h.recordId));
+    const allIds = new Set([...liveIds, ...pastIds]);
+
+    const vendorLogs = logs.filter(l => allIds.has(l.amcId));
+    const liveCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totContract = liveCost + pastCost;
+
+    const routineL = vendorLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = vendorLogs.filter(l => l.logType === 'Breakdown Repair');
+    const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const grandPayout = totContract + routineC + bkdC;
+
+    const cats = [...new Set([...liveRecs.map(r => r.category), ...pastRecs.map(h => h.category)])].filter(Boolean);
+    const units = [...new Set([...liveRecs.flatMap(r => amcSplitUnits(r.unit)), ...pastRecs.flatMap(h => amcSplitUnits(h.unit))])].filter(Boolean);
+
+    const switches = pastRecs.filter(h => h.renewedToVendor && h.renewedToVendor !== vendor).map(h => `&rarr; ${h.renewedToVendor}`);
+    const transitionText = switches.length ? [...new Set(switches)].join(', ') : (isLive ? 'Current Partner' : 'Archived Past Term');
+
+    const contact = liveRecs[0]?.contactInfo || pastRecs[0]?.contactInfo || '—';
+
+    return {
+      vendor,
+      isLive,
+      contact,
+      liveCount: liveRecs.length,
+      pastCount: pastRecs.length,
+      totalTerms: liveRecs.length + pastRecs.length,
+      liveCost,
+      pastCost,
+      totContract,
+      routineCount: routineL.length,
+      routineCost: routineC,
+      bkdCount: bkdL.length,
+      bkdCost: bkdC,
+      grandPayout,
+      categories: cats,
+      units: units,
+      transitionText
+    };
+  });
+
+  // Render Vendor Cards with SVG Icons
+  cardsContainer.innerHTML = vendorDataList.map(v => `
+    <div class="amc-hist-card-box-item">
+      <div class="amc-hist-card-header">
+        <div class="amc-hist-card-title">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="22" x2="9" y2="18"/><line x1="15" y1="22" x2="15" y2="18"/><line x1="8" y1="6" x2="10" y2="6"/><line x1="14" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/></svg>
+          ${escapeHtml(v.vendor)}
+        </div>
+        <span class="hist-tag ${v.isLive ? 'tag-live' : 'tag-past'}">${v.isLive ? '<svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/></svg>ACTIVE' : '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>PAST'}</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Contact:</span>
+        <span class="amc-hist-stat-val">${escapeHtml(v.contact)}</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Terms Held (Live / Past):</span>
+        <span class="amc-hist-stat-val">${v.liveCount} Live | ${v.pastCount} Past (${v.totalTerms} total)</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Routine Service Visits:</span>
+        <span class="amc-hist-stat-val" style="color:#059669;">${v.routineCount} completed (₹${v.routineCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Breakdown Calls Handled:</span>
+        <span class="amc-hist-stat-val" style="color:#c2410c;">${v.bkdCount} calls (₹${v.bkdCost.toLocaleString('en-IN')})</span>
+      </div>
+      <div class="amc-hist-card-stat-row">
+        <span class="amc-hist-stat-lbl">Transition / Heritage:</span>
+        <span class="amc-hist-stat-val" style="font-size:11px;color:#6b21a8;">${v.transitionText}</span>
+      </div>
+      <div class="amc-hist-card-footer">
+        <span style="font-size:11px;color:#78350f;font-weight:700;">Total Lifetime Payout:</span>
+        <strong style="color:#7c2d12;font-size:13.5px;font-family:var(--font-heading);">₹${v.grandPayout.toLocaleString('en-IN')}</strong>
+      </div>
+    </div>
+  `).join('');
+
+  // Render Vendor Matrix Table
+  const tableRows = vendorDataList.map((v, i) => `
+    <tr>
+      <td style="text-align:center;">${i + 1}</td>
+      <td style="text-align:center;"><strong>${escapeHtml(v.vendor)}</strong></td>
+      <td style="text-align:center;"><span class="hist-tag ${v.isLive ? 'tag-live' : 'tag-past'}">${v.isLive ? 'Active Partner' : 'Past Vendor'}</span></td>
+      <td style="text-align:center;font-size:11px;">${escapeHtml(v.contact)}</td>
+      <td style="text-align:center;font-size:11px;">${escapeHtml(v.categories.join(', ') || '—')}</td>
+      <td style="text-align:center;font-size:11px;">${escapeHtml(v.units.join(', ') || '—')}</td>
+      <td style="text-align:center;"><strong>${v.totalTerms}</strong></td>
+      <td style="text-align:center;color:#1d4ed8;font-weight:700;">${v.liveCost > 0 ? '₹' + v.liveCost.toLocaleString('en-IN') : '—'}</td>
+      <td style="text-align:center;color:#7c3aed;font-weight:600;">${v.pastCost > 0 ? '₹' + v.pastCost.toLocaleString('en-IN') : '—'}</td>
+      <td style="text-align:center;color:#1e3a8a;font-weight:800;">₹${v.totContract.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;color:#059669;font-weight:600;">${v.routineCount} (₹${v.routineCost.toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#ea580c;font-weight:600;">${v.bkdCount} (₹${v.bkdCost.toLocaleString('en-IN')})</td>
+      <td style="text-align:center;color:#7c2d12;font-weight:800;font-size:12.5px;">₹${v.grandPayout.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;font-size:11px;color:#6b21a8;font-weight:600;">${v.transitionText}</td>
+    </tr>
+  `).join('');
+
+  tableContainer.innerHTML = `
+    <table class="amc-hist-table">
+      <thead>
+        <tr>
+          <th style="width:35px;text-align:center;">#</th>
+          <th style="text-align:center;">Vendor Name</th>
+          <th style="text-align:center;">Status</th>
+          <th style="text-align:center;">Contact</th>
+          <th style="text-align:center;">Categories</th>
+          <th style="text-align:center;">Units</th>
+          <th style="text-align:center;">Terms</th>
+          <th style="text-align:center;">Live Value (₹)</th>
+          <th style="text-align:center;">Past Value (₹)</th>
+          <th style="text-align:center;">Total Contract (₹)</th>
+          <th style="text-align:center;">Routine Visits</th>
+          <th style="text-align:center;">Breakdown Repairs</th>
+          <th style="text-align:center;">Grand Total Payout (₹)</th>
+          <th style="text-align:center;">Renewal Transitions</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
+// ── TAB 4: Master Timeline & Every History Log ────────────────────────────────
+function renderAmcHistTimeline() {
+  const data = getFilteredAmcHistoryData();
+  const { records, history, logs, recordMap } = data;
+  const container = document.getElementById('amcHistTimelineContainer');
+  const countEl = document.getElementById('amcHistTimelineCount');
+  if (!container) return;
+
+  if (currentAmcHistTimelineView === 'terms') {
+    // Subview 2: All Archived Terms Table
+    if (countEl) countEl.textContent = `Showing ${history.length} archived contract renewal terms`;
+    if (!history.length) {
+      container.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No archived contract terms match current filters.</div>';
+      return;
+    }
+
+    const rows = history.map((h, i) => `
+      <tr>
+        <td style="text-align:center;">${i + 1}</td>
+        <td style="text-align:center;"><code>${escapeHtml(h.recordId || '—')}</code></td>
+        <td style="text-align:center;"><strong>${escapeHtml(h.category || '—')}</strong></td>
+        <td style="text-align:center;">${escapeHtml(h.unit || '—')} (${escapeHtml(h.floor || 'All Floors')})</td>
+        <td style="text-align:center;"><strong>${escapeHtml(h.vendorName || '—')}</strong><div style="font-size:10.5px;color:#78350f;">${escapeHtml(h.contactInfo || '')}</div></td>
+        <td style="text-align:center;">${escapeHtml(fmtAMCDate(h.startDate))} to ${escapeHtml(fmtAMCDate(h.expiryDate))}</td>
+        <td style="text-align:center;color:#7c3aed;font-weight:700;">${(h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? '₹' + Number(h.contractCost).toLocaleString('en-IN') : '—'}</td>
+        <td style="text-align:center;">${escapeHtml(h.frequency || '—')}</td>
+        <td style="text-align:center;font-size:11px;color:#44403c;">${escapeHtml(h.remarks || '—')}</td>
+        <td style="text-align:center;"><span class="hist-tag tag-renewal">${escapeHtml(h.renewedToVendor ? `Renewed &rarr; ${h.renewedToVendor}` : 'Archived Term')}</span></td>
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="amc-hist-table-wrap">
+        <table class="amc-hist-table">
+          <thead>
+            <tr>
+              <th style="width:35px;text-align:center;">#</th>
+              <th style="text-align:center;">Record ID</th>
+              <th style="text-align:center;">Category</th>
+              <th style="text-align:center;">Unit &amp; Floor</th>
+              <th style="text-align:center;">Vendor (Past Term)</th>
+              <th style="text-align:center;">Term Period</th>
+              <th style="text-align:center;">Term Cost (₹)</th>
+              <th style="text-align:center;">Frequency</th>
+              <th style="text-align:center;">Remarks / Scope</th>
+              <th style="text-align:center;">Renewal Destination</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  } else if (currentAmcHistTimelineView === 'logs') {
+    // Subview 3: All Service & Breakdown Logs Table
+    if (countEl) countEl.textContent = `Showing ${logs.length} service visit & repair log entries`;
+    if (!logs.length) {
+      container.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No service or breakdown logs match current filters.</div>';
+      return;
+    }
+
+    const rows = logs.map((l, i) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const isBreakdown = l.logType === 'Breakdown Repair';
+      const costVal = (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? Number(l.cost) : 0;
+      return `
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+          <td style="text-align:center;"><strong>${escapeHtml(fmtAMCDate(l.visitDate))}</strong></td>
+          <td style="text-align:center;"><span class="hist-tag ${isBreakdown ? 'tag-breakdown' : 'tag-service'}">${escapeHtml(l.logType)}</span></td>
+          <td style="text-align:center;"><strong>${escapeHtml(parent.category || '—')}</strong><div style="font-size:10.5px;color:#78350f;">${escapeHtml(l.amcId || '')}</div></td>
+          <td style="text-align:center;">${escapeHtml(parent.unit || '—')} (${escapeHtml(parent.floor || 'All Floors')})</td>
+          <td style="text-align:center;">${escapeHtml(parent.vendorName || '—')}</td>
+          <td style="text-align:center;"><strong>${escapeHtml(l.technician || '—')}</strong></td>
+          <td style="text-align:center;color:${isBreakdown ? '#c2410c' : '#059669'};font-weight:700;">${costVal > 0 ? '₹' + costVal.toLocaleString('en-IN') : '₹0'}</td>
+          <td style="text-align:center;font-size:11px;color:#44403c;">${escapeHtml(l.description || l.workDone || '—')}</td>
+          <td style="text-align:center;font-size:11px;color:#78350f;">${escapeHtml(l.partsReplaced || '—')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="amc-hist-table-wrap">
+        <table class="amc-hist-table">
+          <thead>
+            <tr>
+              <th style="width:35px;text-align:center;">#</th>
+              <th style="text-align:center;">Log ID</th>
+              <th style="text-align:center;">Visit Date</th>
+              <th style="text-align:center;">Log Type</th>
+              <th style="text-align:center;">Category</th>
+              <th style="text-align:center;">Unit &amp; Floor</th>
+              <th style="text-align:center;">Vendor</th>
+              <th style="text-align:center;">Technician</th>
+              <th style="text-align:center;">Cost (₹)</th>
+              <th style="text-align:center;">Work Done / Remarks</th>
+              <th style="text-align:center;">Parts Replaced</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    // Subview 1: Full Chronological Timeline Stream (Combined renewals, past terms, scheduled visits, breakdown repairs with SVG icons)
+    const streamEvents = [];
+
+    // Add Live Records
+    records.forEach(r => {
+      streamEvents.push({
+        date: r.startDate || r.expiryDate || '9999-99-99',
+        type: 'live_contract',
+        title: `Active Contract: ${r.category || 'Equipment'} (${r.id || ''})`,
+        badge: '<svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/></svg>Active Contract',
+        badgeClass: 'tag-live',
+        desc: `Vendor: ${r.vendorName || '—'} | Unit: ${r.unit || '—'} (${r.floor || 'All Floors'}) | Period: ${fmtAMCDate(r.startDate)} to ${fmtAMCDate(r.expiryDate)}`,
+        cost: parseFloat(r.contractCost) || 0,
+        meta: `Status: ${r.status || 'Active'} · Next Service Due: ${fmtAMCDate(r.nextDueDate)}`
+      });
+    });
+
+    // Add Past Contract Terms
+    history.forEach(h => {
+      streamEvents.push({
+        date: h.expiryDate || h.startDate || '9999-99-99',
+        type: 'past_contract',
+        title: `Archived Contract Term: ${h.category || 'Equipment'} (${h.recordId || ''})`,
+        badge: '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Archived Term',
+        badgeClass: 'tag-past',
+        desc: `Vendor: ${h.vendorName || '—'} &rarr; ${h.renewedToVendor ? `Renewed to ${h.renewedToVendor}` : 'Completed'} | Period: ${fmtAMCDate(h.startDate)} to ${fmtAMCDate(h.expiryDate)}`,
+        cost: parseFloat(h.contractCost) || 0,
+        meta: h.remarks ? `Remarks: ${h.remarks}` : `Contact: ${h.contactInfo || '—'}`
+      });
+    });
+
+    // Add Service & Breakdown Logs
+    logs.forEach(l => {
+      const parent = recordMap.get(l.amcId) || {};
+      const isBreakdown = l.logType === 'Breakdown Repair';
+      streamEvents.push({
+        date: l.visitDate || '9999-99-99',
+        type: isBreakdown ? 'breakdown_visit' : 'routine_visit',
+        title: `${isBreakdown ? 'Breakdown Repair' : 'Routine Service'}: ${parent.category || 'Equipment'} (${l.amcId || ''})`,
+        badge: isBreakdown ? '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Breakdown Repair' : '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9L4.3 20.7a1 1 0 0 1-1.4-1.4L10.2 12A6 6 0 0 1 14.7 6.3z"/></svg>Scheduled Service',
+        badgeClass: isBreakdown ? 'tag-breakdown' : 'tag-service',
+        desc: `Technician: ${l.technician || '—'} | Work: ${l.description || l.workDone || 'Routine Servicing completed'}${l.partsReplaced ? ` | Parts: ${l.partsReplaced}` : ''}`,
+        cost: parseFloat(l.cost) || 0,
+        meta: `Unit: ${parent.unit || '—'} (${parent.floor || 'All Floors'}) · Vendor: ${parent.vendorName || '—'}`
+      });
+    });
+
+    // Sort descending by date
+    streamEvents.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (countEl) countEl.textContent = `Showing ${streamEvents.length} chronological history events across all systems`;
+
+    if (!streamEvents.length) {
+      container.innerHTML = '<div style="padding:32px;text-align:center;color:#9a3412;">No history events found for current filter.</div>';
+      return;
+    }
+
+    const itemsHtml = streamEvents.map(e => `
+      <div class="amc-hist-stream-item">
+        <div class="amc-hist-stream-marker"></div>
+        <div class="amc-hist-stream-top">
+          <div class="amc-hist-stream-title">${escapeHtml(e.title)}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="hist-tag ${e.badgeClass}">${e.badge}</span>
+            <span class="amc-hist-stream-date">${fmtAMCDate(e.date)}</span>
+          </div>
+        </div>
+        <div class="amc-hist-stream-desc">${escapeHtml(e.desc)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:2px;">
+          <div class="amc-hist-stream-meta">${escapeHtml(e.meta)}</div>
+          ${e.cost > 0 ? `<strong style="font-family:var(--font-heading);color:#7c2d12;font-size:12px;">₹${e.cost.toLocaleString('en-IN')}</strong>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    container.innerHTML = `<div class="amc-hist-stream">${itemsHtml}</div>`;
+  }
+}
+
+// ── Export Multi-Sheet Comprehensive History Excel (.xlsx) ───────────────────
+function exportAmcHistoryCardExcel() {
+  if (!window.XLSX) {
+    showToast('Excel export library not available.', true);
+    return;
+  }
+
+  const data = getFilteredAmcHistoryData();
+  const { records, history, logs, recordMap } = data;
+
+  if (!records.length && !history.length && !logs.length) {
+    showToast('No history data to export.', true);
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Category-Wise History Summary
+  const categories = [...new Set([...records.map(r => r.category), ...history.map(h => h.category)])].filter(Boolean).sort();
+  const catHeaders = ['#', 'Category Name', 'Live Contracts', 'Past Terms', 'Total Terms', 'Live Term (₹)', 'Past Terms (₹)', 'Total Contract (₹)', 'Routine Visits', 'Routine Spend (₹)', 'Breakdown Calls', 'Breakdown Spend (₹)', 'Grand Total Spend (₹)', 'Vendors Associated'];
+  const catRows = categories.map((cat, i) => {
+    const liveRecs = records.filter(r => r.category === cat);
+    const pastRecs = history.filter(h => h.category === cat);
+    const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+    const catLogs = logs.filter(l => recIds.has(l.amcId));
+    const curCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totContract = curCost + pastCost;
+    const routineL = catLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = catLogs.filter(l => l.logType === 'Breakdown Repair');
+    const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const grandTotal = totContract + routineC + bkdC;
+    const allVendors = [...new Set([...liveRecs.map(r => r.vendorName), ...pastRecs.map(h => h.vendorName)])].filter(Boolean).join(', ');
+    return [i + 1, cat, liveRecs.length, pastRecs.length, liveRecs.length + pastRecs.length, curCost, pastCost, totContract, routineL.length, routineC, bkdL.length, bkdC, grandTotal, allVendors];
+  });
+  const wsCat = XLSX.utils.aoa_to_sheet([['AMC CATEGORY-WISE HISTORICAL LIFECYCLE & EXPENDITURE ANALYSIS'], [], catHeaders, ...catRows]);
+  XLSX.utils.book_append_sheet(wb, wsCat, 'Category History');
+
+  // ── Sheet 2: Unit-Wise History Summary (WITH MULTI-UNIT SPLIT COST CALCULATION)
+  const units = [...new Set([...records.flatMap(r => amcSplitUnits(r.unit)), ...history.flatMap(h => amcSplitUnits(h.unit))])].filter(Boolean).sort();
+  const unitHeaders = ['#', 'Facility / Unit', 'Categories Serviced', 'Live Assets', 'Past Terms', 'Live Term (₹)', 'Past Terms (₹)', 'Split Total Contract (₹)', 'Routine Visits', 'Routine Spend (₹)', 'Breakdown Calls', 'Breakdown Spend (₹)', 'Grand Total Spend (₹)', 'Vendors History'];
+  const unitRows = units.map((u, i) => {
+    const liveRecs = records.filter(r => amcSplitUnits(r.unit).includes(u));
+    const pastRecs = history.filter(h => amcSplitUnits(h.unit).includes(u));
+    const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+    const unitLogs = logs.filter(l => recIds.has(l.amcId));
+
+    // Multi-unit split calculation
+    const curCost = liveRecs.reduce((s, r) => {
+      const uCount = Math.max(1, amcSplitUnits(r.unit).length);
+      return s + ((parseFloat(r.contractCost) || 0) / uCount);
+    }, 0);
+    const pastCost = pastRecs.reduce((s, h) => {
+      const uCount = Math.max(1, amcSplitUnits(h.unit).length);
+      return s + ((parseFloat(h.contractCost) || 0) / uCount);
+    }, 0);
+    const totContract = curCost + pastCost;
+
+    const routineL = unitLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = unitLogs.filter(l => l.logType === 'Breakdown Repair');
+
+    const routineC = routineL.reduce((s, l) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const uCount = Math.max(1, amcSplitUnits(parent.unit).length);
+      return s + ((parseFloat(l.cost) || 0) / uCount);
+    }, 0);
+
+    const bkdC = bkdL.reduce((s, l) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const uCount = Math.max(1, amcSplitUnits(parent.unit).length);
+      return s + ((parseFloat(l.cost) || 0) / uCount);
+    }, 0);
+
+    const grandTotal = totContract + routineC + bkdC;
+    const cats = [...new Set([...liveRecs.map(r => r.category), ...pastRecs.map(h => h.category)])].filter(Boolean).join(', ');
+    const vendors = [...new Set([...liveRecs.map(r => r.vendorName), ...pastRecs.map(h => h.vendorName)])].filter(Boolean).join(', ');
+    return [i + 1, u, cats, liveRecs.length, pastRecs.length, Math.round(curCost), Math.round(pastCost), Math.round(totContract), routineL.length, Math.round(routineC), bkdL.length, Math.round(bkdC), Math.round(grandTotal), vendors];
+  });
+  const wsUnit = XLSX.utils.aoa_to_sheet([['AMC UNIT / FACILITY-WISE HISTORICAL ANALYSIS (WITH MULTI-UNIT SPLIT APPORTIONMENT)'], [], unitHeaders, ...unitRows]);
+  XLSX.utils.book_append_sheet(wb, wsUnit, 'Unit History');
+
+  // ── Sheet 3: Vendor-Wise History Summary
+  const currentVendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))];
+  const currentVendorSet = new Set(currentVendors);
+  const pastVendors = [...new Set(history.map(h => h.vendorName).filter(Boolean))].filter(v => !currentVendorSet.has(v));
+  const allVendors = [...currentVendors, ...pastVendors].sort();
+  const vendorHeaders = ['#', 'Vendor Agency', 'Status', 'Contact', 'Categories', 'Units', 'Terms Held', 'Live Term (₹)', 'Past Terms (₹)', 'Total Contract (₹)', 'Routine Visits', 'Routine Spend (₹)', 'Breakdown Calls', 'Breakdown Spend (₹)', 'Total Vendor Payout (₹)', 'Renewal Transitions'];
+  const vendorRows = allVendors.map((vendor, i) => {
+    const isLive = currentVendorSet.has(vendor);
+    const liveRecs = records.filter(r => r.vendorName === vendor);
+    const pastRecs = history.filter(h => h.vendorName === vendor);
+    const liveIds = new Set(liveRecs.map(r => r.id));
+    const pastIds = new Set(pastRecs.map(h => h.recordId));
+    const allIds = new Set([...liveIds, ...pastIds]);
+    const vendorLogs = logs.filter(l => allIds.has(l.amcId));
+    const liveCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    const totContract = liveCost + pastCost;
+    const routineL = vendorLogs.filter(l => l.logType === 'Scheduled Service');
+    const bkdL = vendorLogs.filter(l => l.logType === 'Breakdown Repair');
+    const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const grandPayout = totContract + routineC + bkdC;
+    const cats = [...new Set([...liveRecs.map(r => r.category), ...pastRecs.map(h => h.category)])].filter(Boolean).join(', ');
+    const us = [...new Set([...liveRecs.flatMap(r => amcSplitUnits(r.unit)), ...pastRecs.flatMap(h => amcSplitUnits(h.unit))])].filter(Boolean).join(', ');
+    const switches = pastRecs.filter(h => h.renewedToVendor && h.renewedToVendor !== vendor).map(h => `-> ${h.renewedToVendor}`);
+    const transitionText = switches.length ? [...new Set(switches)].join(', ') : (isLive ? 'Current Partner' : 'Archived Past Term');
+    const contact = liveRecs[0]?.contactInfo || pastRecs[0]?.contactInfo || '—';
+    return [i + 1, vendor, isLive ? 'Active Partner' : 'Past Vendor', contact, cats, us, liveRecs.length + pastRecs.length, liveCost, pastCost, totContract, routineL.length, routineC, bkdL.length, bkdC, grandPayout, transitionText];
+  });
+  const wsVendor = XLSX.utils.aoa_to_sheet([['AMC VENDOR-WISE HISTORICAL PERFORMANCE & PAYOUT INTELLIGENCE'], [], vendorHeaders, ...vendorRows]);
+  XLSX.utils.book_append_sheet(wb, wsVendor, 'Vendor History');
+
+  // ── Sheet 4: Archived Contract Terms Master
+  const termHeaders = ['#', 'Record ID', 'Category', 'Unit', 'Floor', 'Vendor', 'Contact', 'Start Date (DD-MM-YYYY)', 'Expiry Date (DD-MM-YYYY)', 'Term Cost (₹)', 'Frequency', 'Remarks', 'Renewed To Vendor'];
+  const termRows = history.map((h, i) => [i + 1, h.recordId || '', h.category || '', h.unit || '', h.floor || '', h.vendorName || '', h.contactInfo || '', fmtAMCDate(h.startDate), fmtAMCDate(h.expiryDate), (h.contractCost !== '' && h.contractCost !== null && h.contractCost !== undefined) ? Number(h.contractCost) : '', h.frequency || '', h.remarks || '', h.renewedToVendor || '']);
+  const wsTerms = XLSX.utils.aoa_to_sheet([['AMC ARCHIVED CONTRACT TERMS MASTER'], [], termHeaders, ...(termRows.length ? termRows : [['No archived terms.']])]);
+  XLSX.utils.book_append_sheet(wb, wsTerms, 'Archived Contract Terms');
+
+  // ── Sheet 5: Service & Breakdown Logs Master
+  const logHeaders = ['#', 'Log ID', 'Visit Date (DD-MM-YYYY)', 'Log Type', 'AMC Record ID', 'Technician', 'Visit Cost (₹)', 'Work Done / Description', 'Parts Replaced'];
+  const logRows = logs.map((l, i) => [i + 1, l.logId || '', fmtAMCDate(l.visitDate), l.logType || '', l.amcId || '', l.technician || '', (l.cost !== '' && l.cost !== null && l.cost !== undefined) ? Number(l.cost) : '', l.description || l.workDone || '', l.partsReplaced || '']);
+  const wsLogs = XLSX.utils.aoa_to_sheet([['AMC SERVICE & BREAKDOWN REPAIR LOGS MASTER'], [], logHeaders, ...(logRows.length ? logRows : [['No service logs.']])]);
+  XLSX.utils.book_append_sheet(wb, wsLogs, 'Service & Repair Logs');
+
+  const stamp = fmtAMCDate(new Date()).replace(/-/g, '_');
+  XLSX.writeFile(wb, `AMC_History_Intelligence_${stamp}.xlsx`);
+  showToast('History intelligence exported to Excel.');
+}
+
+// ── Print History Card Report ────────────────────────────────────────────────
+function printAmcHistoryCard() {
+  const modal = document.getElementById('amcHistoryAnalysisModal');
+  if (!modal) return;
+  const printWindow = window.open('', '_blank', 'width=1200,height=850');
+  if (!printWindow) {
+    showToast('Please allow pop-ups to print the History Card.', true);
+    return;
+  }
+
+  const kpisHtml = document.querySelector('.amc-hist-kpi-grid')?.innerHTML || '';
+  const catTableHtml = document.getElementById('amcHistCategoryTableContainer')?.innerHTML || '';
+  const unitTableHtml = document.getElementById('amcHistUnitTableContainer')?.innerHTML || '';
+  const vendorTableHtml = document.getElementById('amcHistVendorTableContainer')?.innerHTML || '';
+
+  printWindow.document.write(`<!doctype html><html><head><title>AMC History &amp; Lifecycle Intelligence Report</title><style>
+    body{font-family:Arial,sans-serif;color:#29180e;padding:24px;background:#fffdfa;}
+    h1{font-size:20px;color:#431407;margin:0 0 4px;text-transform:uppercase;}
+    p{font-size:12px;color:#78350f;margin:0 0 16px;}
+    .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+    .amc-hist-kpi-tile{border:1px solid #b45309;border-top-width:4px;padding:8px 10px;background:#fff8f5;}
+    .amc-hist-kpi-tag{font-size:9px;font-weight:700;color:#9a3412;}
+    .amc-hist-kpi-val{font-size:18px;font-weight:800;color:#431407;margin:3px 0;}
+    .amc-hist-kpi-sub{font-size:10px;color:#78716c;}
+    .amc-hist-kpi-foot{font-size:10px;font-weight:700;color:#c2410c;margin-top:4px;border-top:1px dashed #d97706;padding-top:3px;}
+    h2{font-size:13px;color:#7c2d12;margin:18px 0 6px;text-transform:uppercase;border-bottom:2px solid #ea580c;padding-bottom:4px;}
+    table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:14px;}
+    th{background:#431407;color:#fff;padding:6px;text-align:left;}
+    td{border:1px solid #d6c4af;padding:5px;vertical-align:top;}
+    .hist-tag{display:inline-block;padding:2px 4px;font-size:8.5px;font-weight:700;background:#fef3c7;color:#92400e;}
+    @media print{body{padding:0;}table{font-size:9px;}th,td{padding:4px;}}
+  </style></head><body>
+    <h1>AMC Comprehensive History &amp; Lifecycle Intelligence</h1>
+    <p>Generated: ${fmtAMCDate(new Date())} ${new Date().toLocaleTimeString('en-IN')}</p>
+    <div class="kpi-grid">${kpisHtml}</div>
+    <h2>1. Category-Wise History Matrix</h2>${catTableHtml}
+    <h2>2. Unit-Wise History Matrix (Multi-Unit Split Share)</h2>${unitTableHtml}
+    <h2>3. Vendor-Wise History Matrix</h2>${vendorTableHtml}
+  </body></html>`);
+
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ── AMC KPI AUDIT STATEMENT & INVOICE DETAILS MODAL & PDF GENERATOR ──────────
+// ═════════════════════════════════════════════════════════════════════════════
+
+let currentAmcInvoiceData = null;
+
+function openAmcHistKpiInvoice(metricKey) {
+  const modal = document.getElementById('amcHistKpiInvoiceModal');
+  if (!modal) return;
+
+  const data = getFilteredAmcHistoryData();
+  const { records, history, logs, recordMap } = data;
+
+  const dateStr = fmtAMCDate(new Date());
+  const docRef = `AMC-INV-${(metricKey || 'HIST').toUpperCase()}-${new Date().getFullYear()}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+
+  let heading = '';
+  let subheading = '';
+  let stamp = 'AUDITED EVALUATION STATEMENT';
+  let totalVal = 0;
+  let subtotalTerms = 0;
+  let subtotalRoutine = 0;
+  let subtotalBreakdown = 0;
+  let metaChips = [];
+  let tableHeaders = [];
+  let tableRows = [];
+  let pdfTableHeaders = [];
+  let pdfTableRows = [];
+  let auditNote = 'Apportionment Policy: Multi-unit AMC contracts are apportioned equally across assigned facilities. Maintenance costs reflect verified technician visit logs.';
+
+  if (metricKey === 'terms') {
+    heading = 'CONTRACT TERMS & RENEWAL LIFECYCLE STATEMENT';
+    subheading = 'Itemized statement of all current active contracts and archived past renewal terms';
+    stamp = 'CONTRACT PORTFOLIO AUDIT';
+
+    const liveCost = records.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+    const pastCost = history.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+    subtotalTerms = liveCost + pastCost;
+
+    const routineLogs = logs.filter(l => l.logType === 'Scheduled Service');
+    const bkdLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+    subtotalRoutine = routineLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    subtotalBreakdown = bkdLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    totalVal = subtotalTerms + subtotalRoutine + subtotalBreakdown;
+
+    metaChips = [
+      { lbl: 'Total Terms Evaluated', val: `${records.length + history.length} Terms` },
+      { lbl: 'Active Portfolio', val: `${records.length} Contracts (₹${Math.round(liveCost).toLocaleString('en-IN')})` },
+      { lbl: 'Archived Past Terms', val: `${history.length} Terms (₹${Math.round(pastCost).toLocaleString('en-IN')})` },
+      { lbl: 'Contract Base Valuation', val: `₹${Math.round(subtotalTerms).toLocaleString('en-IN')}` }
+    ];
+
+    tableHeaders = ['#', 'Record ID', 'Status', 'Category', 'Unit & Floor', 'Vendor Agency', 'Contract Period', 'Base Cost (₹)'];
+    pdfTableHeaders = ['#', 'Record ID', 'Status', 'Category', 'Unit / Floor', 'Vendor', 'Period (DD-MM-YYYY)', 'Cost (₹)'];
+
+    // Combine live and history rows
+    let rowIdx = 1;
+    records.forEach(r => {
+      const cVal = parseFloat(r.contractCost) || 0;
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${rowIdx}</td>
+          <td style="text-align:center;"><code>${escapeHtml(r.id)}</code></td>
+          <td style="text-align:center;"><span class="hist-tag tag-live">Active</span></td>
+          <td style="text-align:center;"><strong>${escapeHtml(r.category)}</strong></td>
+          <td style="text-align:center;">${escapeHtml(r.unit)} (${escapeHtml(r.floor || 'All Floors')})</td>
+          <td style="text-align:center;">${escapeHtml(r.vendorName || '—')}</td>
+          <td style="text-align:center;">${escapeHtml(fmtAMCDate(r.startDate))} to ${escapeHtml(fmtAMCDate(r.expiryDate))}</td>
+          <td style="text-align:center;font-weight:700;color:#1d4ed8;">₹${Math.round(cVal).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([rowIdx, r.id || '', 'Active', r.category || '', `${r.unit || ''} (${r.floor || ''})`, r.vendorName || '', `${fmtAMCDate(r.startDate)} - ${fmtAMCDate(r.expiryDate)}`, `₹${Math.round(cVal).toLocaleString('en-IN')}`]);
+      rowIdx++;
+    });
+
+    history.forEach(h => {
+      const cVal = parseFloat(h.contractCost) || 0;
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${rowIdx}</td>
+          <td style="text-align:center;"><code>${escapeHtml(h.recordId)}</code></td>
+          <td style="text-align:center;"><span class="hist-tag tag-past">Archived</span></td>
+          <td style="text-align:center;"><strong>${escapeHtml(h.category)}</strong></td>
+          <td style="text-align:center;">${escapeHtml(h.unit)} (${escapeHtml(h.floor || 'All Floors')})</td>
+          <td style="text-align:center;">${escapeHtml(h.vendorName || '—')}</td>
+          <td style="text-align:center;">${escapeHtml(fmtAMCDate(h.startDate))} to ${escapeHtml(fmtAMCDate(h.expiryDate))}</td>
+          <td style="text-align:center;font-weight:700;color:#7c3aed;">₹${Math.round(cVal).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([rowIdx, h.recordId || '', 'Archived', h.category || '', `${h.unit || ''} (${h.floor || ''})`, h.vendorName || '', `${fmtAMCDate(h.startDate)} - ${fmtAMCDate(h.expiryDate)}`, `₹${Math.round(cVal).toLocaleString('en-IN')}`]);
+      rowIdx++;
+    });
+  } else if (metricKey === 'categories') {
+    heading = 'CATEGORY-WISE ASSET & EXPENDITURE STATEMENT';
+    subheading = 'Comprehensive expenditure breakdown across fire safety equipment categories';
+    stamp = 'CATEGORY AUDIT STATEMENT';
+
+    const categories = [...new Set([...records.map(r => r.category), ...history.map(h => h.category)])].filter(Boolean).sort();
+    tableHeaders = ['#', 'Category Name', 'Active', 'Past', 'Total Terms', 'Contract Base (₹)', 'Routine (₹)', 'Repairs (₹)', 'Grand Spend (₹)'];
+    pdfTableHeaders = ['#', 'Category Name', 'Active', 'Past', 'Terms', 'Contract Base (₹)', 'Routine (₹)', 'Repairs (₹)', 'Grand Spend (₹)'];
+
+    categories.forEach((cat, i) => {
+      const liveRecs = records.filter(r => r.category === cat);
+      const pastRecs = history.filter(h => h.category === cat);
+      const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+      const catLogs = logs.filter(l => recIds.has(l.amcId));
+
+      const curCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+      const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+      const totContract = curCost + pastCost;
+
+      const routineL = catLogs.filter(l => l.logType === 'Scheduled Service');
+      const bkdL = catLogs.filter(l => l.logType === 'Breakdown Repair');
+      const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+      const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+      const grandTotal = totContract + routineC + bkdC;
+
+      subtotalTerms += totContract;
+      subtotalRoutine += routineC;
+      subtotalBreakdown += bkdC;
+
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><strong>${escapeHtml(cat)}</strong></td>
+          <td style="text-align:center;">${liveRecs.length}</td>
+          <td style="text-align:center;">${pastRecs.length}</td>
+          <td style="text-align:center;"><strong>${liveRecs.length + pastRecs.length}</strong></td>
+          <td style="text-align:center;">₹${Math.round(totContract).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#059669;">₹${Math.round(routineC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#ea580c;">₹${Math.round(bkdC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:800;color:#7c2d12;">₹${Math.round(grandTotal).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([i + 1, cat, liveRecs.length, pastRecs.length, liveRecs.length + pastRecs.length, `₹${Math.round(totContract).toLocaleString('en-IN')}`, `₹${Math.round(routineC).toLocaleString('en-IN')}`, `₹${Math.round(bkdC).toLocaleString('en-IN')}`, `₹${Math.round(grandTotal).toLocaleString('en-IN')}`]);
+    });
+
+    totalVal = subtotalTerms + subtotalRoutine + subtotalBreakdown;
+    metaChips = [
+      { lbl: 'Categories Count', val: `${categories.length} Categories` },
+      { lbl: 'Total Portfolio Terms', val: `${records.length + history.length} Terms` },
+      { lbl: 'Routine Service Total', val: `₹${Math.round(subtotalRoutine).toLocaleString('en-IN')}` },
+      { lbl: 'Grand Category Spend', val: `₹${Math.round(totalVal).toLocaleString('en-IN')}` }
+    ];
+  } else if (metricKey === 'units') {
+    heading = 'FACILITY & UNIT-WISE APPORTIONED SPEND STATEMENT';
+    subheading = 'Unit-by-unit apportioned lifecycle expenditure statement with multi-unit split calculation';
+    stamp = 'FACILITY ALLOCATION AUDIT';
+
+    const units = [...new Set([...records.flatMap(r => amcSplitUnits(r.unit)), ...history.flatMap(h => amcSplitUnits(h.unit))])].filter(Boolean).sort();
+    tableHeaders = ['#', 'Facility / Unit', 'Categories Covered', 'Active', 'Past', 'Split Base Contract (₹)', 'Routine Spend (₹)', 'Repair Spend (₹)', 'Split Grand Total (₹)'];
+    pdfTableHeaders = ['#', 'Facility / Unit', 'Categories', 'Active', 'Past', 'Split Base (₹)', 'Routine (₹)', 'Repairs (₹)', 'Grand Total (₹)'];
+
+    units.forEach((u, i) => {
+      const liveRecs = records.filter(r => amcSplitUnits(r.unit).includes(u));
+      const pastRecs = history.filter(h => amcSplitUnits(h.unit).includes(u));
+      const recIds = new Set([...liveRecs.map(r => r.id), ...pastRecs.map(h => h.recordId)]);
+      const unitLogs = logs.filter(l => recIds.has(l.amcId));
+
+      const curCost = liveRecs.reduce((s, r) => s + ((parseFloat(r.contractCost) || 0) / Math.max(1, amcSplitUnits(r.unit).length)), 0);
+      const pastCost = pastRecs.reduce((s, h) => s + ((parseFloat(h.contractCost) || 0) / Math.max(1, amcSplitUnits(h.unit).length)), 0);
+      const totContract = curCost + pastCost;
+
+      const routineL = unitLogs.filter(l => l.logType === 'Scheduled Service');
+      const bkdL = unitLogs.filter(l => l.logType === 'Breakdown Repair');
+
+      const routineC = routineL.reduce((s, l) => {
+        const parent = recordMap.get(l.amcId) || {};
+        return s + ((parseFloat(l.cost) || 0) / Math.max(1, amcSplitUnits(parent.unit).length));
+      }, 0);
+
+      const bkdC = bkdL.reduce((s, l) => {
+        const parent = recordMap.get(l.amcId) || {};
+        return s + ((parseFloat(l.cost) || 0) / Math.max(1, amcSplitUnits(parent.unit).length));
+      }, 0);
+
+      const grandTotal = totContract + routineC + bkdC;
+
+      subtotalTerms += totContract;
+      subtotalRoutine += routineC;
+      subtotalBreakdown += bkdC;
+
+      const cats = [...new Set([...liveRecs.map(r => r.category), ...pastRecs.map(h => h.category)])].filter(Boolean).join(', ');
+
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><strong>${escapeHtml(u)}</strong></td>
+          <td style="text-align:center;font-size:10.5px;">${escapeHtml(cats || '—')}</td>
+          <td style="text-align:center;">${liveRecs.length}</td>
+          <td style="text-align:center;">${pastRecs.length}</td>
+          <td style="text-align:center;">₹${Math.round(totContract).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#059669;">₹${Math.round(routineC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#ea580c;">₹${Math.round(bkdC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:800;color:#7c2d12;">₹${Math.round(grandTotal).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([i + 1, u, cats, liveRecs.length, pastRecs.length, `₹${Math.round(totContract).toLocaleString('en-IN')}`, `₹${Math.round(routineC).toLocaleString('en-IN')}`, `₹${Math.round(bkdC).toLocaleString('en-IN')}`, `₹${Math.round(grandTotal).toLocaleString('en-IN')}`]);
+    });
+
+    totalVal = subtotalTerms + subtotalRoutine + subtotalBreakdown;
+    metaChips = [
+      { lbl: 'Facilities Evaluated', val: `${units.length} Units` },
+      { lbl: 'Split Base Portfolio', val: `₹${Math.round(subtotalTerms).toLocaleString('en-IN')}` },
+      { lbl: 'Apportioned Routine', val: `₹${Math.round(subtotalRoutine).toLocaleString('en-IN')}` },
+      { lbl: 'Grand Apportioned Total', val: `₹${Math.round(totalVal).toLocaleString('en-IN')}` }
+    ];
+  } else if (metricKey === 'vendors') {
+    heading = 'VENDOR HERITAGE & PAYOUT AUDIT STATEMENT';
+    subheading = 'Statement of agency contracts, renewal transitions, and total lifetime payouts';
+    stamp = 'VENDOR COMPLIANCE AUDIT';
+
+    const currentVendors = [...new Set(records.map(r => r.vendorName).filter(Boolean))];
+    const currentVendorSet = new Set(currentVendors);
+    const pastVendors = [...new Set(history.map(h => h.vendorName).filter(Boolean))].filter(v => !currentVendorSet.has(v));
+    const allVendors = [...currentVendors, ...pastVendors].sort();
+
+    tableHeaders = ['#', 'Vendor Agency', 'Status', 'Contact', 'Terms Held', 'Contract Total (₹)', 'Routine Spend (₹)', 'Repair Spend (₹)', 'Total Lifetime Payout (₹)'];
+    pdfTableHeaders = ['#', 'Vendor Agency', 'Status', 'Contact', 'Terms', 'Contract (₹)', 'Routine (₹)', 'Repairs (₹)', 'Total Payout (₹)'];
+
+    allVendors.forEach((vendor, i) => {
+      const isLive = currentVendorSet.has(vendor);
+      const liveRecs = records.filter(r => r.vendorName === vendor);
+      const pastRecs = history.filter(h => h.vendorName === vendor);
+      const liveIds = new Set(liveRecs.map(r => r.id));
+      const pastIds = new Set(pastRecs.map(h => h.recordId));
+      const allIds = new Set([...liveIds, ...pastIds]);
+
+      const vendorLogs = logs.filter(l => allIds.has(l.amcId));
+      const liveCost = liveRecs.reduce((s, r) => s + (parseFloat(r.contractCost) || 0), 0);
+      const pastCost = pastRecs.reduce((s, h) => s + (parseFloat(h.contractCost) || 0), 0);
+      const totContract = liveCost + pastCost;
+
+      const routineL = vendorLogs.filter(l => l.logType === 'Scheduled Service');
+      const bkdL = vendorLogs.filter(l => l.logType === 'Breakdown Repair');
+      const routineC = routineL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+      const bkdC = bkdL.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+      const grandPayout = totContract + routineC + bkdC;
+
+      subtotalTerms += totContract;
+      subtotalRoutine += routineC;
+      subtotalBreakdown += bkdC;
+
+      const contact = liveRecs[0]?.contactInfo || pastRecs[0]?.contactInfo || '—';
+
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><strong>${escapeHtml(vendor)}</strong></td>
+          <td style="text-align:center;"><span class="hist-tag ${isLive ? 'tag-live' : 'tag-past'}">${isLive ? 'Active Partner' : 'Past Vendor'}</span></td>
+          <td style="text-align:center;font-size:10.5px;">${escapeHtml(contact)}</td>
+          <td style="text-align:center;"><strong>${liveRecs.length + pastRecs.length}</strong></td>
+          <td style="text-align:center;">₹${Math.round(totContract).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#059669;">₹${Math.round(routineC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;color:#ea580c;">₹${Math.round(bkdC).toLocaleString('en-IN')}</td>
+          <td style="text-align:center;font-weight:800;color:#7c2d12;">₹${Math.round(grandPayout).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([i + 1, vendor, isLive ? 'Active' : 'Past', contact, liveRecs.length + pastRecs.length, `₹${Math.round(totContract).toLocaleString('en-IN')}`, `₹${Math.round(routineC).toLocaleString('en-IN')}`, `₹${Math.round(bkdC).toLocaleString('en-IN')}`, `₹${Math.round(grandPayout).toLocaleString('en-IN')}`]);
+    });
+
+    totalVal = subtotalTerms + subtotalRoutine + subtotalBreakdown;
+    metaChips = [
+      { lbl: 'Vendor Partners', val: `${allVendors.length} Agencies` },
+      { lbl: 'Active Live Partners', val: `${currentVendors.length} Active` },
+      { lbl: 'Archived Past Agencies', val: `${pastVendors.length} Past` },
+      { lbl: 'Total Lifetime Payout', val: `₹${Math.round(totalVal).toLocaleString('en-IN')}` }
+    ];
+  } else {
+    // metricKey === 'repairs'
+    heading = 'MAINTENANCE, ROUTINE & BREAKDOWN REPAIR STATEMENT';
+    subheading = 'Detailed audit log of all scheduled preventive maintenance and emergency breakdown calls';
+    stamp = 'MAINTENANCE LOG AUDIT';
+
+    const routineLogs = logs.filter(l => l.logType === 'Scheduled Service');
+    const bkdLogs = logs.filter(l => l.logType === 'Breakdown Repair');
+    subtotalRoutine = routineLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    subtotalBreakdown = bkdLogs.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    subtotalTerms = 0;
+    totalVal = subtotalRoutine + subtotalBreakdown;
+
+    metaChips = [
+      { lbl: 'Total Verified Visits', val: `${logs.length} Visits` },
+      { lbl: 'Scheduled Preventive', val: `${routineLogs.length} Visits (₹${Math.round(subtotalRoutine).toLocaleString('en-IN')})` },
+      { lbl: 'Emergency Breakdowns', val: `${bkdLogs.length} Calls (₹${Math.round(subtotalBreakdown).toLocaleString('en-IN')})` },
+      { lbl: 'Total Maintenance Spend', val: `₹${Math.round(totalVal).toLocaleString('en-IN')}` }
+    ];
+
+    tableHeaders = ['#', 'Log ID', 'Visit Date', 'Log Type', 'Category (ID)', 'Unit & Floor', 'Technician', 'Work Done & Remarks', 'Visit Cost (₹)'];
+    pdfTableHeaders = ['#', 'Log ID', 'Date (DD-MM-YYYY)', 'Type', 'Category / ID', 'Unit', 'Technician', 'Cost (₹)'];
+
+    logs.forEach((l, i) => {
+      const parent = recordMap.get(l.amcId) || {};
+      const isBreakdown = l.logType === 'Breakdown Repair';
+      const cVal = parseFloat(l.cost) || 0;
+
+      tableRows.push(`
+        <tr>
+          <td style="text-align:center;">${i + 1}</td>
+          <td style="text-align:center;"><code>${escapeHtml(l.logId || '—')}</code></td>
+          <td style="text-align:center;"><strong>${escapeHtml(fmtAMCDate(l.visitDate))}</strong></td>
+          <td style="text-align:center;"><span class="hist-tag ${isBreakdown ? 'tag-breakdown' : 'tag-service'}">${escapeHtml(l.logType)}</span></td>
+          <td style="text-align:center;"><strong>${escapeHtml(parent.category || '—')}</strong><div style="font-size:10px;color:#78350f;">${escapeHtml(l.amcId || '')}</div></td>
+          <td style="text-align:center;">${escapeHtml(parent.unit || '—')} (${escapeHtml(parent.floor || 'All Floors')})</td>
+          <td style="text-align:center;"><strong>${escapeHtml(l.technician || '—')}</strong></td>
+          <td style="text-align:center;font-size:10.5px;">${escapeHtml(l.description || l.workDone || '—')}${l.partsReplaced ? `<div style="color:#c2410c;font-weight:700;">Parts: ${escapeHtml(l.partsReplaced)}</div>` : ''}</td>
+          <td style="text-align:center;font-weight:700;color:${isBreakdown ? '#c2410c' : '#059669'};">₹${Math.round(cVal).toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+      pdfTableRows.push([i + 1, l.logId || '', fmtAMCDate(l.visitDate), isBreakdown ? 'Breakdown' : 'Routine', `${parent.category || ''} (${l.amcId || ''})`, parent.unit || '', l.technician || '', `₹${Math.round(cVal).toLocaleString('en-IN')}`]);
+    });
+  }
+
+  // Populate DOM elements
+  document.getElementById('amcInvStamp').textContent = stamp;
+  document.getElementById('amcInvDocRef').textContent = docRef;
+  document.getElementById('amcInvDate').textContent = dateStr;
+  document.getElementById('amcInvHeading').textContent = heading;
+  document.getElementById('amcInvSubheading').textContent = subheading;
+  document.getElementById('amcInvTotalVal').textContent = `₹${Math.round(totalVal).toLocaleString('en-IN')}`;
+
+  document.getElementById('amcInvMetaGrid').innerHTML = metaChips.map(c => `
+    <div class="amc-inv-chip">
+      <span class="inv-chip-lbl">${escapeHtml(c.lbl)}</span>
+      <span class="inv-chip-val">${escapeHtml(c.val)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('amcInvTableHead').innerHTML = `<tr>${tableHeaders.map((th, idx) => `<th style="text-align:center;${idx === 0 ? 'width:35px;' : ''}">${th}</th>`).join('')}</tr>`;
+  document.getElementById('amcInvTableBody').innerHTML = tableRows.length ? tableRows.join('') : '<tr><td colspan="10" style="padding:24px;text-align:center;color:#9a3412;">No matching records found.</td></tr>';
+
+  document.getElementById('amcInvSubtotalTerms').textContent = `₹${Math.round(subtotalTerms).toLocaleString('en-IN')}`;
+  document.getElementById('amcInvSubtotalRoutine').textContent = `₹${Math.round(subtotalRoutine).toLocaleString('en-IN')}`;
+  document.getElementById('amcInvSubtotalBreakdown').textContent = `₹${Math.round(subtotalBreakdown).toLocaleString('en-IN')}`;
+  document.getElementById('amcInvGrandTotal').textContent = `₹${Math.round(totalVal).toLocaleString('en-IN')}`;
+  document.getElementById('amcInvCalcNotes').textContent = auditNote;
+
+  currentAmcInvoiceData = {
+    metricKey,
+    heading,
+    subheading,
+    stamp,
+    docRef,
+    dateStr,
+    totalVal,
+    subtotalTerms,
+    subtotalRoutine,
+    subtotalBreakdown,
+    metaChips,
+    pdfTableHeaders,
+    pdfTableRows
+  };
+
+  modal.classList.remove('hidden');
+}
+
+function closeAmcHistKpiInvoice() {
+  const modal = document.getElementById('amcHistKpiInvoiceModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ── Download Invoice as High-Definition PDF (A4 Formal Layout) ──────────────
+function downloadAmcHistInvoicePdf() {
+  const sheet = document.getElementById('amcHistInvoiceSheet');
+  if (!sheet || !currentAmcInvoiceData) {
+    showToast('No active invoice data to download.', true);
+    return;
+  }
+
+  const d = currentAmcInvoiceData;
+  const filename = `AMC_Audit_Invoice_${d.metricKey}_${d.dateStr.replace(/-/g, '_')}.pdf`;
+
+  // Method 1: High-Definition html2pdf rendering (Pixel-perfect DOM snapshot with exact fonts, ₹ symbols & layout)
+  if (window.html2pdf) {
+    showToast('Generating official invoice PDF...');
+
+    // Clone sheet into an off-screen container with explicit A4 print styling and light background
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '794px'; // Standard A4 96dpi width
+    exportContainer.style.padding = '24px 28px';
+    exportContainer.style.background = '#fffdfa';
+    exportContainer.style.color = '#29180e';
+    exportContainer.style.fontFamily = 'Arial, sans-serif';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '-9999px';
+    exportContainer.style.top = '0';
+    exportContainer.style.zIndex = '99999';
+
+    exportContainer.innerHTML = sheet.innerHTML;
+
+    // Remove max-height / scrolling on table wrap in cloned element
+    const tableWrap = exportContainer.querySelector('.amc-inv-table-wrap');
+    if (tableWrap) {
+      tableWrap.style.maxHeight = 'none';
+      tableWrap.style.overflow = 'visible';
+      tableWrap.style.border = '1.5px solid #b45309';
+    }
+
+    document.body.appendChild(exportContainer);
+
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
+        backgroundColor: '#fffdfa'
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(exportContainer).save().then(() => {
+      document.body.removeChild(exportContainer);
+      showToast(`Downloaded official invoice: ${filename}`);
+    }).catch(err => {
+      console.error('html2pdf generation error:', err);
+      if (document.body.contains(exportContainer)) {
+        document.body.removeChild(exportContainer);
+      }
+      fallbackJsPdfDownload();
+    });
+    return;
+  }
+
+  // Method 2: Robust jsPDF fallback
+  fallbackJsPdfDownload();
+}
+
+function fallbackJsPdfDownload() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('PDF library unavailable. Opening print view.', true);
+    printAmcHistInvoice();
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const d = currentAmcInvoiceData;
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Formal Top Header
+  doc.setFillColor(67, 20, 7);
+  doc.rect(0, 0, pageWidth, 52, 'F');
+
+  doc.setTextColor(254, 215, 170);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TRIO GROUP', 32, 24);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(255, 237, 213);
+  doc.text('FIRE & SAFETY ENGINEERING ASSET MANAGEMENT - AUDIT STATEMENT', 32, 38);
+
+  // Doc Details Bar (Safely within margins)
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`DOC REF: ${d.docRef}`, pageWidth - 32, 24, { align: 'right' });
+  doc.text(`DATE: ${d.dateStr}`, pageWidth - 32, 38, { align: 'right' });
+
+  // Title Banner
+  doc.setFillColor(248, 239, 230);
+  doc.rect(32, 62, pageWidth - 64, 40, 'F');
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(1);
+  doc.rect(32, 62, pageWidth - 64, 40, 'S');
+
+  doc.setTextColor(67, 20, 7);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(d.heading, 42, 78);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 53, 15);
+  doc.text(d.subheading, 42, 90);
+
+  // Valuation Text
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(124, 45, 18);
+  doc.text(`VALUATION: Rs. ${Math.round(d.totalVal).toLocaleString('en-IN')}`, pageWidth - 42, 84, { align: 'right' });
+
+  // Clean table rows with Rs. instead of broken unicode symbols
+  const cleanHead = d.pdfTableHeaders.map(h => h.replace(/\(₹\)/g, '(Rs.)'));
+  const cleanBody = d.pdfTableRows.map(row => row.map(cell => String(cell).replace(/₹/g, 'Rs. ')));
+
+  if (doc.autoTable) {
+    doc.autoTable({
+      startY: 110,
+      margin: { left: 32, right: 32 },
+      head: [cleanHead],
+      body: cleanBody,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [67, 20, 7],
+        textColor: [255, 247, 237],
+        fontSize: 7.5,
+        fontStyle: 'bold',
+        halign: 'left',
+        cellPadding: 4
+      },
+      bodyStyles: {
+        fontSize: 7,
+        textColor: [41, 24, 14],
+        lineColor: [222, 200, 180],
+        cellPadding: 3.5
+      },
+      alternateRowStyles: {
+        fillColor: [253, 248, 242]
+      },
+      didDrawPage: function(dataPage) {
+        doc.setFontSize(7);
+        doc.setTextColor(120, 113, 108);
+        doc.text(`TRIO GROUP · Official AMC Audit Statement · Page ${dataPage.pageNumber}`, 32, pageHeight - 14);
+      }
+    });
+
+    let finalY = doc.lastAutoTable.finalY + 12;
+
+    if (finalY + 110 > pageHeight) {
+      doc.addPage();
+      finalY = 36;
+    }
+
+    // Totals Summary Box
+    doc.setFillColor(251, 245, 237);
+    doc.rect(pageWidth - 272, finalY, 240, 58, 'F');
+    doc.setDrawColor(180, 83, 9);
+    doc.rect(pageWidth - 272, finalY, 240, 58, 'S');
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(68, 64, 60);
+    doc.text('Contract Base Terms Subtotal:', pageWidth - 262, finalY + 13);
+    doc.text(`Rs. ${Math.round(d.subtotalTerms).toLocaleString('en-IN')}`, pageWidth - 42, finalY + 13, { align: 'right' });
+
+    doc.text('Routine Scheduled Servicing:', pageWidth - 262, finalY + 24);
+    doc.text(`Rs. ${Math.round(d.subtotalRoutine).toLocaleString('en-IN')}`, pageWidth - 42, finalY + 24, { align: 'right' });
+
+    doc.text('Emergency Breakdown Repairs:', pageWidth - 262, finalY + 35);
+    doc.text(`Rs. ${Math.round(d.subtotalBreakdown).toLocaleString('en-IN')}`, pageWidth - 42, finalY + 35, { align: 'right' });
+
+    doc.setDrawColor(180, 83, 9);
+    doc.line(pageWidth - 262, finalY + 41, pageWidth - 42, finalY + 41);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(124, 45, 18);
+    doc.text('GRAND TOTAL AUDITED:', pageWidth - 262, finalY + 51);
+    doc.text(`Rs. ${Math.round(d.totalVal).toLocaleString('en-IN')}`, pageWidth - 42, finalY + 51, { align: 'right' });
+
+    // Signatures
+    const signY = finalY + 80;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(120, 113, 108);
+
+    doc.setDrawColor(120, 53, 15);
+    doc.line(32, signY, 150, signY);
+    doc.text('PREPARED BY: SAFETY OFFICER', 32, signY + 9);
+
+    doc.line(210, signY, 330, signY);
+    doc.text('VERIFIED BY: ENGINEERING LEAD', 210, signY + 9);
+
+    doc.line(390, signY, pageWidth - 32, signY);
+    doc.text('AUTHORIZED BY: GENERAL MANAGER', 390, signY + 9);
+  }
+
+  const filename = `AMC_Audit_Invoice_${d.metricKey}_${d.dateStr.replace(/-/g, '_')}.pdf`;
+  doc.save(filename);
+  showToast(`Downloaded official invoice: ${filename}`);
+}
+
+// ── Print Invoice Statement ──────────────────────────────────────────────────
+function printAmcHistInvoice() {
+  const sheet = document.getElementById('amcHistInvoiceSheet');
+  if (!sheet) return;
+
+  const printWindow = window.open('', '_blank', 'width=1100,height=850');
+  if (!printWindow) {
+    showToast('Please allow pop-ups to print the Invoice.', true);
+    return;
+  }
+
+  printWindow.document.write(`<!doctype html><html><head><title>Official AMC Audit Statement Invoice</title><style>
+    body{font-family:Arial,sans-serif;color:#29180e;padding:24px;background:#fffdfa;margin:0;}
+    *{border-radius:0px !important;}
+    .amc-inv-sheet-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #b45309;padding-bottom:12px;margin-bottom:14px;}
+    .amc-inv-org-title{font-size:16px;font-weight:800;color:#431407;margin:0;}
+    .amc-inv-org-sub{font-size:11px;font-weight:700;color:#9a3412;}
+    .amc-inv-org-loc{font-size:10px;color:#78716c;}
+    .amc-inv-ref-block{text-align:right;font-size:11px;}
+    .amc-inv-badge-stamp{display:inline-block;padding:2px 6px;font-size:9px;font-weight:800;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;margin-bottom:3px;}
+    .amc-inv-title-banner{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8efe6;border:1px solid #d97706;margin-bottom:12px;}
+    .amc-inv-heading{font-size:14px;font-weight:800;color:#431407;margin:0;}
+    .amc-inv-subheading{font-size:10px;color:#78716c;margin:2px 0 0;}
+    .inv-pill-label{font-size:9px;font-weight:800;color:#9a3412;display:block;}
+    .inv-pill-value{font-size:18px;font-weight:800;color:#7c2d12;}
+    .amc-inv-meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;}
+    .amc-inv-chip{padding:6px 8px;background:#ffffff;border:1px solid #e7d6c4;}
+    .inv-chip-lbl{font-size:9px;color:#78716c;display:block;}
+    .inv-chip-val{font-size:11px;font-weight:700;color:#29180e;}
+    .amc-inv-table-wrap{border:1px solid #b45309;margin-bottom:14px;}
+    .amc-inv-table{width:100%;border-collapse:collapse;font-size:10px;}
+    th{background:#431407;color:#fff;padding:6px;text-align:left;font-size:9px;border:1px solid #7c2d12;}
+    td{border:1px solid #eedecf;padding:5px;}
+    .amc-inv-calc-summary{display:flex;justify-content:space-between;gap:16px;padding:10px;background:#fbf5ed;border:1px solid #d97706;margin-bottom:20px;}
+    .amc-inv-calc-notes{font-size:10px;color:#78716c;flex:1;}
+    .amc-inv-calc-totals{width:280px;font-size:10.5px;}
+    .amc-inv-tot-row{display:flex;justify-content:space-between;padding:1px 0;}
+    .amc-inv-tot-row.grand-total{border-top:1.5px solid #b45309;font-weight:800;color:#7c2d12;margin-top:4px;padding-top:4px;font-size:11.5px;}
+    .amc-inv-sign-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px;}
+    .amc-inv-sign-line{border-top:1px solid #78350f;margin-bottom:4px;}
+    .amc-inv-sign-label{font-size:9px;font-weight:700;color:#78716c;text-align:center;display:block;}
+    .hist-tag{display:inline-block;padding:2px 4px;font-size:8.5px;font-weight:700;background:#fef3c7;color:#92400e;}
+    @media print{body{padding:0;}@page{size:A4;margin:12mm;}}
+  </style></head><body>
+    ${sheet.innerHTML}
+  </body></html>`);
+
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+// ─── Month-Wise AMC Expenditure Analysis (Green Theme Card) ────────────────
+// Opened from the "Analysis" button in the AMC Report head. Shows, for a
+// selected year: contracts started, services performed, breakdown repairs
+// and total expenditure — broken down by month, with a category-wise spend
+// pie chart and a month-wise expenditure bar chart, both hand-drawn on
+// <canvas> (no external chart library needed).
+let amcMonthlySelectedYear = null;
+
+const AMC_MONTHLY_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const AMC_MONTHLY_PIE_PALETTE = ['#16a34a','#22c55e','#4ade80','#86efac','#15803d','#0d9488','#0891b2','#65a30d','#84cc16','#059669','#0f766e','#166534'];
+
+// Parses AMC date strings in either ISO (yyyy-mm-dd) or DMY (dd-mm-yyyy)
+// form — mirrors fmtAMCDate's matching so grouping stays consistent with
+// what's shown elsewhere in the report.
+function amcParseAnyDate(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
+  const str = String(dateStr).trim();
+  if (!str || str === '-' || str === '—') return null;
+  const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (isoMatch) {
+    const d = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const d = new Date(Number(dmyMatch[3]), Number(dmyMatch[2]) - 1, Number(dmyMatch[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+async function openAmcMonthlyAnalysis() {
+  const modal = document.getElementById('amcMonthlyAnalysisModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  // Load live records, service logs and archived contract terms concurrently
+  try {
+    await Promise.all([
+      loadAmcData(false),
+      fetchAllAmcServiceLogs(false),
+      fetchAllAmcContractHistory(false)
+    ]);
+  } catch (err) {
+    console.error('Error loading AMC monthly analysis data:', err);
+  }
+
+  populateAmcMonthlyYearFilter();
+  renderAmcMonthlyAnalysis();
+}
+
+function closeAmcMonthlyAnalysis() {
+  const modal = document.getElementById('amcMonthlyAnalysisModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Builds the Year dropdown from every date actually present in the data
+// (contract start dates + service visit dates), so only years with real
+// data show up, alongside the current year.
+function populateAmcMonthlyYearFilter() {
+  const sel = document.getElementById('amcMonthlyYearSelect');
+  if (!sel) return;
+  const years = new Set();
+  allAmcData.forEach(r => { const d = amcParseAnyDate(r.startDate); if (d) years.add(d.getFullYear()); });
+  (allAmcContractHistory || []).forEach(h => { const d = amcParseAnyDate(h.startDate); if (d) years.add(d.getFullYear()); });
+  (allAmcServiceLogs || []).forEach(l => { const d = amcParseAnyDate(l.visitDate); if (d) years.add(d.getFullYear()); });
+  years.add(new Date().getFullYear());
+
+  const sortedYears = [...years].sort((a, b) => b - a);
+  const prevVal = sel.value || (amcMonthlySelectedYear ? String(amcMonthlySelectedYear) : String(new Date().getFullYear()));
+  sel.innerHTML = sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+  sel.value = sortedYears.includes(Number(prevVal)) ? prevVal : String(sortedYears[0]);
+  amcMonthlySelectedYear = Number(sel.value);
+}
+
+// Main render: recomputes month buckets for the selected year and refreshes
+// the KPI strip, pie chart, bar chart and detailed table. Called on open,
+// on year-select change, and can be re-called after a data refresh.
+function renderAmcMonthlyAnalysis() {
+  const sel = document.getElementById('amcMonthlyYearSelect');
+  const year = Number(sel?.value || amcMonthlySelectedYear || new Date().getFullYear());
+  amcMonthlySelectedYear = year;
+
+  const months = AMC_MONTHLY_MONTH_NAMES.map((name, idx) => ({
+    idx, name,
+    contractsStarted: 0, contractValue: 0,
+    scheduledCount: 0, scheduledCost: 0,
+    breakdownCount: 0, breakdownCost: 0,
+    total: 0
+  }));
+
+  const recordMap = new Map(allAmcData.map(r => [r.id, r]));
+
+  // Contracts started this year (live records)
+  allAmcData.forEach(r => {
+    const d = amcParseAnyDate(r.startDate);
+    if (d && d.getFullYear() === year) {
+      const m = months[d.getMonth()];
+      m.contractsStarted++;
+      m.contractValue += (parseFloat(r.contractCost) || 0);
+    }
+  });
+  // ...and past contract terms (a mid-year vendor switch still counts)
+  (allAmcContractHistory || []).forEach(h => {
+    const d = amcParseAnyDate(h.startDate);
+    if (d && d.getFullYear() === year) {
+      const m = months[d.getMonth()];
+      m.contractsStarted++;
+      m.contractValue += (parseFloat(h.contractCost) || 0);
+    }
+  });
+
+  // Services performed & breakdown repairs this year
+  (allAmcServiceLogs || []).forEach(l => {
+    const d = amcParseAnyDate(l.visitDate);
+    if (!d || d.getFullYear() !== year) return;
+    const cost = parseFloat(l.cost) || 0;
+    const m = months[d.getMonth()];
+    if (l.logType === 'Breakdown Repair') {
+      m.breakdownCount++;
+      m.breakdownCost += cost;
+    } else {
+      m.scheduledCount++;
+      m.scheduledCost += cost;
+    }
+  });
+
+  months.forEach(m => { m.total = m.contractValue + m.scheduledCost + m.breakdownCost; });
+
+  renderAmcMonthlyKpis(months, year);
+
+  // Category-wise spend distribution for the pie chart: new contract value
+  // (by category, for contracts starting this year) + service/repair costs
+  // logged this year (mapped back to the record's category).
+  const catSpend = {};
+  allAmcData.forEach(r => {
+    const d = amcParseAnyDate(r.startDate);
+    if (d && d.getFullYear() === year) {
+      const cat = r.category || 'General';
+      catSpend[cat] = (catSpend[cat] || 0) + (parseFloat(r.contractCost) || 0);
+    }
+  });
+  (allAmcServiceLogs || []).forEach(l => {
+    const d = amcParseAnyDate(l.visitDate);
+    if (!d || d.getFullYear() !== year) return;
+    const r = recordMap.get(l.amcId);
+    const cat = (r && r.category) || 'General';
+    catSpend[cat] = (catSpend[cat] || 0) + (parseFloat(l.cost) || 0);
+  });
+  const catEntries = Object.entries(catSpend).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  drawAmcMonthlyPieChart(catEntries);
+  drawAmcMonthlyBarChart(months);
+  renderAmcMonthlyTable(months, year);
+}
+
+// Small inline icon set for the KPI strip — kept as tiny stroke SVGs so
+// they inherit currentColor from each icon badge's themed background.
+const AMC_MONTHLY_KPI_ICONS = {
+  contracts: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+  services: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  repairs: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  spend: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  peak: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
+};
+
+function renderAmcMonthlyKpis(months, year) {
+  const kpiStrip = document.getElementById('amcMonthlyKpiStrip');
+  if (!kpiStrip) return;
+
+  const totalContracts = months.reduce((s, m) => s + m.contractsStarted, 0);
+  const totalServices = months.reduce((s, m) => s + m.scheduledCount, 0);
+  const totalBreakdowns = months.reduce((s, m) => s + m.breakdownCount, 0);
+  const totalSpend = months.reduce((s, m) => s + m.total, 0);
+  const peakMonth = months.reduce((p, m) => (m.total > p.total ? m : p), months[0]);
+
+  const chip = (icon, iconClass, lbl, val, sub) => `
+    <div class="amc-monthly-kpi-chip">
+      <div class="amc-monthly-kpi-icon ${iconClass}">${icon}</div>
+      <span class="amc-monthly-kpi-lbl">${lbl}</span>
+      <span class="amc-monthly-kpi-val">${val}</span>
+      <div class="amc-monthly-kpi-sub">${sub}</div>
+    </div>`;
+
+  kpiStrip.innerHTML =
+    chip(AMC_MONTHLY_KPI_ICONS.contracts, 'ic-contracts', 'Contracts Started', totalContracts, `In ${year}`) +
+    chip(AMC_MONTHLY_KPI_ICONS.services, 'ic-services', 'Services Performed', totalServices, 'Scheduled visits') +
+    chip(AMC_MONTHLY_KPI_ICONS.repairs, 'ic-repairs', 'Breakdown Repairs', totalBreakdowns, 'Unscheduled repairs') +
+    chip(AMC_MONTHLY_KPI_ICONS.spend, 'ic-spend', 'Total Expenditure', '₹' + totalSpend.toLocaleString('en-IN'), 'Contracts + services + repairs') +
+    chip(AMC_MONTHLY_KPI_ICONS.peak, 'ic-peak', 'Peak Spend Month', peakMonth.total > 0 ? peakMonth.name : '—', peakMonth.total > 0 ? '₹' + peakMonth.total.toLocaleString('en-IN') : 'No spend recorded');
+}
+
+// Geometry of the last-drawn pie chart, kept around so mousemove can hit-test
+// which slice the cursor is over and pop it out slightly on hover.
+let amcMonthlyPieState = null;
+
+// Hand-drawn donut-style pie chart on <canvas> — reuses the AMC category
+// colour map (AMC_REMINDER_CATEGORY_COLORS) so a category's colour matches
+// everywhere else in the report, falling back to a green palette. Hovering
+// a slice (or its legend row) nudges that slice outward for emphasis.
+function drawAmcMonthlyPieChart(entries, hoverIndex = -1) {
+  const canvas = document.getElementById('amcMonthlyPieChart');
+  const legendEl = document.getElementById('amcMonthlyPieLegend');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const isDark = document.body.classList.contains('dark');
+
+  if (!entries.length) {
+    amcMonthlyPieState = null;
+    ctx.fillStyle = isDark ? '#4ade80' : '#86efac';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No expenditure recorded for this year', w / 2, h / 2);
+    if (legendEl) legendEl.innerHTML = '';
+    return;
+  }
+
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 16;
+  let startAngle = -Math.PI / 2;
+  const slices = [];
+
+  entries.forEach(([cat, val], i) => {
+    const angle = (val / total) * Math.PI * 2;
+    const mid = startAngle + angle / 2;
+    const isHover = i === hoverIndex;
+    const pop = isHover ? 8 : 0;
+    const ox = Math.cos(mid) * pop, oy = Math.sin(mid) * pop;
+    const color = AMC_REMINDER_CATEGORY_COLORS[cat] || AMC_MONTHLY_PIE_PALETTE[i % AMC_MONTHLY_PIE_PALETTE.length];
+
+    ctx.beginPath();
+    ctx.moveTo(cx + ox, cy + oy);
+    ctx.arc(cx + ox, cy + oy, isHover ? r + 4 : r, startAngle, startAngle + angle);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    if (isHover) { ctx.shadowColor = 'rgba(20,83,45,0.35)'; ctx.shadowBlur = 10; }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = isDark ? '#0d2417' : '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    slices.push({ cat, val, start: startAngle, end: startAngle + angle, color });
+    startAngle += angle;
+  });
+
+  amcMonthlyPieState = { cx, cy, r, slices, total };
+
+  // Donut hole with the grand total in the centre
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.fillStyle = isDark ? '#0d2417' : '#ffffff';
+  ctx.fill();
+
+  const centerLabel = hoverIndex >= 0 ? entries[hoverIndex][0] : 'Total Spend';
+  const centerVal = hoverIndex >= 0 ? entries[hoverIndex][1] : total;
+
+  ctx.fillStyle = isDark ? '#e6fdf0' : '#14532d';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('₹' + centerVal.toLocaleString('en-IN'), cx, cy - 6);
+  ctx.fillStyle = isDark ? '#4ade80' : '#166534';
+  ctx.font = '9px sans-serif';
+  const label = centerLabel.length > 22 ? centerLabel.slice(0, 20) + '…' : centerLabel;
+  ctx.fillText(label, cx, cy + 11);
+
+  if (legendEl) {
+    legendEl.innerHTML = entries.map(([cat, val], i) => {
+      const color = AMC_REMINDER_CATEGORY_COLORS[cat] || AMC_MONTHLY_PIE_PALETTE[i % AMC_MONTHLY_PIE_PALETTE.length];
+      const pct = (val / total) * 100;
+      const active = i === hoverIndex ? ' is-active' : '';
+      return `<div class="amc-monthly-legend-item${active}" data-slice-index="${i}" onmouseenter="amcMonthlyHoverSlice(${i})" onmouseleave="amcMonthlyHoverSlice(-1)">
+        <span class="amc-monthly-legend-dot" style="background:${color};"></span>
+        <span class="amc-monthly-legend-label">${escapeHtml(cat)}</span>
+        <span class="amc-monthly-legend-track"><span class="amc-monthly-legend-fill" style="width:${pct.toFixed(1)}%;background:${color};"></span></span>
+        <span class="amc-monthly-legend-pct">${pct.toFixed(1)}%</span>
+      </div>`;
+    }).join('');
+  }
+
+  bindAmcMonthlyPieHover(canvas);
+}
+
+// Redraws the pie with a given slice highlighted — called both from canvas
+// mousemove hit-testing and from hovering a legend row, so the two stay
+// in sync.
+function amcMonthlyHoverSlice(index) {
+  if (!amcMonthlyPieState) return;
+  const entries = amcMonthlyPieState.slices.map(s => [s.cat, s.val]);
+  drawAmcMonthlyPieChart(entries, index);
+}
+
+// Binds the canvas mousemove/mouseleave handlers once per canvas element
+// (guarded by a dataset flag so repeated re-renders don't stack listeners).
+function bindAmcMonthlyPieHover(canvas) {
+  if (canvas.dataset.hoverBound === '1') return;
+  canvas.dataset.hoverBound = '1';
+  let lastHover = -1;
+  canvas.addEventListener('mousemove', (e) => {
+    if (!amcMonthlyPieState) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+    const { cx, cy, r, slices } = amcMonthlyPieState;
+    const dx = x - cx, dy = y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    let hover = -1;
+    if (dist <= r + 4 && dist >= r * 0.55) {
+      let angle = Math.atan2(dy, dx);
+      if (angle < -Math.PI / 2) angle += Math.PI * 2;
+      hover = slices.findIndex(s => angle >= s.start && angle < s.end);
+    }
+    if (hover !== lastHover) {
+      lastHover = hover;
+      amcMonthlyHoverSlice(hover);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    if (lastHover !== -1) { lastHover = -1; amcMonthlyHoverSlice(-1); }
+  });
+}
+
+// Tracks the active grow-in animation so a rapid year change cancels the
+// previous run instead of layering two animations on the same canvas.
+let amcMonthlyBarAnimFrame = null;
+let amcMonthlyBarHoverIdx = -1;
+
+// Draws a bar with rounded top corners only (canvas has no native
+// rounded-rect primitive for this shape).
+function amcMonthlyRoundTopRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, Math.max(height, 0));
+  ctx.beginPath();
+  ctx.moveTo(x, y + height);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.lineTo(x + width - r, y);
+  ctx.arcTo(x + width, y, x + width, y + r, r);
+  ctx.lineTo(x + width, y + height);
+  ctx.closePath();
+}
+
+// Hand-drawn bar chart on <canvas> for month-wise total expenditure, with a
+// short grow-in animation on render. The tallest bar (peak month) is
+// rendered in a darker green and gets its value labelled above the bar.
+function drawAmcMonthlyBarChart(months) {
+  const canvas = document.getElementById('amcMonthlyBarChart');
+  if (!canvas) return;
+  if (amcMonthlyBarAnimFrame) { cancelAnimationFrame(amcMonthlyBarAnimFrame); amcMonthlyBarAnimFrame = null; }
+  amcMonthlyBarHoverIdx = -1;
+  bindAmcMonthlyBarHover(canvas, months);
+
+  const duration = 480;
+  const start = performance.now();
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const progress = easeOutCubic(t);
+    paintAmcMonthlyBarChart(canvas, months, progress, amcMonthlyBarHoverIdx);
+    if (t < 1) {
+      amcMonthlyBarAnimFrame = requestAnimationFrame(frame);
+    } else {
+      amcMonthlyBarAnimFrame = null;
+    }
+  }
+  amcMonthlyBarAnimFrame = requestAnimationFrame(frame);
+}
+
+function paintAmcMonthlyBarChart(canvas, months, progress = 1, hoverIdx = -1) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const isDark = document.body.classList.contains('dark');
+  const gridColor = isDark ? '#15803d' : '#d3f4dd';
+  const labelColor = isDark ? '#86efac' : '#14532d';
+  const barColorTop = '#4ade80';
+  const barColorBottom = '#16a34a';
+  const barColorPeak = '#14532d';
+
+  const padL = 42, padR = 12, padT = 20, padB = 26;
+  const chartW = w - padL - padR;
+  const chartH = h - padT - padB;
+
+  const maxVal = Math.max(...months.map(m => m.total), 1);
+  const niceMax = Math.ceil(maxVal / 5) * 5 || 1;
+
+  ctx.strokeStyle = gridColor;
+  ctx.fillStyle = labelColor;
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const val = (niceMax / steps) * i;
+    const y = padT + chartH - (val / niceMax) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(w - padR, y);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillText(val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val.toFixed(0), padL - 6, y);
+  }
+
+  const barSlot = chartW / months.length;
+  const barW = Math.min(barSlot * 0.5, 34);
+  const peakIdx = months.reduce((pi, m, i, arr) => (m.total > arr[pi].total ? i : pi), 0);
+  const barCoords = [];
+
+  months.forEach((m, i) => {
+    const targetH = (m.total / niceMax) * chartH;
+    const barH = targetH * progress;
+    const x = padL + i * barSlot + (barSlot - barW) / 2;
+    const y = padT + chartH - barH;
+    const isPeak = i === peakIdx && m.total > 0;
+    const isHover = i === hoverIdx;
+
+    if (barH > 0.5) {
+      const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+      if (isPeak) {
+        grad.addColorStop(0, '#166534');
+        grad.addColorStop(1, barColorPeak);
+      } else {
+        grad.addColorStop(0, barColorTop);
+        grad.addColorStop(1, barColorBottom);
+      }
+      amcMonthlyRoundTopRect(ctx, x, y, barW, barH, 4);
+      ctx.fillStyle = grad;
+      if (isHover) { ctx.shadowColor = 'rgba(20,83,45,0.3)'; ctx.shadowBlur = 8; }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (isHover) {
+        ctx.strokeStyle = isDark ? '#4ade80' : '#14532d';
+        ctx.lineWidth = 1.5;
+        amcMonthlyRoundTopRect(ctx, x, y, barW, barH, 4);
+        ctx.stroke();
+      }
+    }
+
+    barCoords.push({ x, y: padT, w: barW, h: chartH, month: m });
+
+    // Value label above the bar once it's mostly grown in, for the peak
+    // bar always and for others on hover, to avoid cluttering the axis.
+    if (progress > 0.85 && m.total > 0 && (isPeak || isHover)) {
+      ctx.fillStyle = isDark ? '#e6fdf0' : '#14532d';
+      ctx.font = 'bold 9.5px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const label = m.total >= 1000 ? '₹' + (m.total / 1000).toFixed(1) + 'k' : '₹' + m.total;
+      ctx.fillText(label, x + barW / 2, y - 5);
+    }
+
+    ctx.fillStyle = isHover ? (isDark ? '#e6fdf0' : '#14532d') : labelColor;
+    ctx.font = isHover ? 'bold 9px sans-serif' : '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(m.name, x + barW / 2, padT + chartH + 6);
+  });
+
+  ctx.strokeStyle = labelColor;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + chartH);
+  ctx.lineTo(w - padR, padT + chartH);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  canvas._amcBarCoords = barCoords;
+  canvas._amcBarProgress = progress;
+}
+
+// Hover a bar to see its exact value pop up above it and its label bold —
+// bound once per canvas via a dataset flag so repeated renders don't stack
+// listeners.
+function bindAmcMonthlyBarHover(canvas, months) {
+  if (canvas.dataset.hoverBound === '1') {
+    canvas._amcBarMonths = months;
+    return;
+  }
+  canvas.dataset.hoverBound = '1';
+  canvas._amcBarMonths = months;
+
+  canvas.addEventListener('mousemove', (e) => {
+    const coords = canvas._amcBarCoords;
+    if (!coords || amcMonthlyBarAnimFrame) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+    let hover = -1;
+    for (let i = 0; i < coords.length; i++) {
+      const c = coords[i];
+      if (x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y && y <= c.y + c.h) { hover = i; break; }
+    }
+    if (hover !== amcMonthlyBarHoverIdx) {
+      amcMonthlyBarHoverIdx = hover;
+      paintAmcMonthlyBarChart(canvas, canvas._amcBarMonths, 1, hover);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    if (amcMonthlyBarHoverIdx !== -1) {
+      amcMonthlyBarHoverIdx = -1;
+      paintAmcMonthlyBarChart(canvas, canvas._amcBarMonths, 1, -1);
+    }
+  });
+}
+
+// Detailed month-by-month table with a TOTAL row in the tfoot, and a
+// "Peak" / "Low" tag on standout months.
+function renderAmcMonthlyTable(months, year) {
+  const head = document.getElementById('amcMonthlyTableHead');
+  const body = document.getElementById('amcMonthlyTableBody');
+  const foot = document.getElementById('amcMonthlyTableFoot');
+  if (!head || !body) return;
+
+  head.innerHTML = `<th>Month</th><th>Contracts Started</th><th>Services Performed</th><th>Breakdown Repairs</th><th>Contract Value (₹)</th><th>Service Cost (₹)</th><th>Repair Cost (₹)</th><th>Total Expenditure (₹)</th>`;
+
+  const maxTotal = Math.max(...months.map(m => m.total), 0);
+  const nonZeroTotals = months.filter(m => m.total > 0).map(m => m.total);
+  const avgTotal = nonZeroTotals.length ? nonZeroTotals.reduce((a, b) => a + b, 0) / nonZeroTotals.length : 0;
+
+  body.innerHTML = months.map(m => {
+    let tag = '';
+    if (m.total > 0 && m.total === maxTotal) tag = ' <span class="amc-monthly-tag tag-peak">Peak</span>';
+    else if (m.total > 0 && m.total < avgTotal * 0.5) tag = ' <span class="amc-monthly-tag tag-low">Low</span>';
+    return `<tr>
+      <td style="text-align:left;"><strong>${m.name} ${year}</strong>${tag}</td>
+      <td>${m.contractsStarted || '—'}</td>
+      <td>${m.scheduledCount || '—'}</td>
+      <td>${m.breakdownCount || '—'}</td>
+      <td>${m.contractValue > 0 ? '₹' + m.contractValue.toLocaleString('en-IN') : '—'}</td>
+      <td>${m.scheduledCost > 0 ? '₹' + m.scheduledCost.toLocaleString('en-IN') : '—'}</td>
+      <td>${m.breakdownCost > 0 ? '₹' + m.breakdownCost.toLocaleString('en-IN') : '—'}</td>
+      <td><strong>${m.total > 0 ? '₹' + m.total.toLocaleString('en-IN') : '—'}</strong></td>
+    </tr>`;
+  }).join('');
+
+  if (foot) {
+    foot.innerHTML = `
+      <td style="text-align:left;">TOTAL (${year})</td>
+      <td>${months.reduce((s, m) => s + m.contractsStarted, 0)}</td>
+      <td>${months.reduce((s, m) => s + m.scheduledCount, 0)}</td>
+      <td>${months.reduce((s, m) => s + m.breakdownCount, 0)}</td>
+      <td>₹${months.reduce((s, m) => s + m.contractValue, 0).toLocaleString('en-IN')}</td>
+      <td>₹${months.reduce((s, m) => s + m.scheduledCost, 0).toLocaleString('en-IN')}</td>
+      <td>₹${months.reduce((s, m) => s + m.breakdownCost, 0).toLocaleString('en-IN')}</td>
+      <td>₹${months.reduce((s, m) => s + m.total, 0).toLocaleString('en-IN')}</td>`;
+  }
+}
