@@ -931,6 +931,7 @@
                   <th>Floor</th>
                   <th>Vendor &amp; Contact</th>
                   <th>Contract Duration</th>
+                  <th>Contract Cost</th>
                   <th>Frequency</th>
                   <th>Last Serviced</th>
                   <th>Next Due</th>
@@ -942,7 +943,7 @@
               </thead>
               <tbody id="amcTableBody">
                 <tr>
-                  <td colspan="12" style="text-align:center;padding:32px;color:#6b7280;">No AMC records found. Click "+
+                  <td colspan="13" style="text-align:center;padding:32px;color:#6b7280;">No AMC records found. Click "+
                     Add Contract / Service" to create one.</td>
                 </tr>
               </tbody>
@@ -1000,10 +1001,21 @@
             </div>
 
             <div class="amc-form-field">
-              <label for="amcFormUnit" class="required">Unit / Factory</label>
-              <select id="amcFormUnit" data-type="factory" required>
-                <option value="">Select unit...</option>
-              </select>
+              <label for="amcFormUnitTrigger" class="required">Unit / Factory</label>
+              <div class="amc-unit-multiselect" id="amcUnitMultiselect">
+                <button type="button" class="amc-unit-multiselect-trigger" id="amcFormUnitTrigger"
+                  onclick="toggleAmcUnitDropdown()">
+                  <span class="amc-unit-multiselect-chips amc-unit-multiselect-placeholder"
+                    id="amcFormUnitChips">Select unit(s)...</span>
+                  <svg class="amc-unit-multiselect-caret" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div class="amc-unit-multiselect-panel hidden" id="amcFormUnitPanel"></div>
+              </div>
+              <span class="amc-field-hint">Select more than one unit if a single vendor/contract covers them
+                together — cost below is treated as one combined total, not split per unit.</span>
             </div>
 
             <div class="amc-form-field">
@@ -1036,6 +1048,14 @@
             <div class="amc-form-field">
               <label for="amcFormExpiryDate" class="required">Contract Expiry Date</label>
               <input type="date" id="amcFormExpiryDate" required onchange="updateAmcStatusPreview()">
+            </div>
+
+            <div class="amc-form-field">
+              <label for="amcFormCost">Contract Cost (₹)</label>
+              <input type="number" id="amcFormCost" min="0" step="0.01" placeholder="e.g. 25000">
+              <span class="amc-field-hint">Total value agreed with the vendor for this contract — if multiple
+                units are selected above, enter the one combined total (it will not be split or multiplied
+                per unit).</span>
             </div>
 
             <div class="amc-form-field">
@@ -1209,6 +1229,10 @@
               <strong class="amc-summary-val" id="amcSummaryExpiry">—</strong>
             </div>
             <div class="amc-summary-item">
+              <span class="amc-summary-label">Contract Cost</span>
+              <strong class="amc-summary-val" id="amcSummaryCost">—</strong>
+            </div>
+            <div class="amc-summary-item">
               <span class="amc-summary-label">Last Serviced</span>
               <strong class="amc-summary-val" id="amcSummaryLastService">—</strong>
             </div>
@@ -1237,6 +1261,17 @@
 
           <!-- Collapsible Full Details / Audit History -->
           <div class="amc-full-details-panel hidden" id="amcFullDetailsPanel">
+            <!-- Contract & Vendor History (archived on every renewal) -->
+            <div class="amc-full-details-header">
+              <h4>Contract &amp; Vendor History</h4>
+              <span class="amc-full-details-count" id="amcContractHistoryCount">0 Past Terms</span>
+            </div>
+            <div class="amc-contract-history-timeline" id="amcContractHistoryTimeline">
+              <p class="amc-service-log-empty">Loading contract history…</p>
+            </div>
+
+            <div class="amc-full-details-divider"></div>
+
             <div class="amc-full-details-header">
               <h4>Complete Maintenance &amp; Service History</h4>
               <div class="amc-full-details-header-right">
@@ -1287,7 +1322,7 @@
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
             </svg>
-            <span>Renew / Edit Contract</span>
+            <span>Renew Contract</span>
           </button>
           <button type="button" class="amc-tab-btn amc-tab-danger" id="amcTabBtnDelete" onclick="switchAmcActionTab('delete')">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1398,8 +1433,17 @@
           </form>
         </div>
 
-        <!-- ── TAB 3: Renew / Edit Contract ── -->
+        <!-- ── TAB 3: Renew Contract ── -->
         <div class="amc-tab-content hidden" id="amcTabContentRenew">
+          <div class="amc-renew-notice">
+            <strong>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+              Renew This Contract
+            </strong>
+            <p>Starting a new contract term — with the same vendor or a new one. Update any details below; the old term is simply overwritten with the new one.</p>
+          </div>
           <form id="amcRenewForm" onsubmit="handleAmcContractRenewalSubmit(event)">
             <div class="amc-action-form-grid">
               <div class="amc-form-field">
@@ -1409,6 +1453,11 @@
               <div class="amc-form-field">
                 <label for="amcActionRenewContact">Contact Person &amp; Phone/Email</label>
                 <input type="text" id="amcActionRenewContact">
+              </div>
+              <div class="amc-form-field">
+                <label for="amcActionRenewCost">Contract Cost (₹)</label>
+                <input type="number" id="amcActionRenewCost" min="0" step="0.01" placeholder="e.g. 25000">
+                <span class="amc-field-hint">New contract value — update this if the renewal is with a different vendor or a revised rate.</span>
               </div>
               <div class="amc-form-field">
                 <label for="amcActionRenewFrequency">Service Frequency</label>
@@ -1439,7 +1488,7 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
-                Update &amp; Save Contract Details
+                Renew &amp; Save Contract
               </button>
             </div>
           </form>
@@ -1700,6 +1749,23 @@
 
         <div class="amc-report-head-actions">
           <span class="amc-report-updated-at" id="amcReportUpdatedAt"></span>
+          <button class="amc-report-head-btn btn-warm-history" type="button" onclick="openAmcHistoryIntelligenceCard()" title="Open Comprehensive AMC History Intelligence & Lifecycle Analysis Card">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M12 8v4l3 3"></path>
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M3.05 11a9 9 0 0 1 .5-2m16.9 0a9 9 0 0 1 .5 2"></path>
+            </svg>
+            History Card
+          </button>
+          <button class="amc-report-head-btn btn-warm-analysis" type="button" onclick="openAmcMonthlyAnalysis()" title="Open Month-Wise AMC Expenditure Analysis">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+              <line x1="2" y1="20" x2="22" y2="20"></line>
+            </svg>
+            Analysis
+          </button>
           <button class="amc-report-head-btn" type="button" onclick="refreshAmcReportData()" title="Refresh Data">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="23 4 23 10 17 10"></polyline>
@@ -1779,15 +1845,15 @@
             <h4 class="amc-rpt-kpi-val val-warning" id="amcRptBreakdownCount">0</h4>
           </div>
 
-          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('spend')" title="Click to view expenditure &amp; cost analysis by category and vendor" role="button" tabindex="0">
+          <div class="amc-rpt-kpi-card" onclick="openAmcKpiDrilldown('spend')" title="Click to view total contract value, servicing &amp; breakdown cost analysis" role="button" tabindex="0">
             <div class="amc-rpt-kpi-left">
               <div class="amc-rpt-kpi-icon icon-cost">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
               </div>
               <div class="amc-rpt-kpi-info">
-                <span class="amc-rpt-kpi-label">Total Repair / Spend</span>
-                <span class="amc-rpt-kpi-sub" id="amcRptExpiredContractsSub">0 Contracts Expired</span>
-                <span class="amc-rpt-kpi-hint hint-cost">View Spend Analysis &rarr;</span>
+                <span class="amc-rpt-kpi-label">Total AMC Cost (Current + Past Terms + Maint)</span>
+                <span class="amc-rpt-kpi-sub" id="amcRptExpiredContractsSub">Current ₹0 | Past ₹0 | Svc ₹0 | Repair ₹0</span>
+                <span class="amc-rpt-kpi-hint hint-cost">View Full A-to-Z Cost Analysis &rarr;</span>
               </div>
             </div>
             <h4 class="amc-rpt-kpi-val" id="amcRptTotalCost">₹0</h4>
@@ -1948,6 +2014,12 @@
       </div>
 
       <div class="amc-drill-toolbar">
+        <div class="amc-drill-view-select-wrap">
+          <label for="amcDrillViewSelect">View Table:</label>
+          <select id="amcDrillViewSelect" onchange="changeAmcDrilldownView(this.value)">
+            <!-- Options dynamically populated by JS -->
+          </select>
+        </div>
         <div class="amc-drill-search-box">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="amcDrillSearchInput" placeholder="Filter this breakdown table..." oninput="filterAmcDrilldownTable()">
@@ -1957,6 +2029,331 @@
 
       <div class="amc-drill-body" id="amcDrillBodyContainer">
         <!-- Dynamic Drilldown Pivot / List Table -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC History Intelligence & Lifecycle Analysis Modal (Warm Sharp Card) ─── -->
+  <div id="amcHistoryAnalysisModal" class="amc-history-card-modal hidden" onclick="if(event.target===this)closeAmcHistoryAnalysisCard()">
+    <div class="amc-history-card-box">
+      <!-- Sharp Warm Head -->
+      <div class="amc-history-card-head">
+        <div class="amc-hist-title-block">
+          <div class="amc-hist-icon-box">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M12 8v4l3 3"></path>
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M3.05 11a9 9 0 0 1 .5-2m16.9 0a9 9 0 0 1 .5 2"></path>
+            </svg>
+          </div>
+          <div>
+            <h3>AMC Comprehensive History &amp; Lifecycle Intelligence</h3>
+            <p>Category-wise, Unit-wise &amp; Vendor-wise archived renewals, service logs &amp; financial tracking</p>
+          </div>
+        </div>
+
+        <div class="amc-hist-head-actions">
+          <span class="amc-hist-updated-at" id="amcHistUpdatedAt"></span>
+          <button class="amc-hist-head-btn btn-hist-refresh" type="button" onclick="refreshAmcHistoryData()" title="Refresh History Data">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+          <button class="amc-hist-head-btn btn-hist-excel" type="button" onclick="exportAmcHistoryCardExcel()" title="Export History Analysis to Excel (.xlsx)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="16" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Export Excel
+          </button>
+          <button class="amc-hist-head-btn btn-hist-print" type="button" onclick="printAmcHistoryCard()" title="Print History Report">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print Card
+          </button>
+          <button class="amc-hist-close-btn" type="button" onclick="closeAmcHistoryAnalysisCard()" title="Close History Card">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sharp Warm Filters Bar -->
+      <div class="amc-hist-filters-bar">
+        <div class="amc-hist-filter-item">
+          <label for="amcHistFilterUnit">Facility / Unit</label>
+          <select id="amcHistFilterUnit" onchange="applyAmcHistFilters()">
+            <option value="">All Units</option>
+          </select>
+        </div>
+        <div class="amc-hist-filter-item">
+          <label for="amcHistFilterCategory">AMC Category</label>
+          <select id="amcHistFilterCategory" onchange="applyAmcHistFilters()">
+            <option value="">All Categories</option>
+            <option value="Generator">Generator</option>
+            <option value="Fire">Fire</option>
+            <option value="Lift">Lift</option>
+            <option value="Air Condition">Air Condition</option>
+            <option value="Water Filter">Water Filter</option>
+            <option value="CCTV Camera">CCTV Camera</option>
+            <option value="Sound System & intercom">Sound System &amp; intercom</option>
+            <option value="Solar Panel Maintenance">Solar Panel Maintenance</option>
+          </select>
+        </div>
+        <div class="amc-hist-filter-item">
+          <label for="amcHistFilterVendor">Vendor (Current &amp; Past)</label>
+          <select id="amcHistFilterVendor" onchange="applyAmcHistFilters()">
+            <option value="">All Vendors</option>
+          </select>
+        </div>
+        <div class="amc-hist-filter-search">
+          <label for="amcHistSearchInput">Search History</label>
+          <input type="text" id="amcHistSearchInput" placeholder="Filter remarks, technician, parts, ID, vendor..." oninput="applyAmcHistFilters()">
+        </div>
+        <button type="button" class="amc-hist-reset-btn" onclick="resetAmcHistFilters()">Reset Filters</button>
+      </div>
+
+      <div class="amc-history-card-body">
+        <!-- Top Warm Metric Strips (Interactive Invoice View) -->
+        <div class="amc-hist-kpi-grid">
+          <div class="amc-hist-kpi-tile tile-amber" role="button" tabindex="0" onclick="openAmcHistKpiInvoice('terms')" title="Click to view detailed Contract Terms Statement &amp; download PDF">
+            <div class="amc-hist-kpi-head">
+              <span class="amc-hist-kpi-tag">CONTRACT TERMS</span>
+              <span class="amc-hist-kpi-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </span>
+            </div>
+            <div class="amc-hist-kpi-val" id="amcHistKpiTotalTerms">0</div>
+            <div class="amc-hist-kpi-sub" id="amcHistKpiTermsSub">0 Active | 0 Archived Past Terms</div>
+            <div class="amc-hist-kpi-foot" id="amcHistKpiTermsVal">₹0 Total Term Value</div>
+            <div class="amc-hist-kpi-click-hint"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View Statement Voucher &rarr;</div>
+          </div>
+
+          <div class="amc-hist-kpi-tile tile-terracotta" role="button" tabindex="0" onclick="openAmcHistKpiInvoice('categories')" title="Click to view detailed Categories Statement Voucher">
+            <div class="amc-hist-kpi-head">
+              <span class="amc-hist-kpi-tag">CATEGORIES</span>
+              <span class="amc-hist-kpi-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              </span>
+            </div>
+            <div class="amc-hist-kpi-val" id="amcHistKpiTotalCats">0</div>
+            <div class="amc-hist-kpi-sub" id="amcHistKpiCatsSub">Active Across Categories</div>
+            <div class="amc-hist-kpi-foot" id="amcHistKpiTopCat">Top Category: —</div>
+            <div class="amc-hist-kpi-click-hint"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View Statement Voucher &rarr;</div>
+          </div>
+
+          <div class="amc-hist-kpi-tile tile-cinnamon" role="button" tabindex="0" onclick="openAmcHistKpiInvoice('units')" title="Click to view detailed Units &amp; Facilities Statement Voucher">
+            <div class="amc-hist-kpi-head">
+              <span class="amc-hist-kpi-tag">UNITS &amp; FACILITIES</span>
+              <span class="amc-hist-kpi-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M2 20h20M5 20V8l7 4V4l7 4v12"/></svg>
+              </span>
+            </div>
+            <div class="amc-hist-kpi-val" id="amcHistKpiTotalUnits">0</div>
+            <div class="amc-hist-kpi-sub" id="amcHistKpiUnitsSub">0 Total Equipment Assets</div>
+            <div class="amc-hist-kpi-foot" id="amcHistKpiUnitsCost">₹0 Unit Lifetime AMC Spend</div>
+            <div class="amc-hist-kpi-click-hint"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View Statement Voucher &rarr;</div>
+          </div>
+
+          <div class="amc-hist-kpi-tile tile-bronze" role="button" tabindex="0" onclick="openAmcHistKpiInvoice('vendors')" title="Click to view detailed Vendor Heritage Statement Voucher">
+            <div class="amc-hist-kpi-head">
+              <span class="amc-hist-kpi-tag">VENDOR HERITAGE</span>
+              <span class="amc-hist-kpi-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="22" x2="9" y2="18"/><line x1="15" y1="22" x2="15" y2="18"/><line x1="8" y1="6" x2="10" y2="6"/><line x1="14" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/></svg>
+              </span>
+            </div>
+            <div class="amc-hist-kpi-val" id="amcHistKpiTotalVendors">0</div>
+            <div class="amc-hist-kpi-sub" id="amcHistKpiVendorsSub">0 Live Partners | 0 Past Replaced</div>
+            <div class="amc-hist-kpi-foot" id="amcHistKpiVendorRenewals">0 Renewal Transitions</div>
+            <div class="amc-hist-kpi-click-hint"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View Statement Voucher &rarr;</div>
+          </div>
+
+          <div class="amc-hist-kpi-tile tile-espresso" role="button" tabindex="0" onclick="openAmcHistKpiInvoice('repairs')" title="Click to view detailed Maintenance &amp; Repairs Statement Voucher">
+            <div class="amc-hist-kpi-head">
+              <span class="amc-hist-kpi-tag">MAINTENANCE &amp; REPAIRS</span>
+              <span class="amc-hist-kpi-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9L4.3 20.7a1 1 0 0 1-1.4-1.4L10.2 12A6 6 0 0 1 14.7 6.3z"/></svg>
+              </span>
+            </div>
+            <div class="amc-hist-kpi-val" id="amcHistKpiTotalVisits">0</div>
+            <div class="amc-hist-kpi-sub" id="amcHistKpiVisitsSub">0 Routine | 0 Breakdowns</div>
+            <div class="amc-hist-kpi-foot" id="amcHistKpiGrandSpend">₹0 Grand Total Historic Spend</div>
+            <div class="amc-hist-kpi-click-hint"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View Statement Voucher &rarr;</div>
+          </div>
+        </div>
+
+        <!-- Sharp Warm Tabs -->
+        <div class="amc-hist-tabs-bar">
+          <button class="amc-hist-tab-btn active" id="amcHistTabBtnCategory" type="button" onclick="switchAmcHistTab('category')">
+            <span class="hist-tab-num">1</span> Category-Wise History Analysis
+          </button>
+          <button class="amc-hist-tab-btn" id="amcHistTabBtnUnit" type="button" onclick="switchAmcHistTab('unit')">
+            <span class="hist-tab-num">2</span> Unit-Wise History Analysis
+          </button>
+          <button class="amc-hist-tab-btn" id="amcHistTabBtnVendor" type="button" onclick="switchAmcHistTab('vendor')">
+            <span class="hist-tab-num">3</span> Vendor-Wise History Analysis
+          </button>
+          <button class="amc-hist-tab-btn" id="amcHistTabBtnTimeline" type="button" onclick="switchAmcHistTab('timeline')">
+            <span class="hist-tab-num">4</span> Complete History Log &amp; Master Timeline
+          </button>
+        </div>
+
+        <!-- TAB 1: Category-Wise History -->
+        <div class="amc-hist-tab-content" id="amcHistTabContentCategory">
+          <div class="amc-hist-cards-grid" id="amcHistCategoryCardsGrid"></div>
+          <div class="amc-hist-table-wrap" id="amcHistCategoryTableContainer"></div>
+        </div>
+
+        <!-- TAB 2: Unit-Wise History -->
+        <div class="amc-hist-tab-content hidden" id="amcHistTabContentUnit">
+          <div class="amc-hist-cards-grid" id="amcHistUnitCardsGrid"></div>
+          <div class="amc-hist-table-wrap" id="amcHistUnitTableContainer"></div>
+        </div>
+
+        <!-- TAB 3: Vendor-Wise History -->
+        <div class="amc-hist-tab-content hidden" id="amcHistTabContentVendor">
+          <div class="amc-hist-cards-grid" id="amcHistVendorCardsGrid"></div>
+          <div class="amc-hist-table-wrap" id="amcHistVendorTableContainer"></div>
+        </div>
+
+        <!-- TAB 4: Master Timeline & Every History Log -->
+        <div class="amc-hist-tab-content hidden" id="amcHistTabContentTimeline">
+          <div class="amc-hist-timeline-controls">
+            <div class="amc-hist-subview-btns">
+              <button type="button" class="amc-hist-sub-btn active" id="amcHistSubBtnStream" onclick="switchAmcHistTimelineView('stream')">Chronological Timeline Stream</button>
+              <button type="button" class="amc-hist-sub-btn" id="amcHistSubBtnTerms" onclick="switchAmcHistTimelineView('terms')">All Archived Contract Terms Table</button>
+              <button type="button" class="amc-hist-sub-btn" id="amcHistSubBtnLogs" onclick="switchAmcHistTimelineView('logs')">All Service &amp; Breakdown Logs Table</button>
+            </div>
+            <div class="amc-hist-timeline-count" id="amcHistTimelineCount">Showing all history events</div>
+          </div>
+          <div class="amc-hist-timeline-wrap" id="amcHistTimelineContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AMC KPI Invoice & Official Statement Details Modal (Sharp Formal Warm Invoice) ─── -->
+  <div id="amcHistKpiInvoiceModal" class="amc-hist-invoice-modal hidden" onclick="if(event.target===this)closeAmcHistKpiInvoice()">
+    <div class="amc-hist-invoice-box">
+      <!-- Invoice Head Actions -->
+      <div class="amc-invoice-top-actions">
+        <div class="amc-invoice-tag-badge">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          OFFICIAL AUDIT STATEMENT &amp; EVALUATION INVOICE
+        </div>
+        <div class="amc-invoice-actions-right">
+          <button type="button" class="amc-invoice-btn btn-inv-print" onclick="printAmcHistInvoice()" title="Print Voucher Statement">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Voucher
+          </button>
+          <button type="button" class="amc-invoice-close-btn" onclick="closeAmcHistKpiInvoice()" title="Close Statement">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Invoice Document Content -->
+      <div class="amc-invoice-sheet" id="amcHistInvoiceSheet">
+        <!-- Sheet Header -->
+        <div class="amc-inv-sheet-header">
+          <div class="amc-inv-org-block">
+            <div class="amc-inv-logo-box">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+            </div>
+            <div>
+              <h2 class="amc-inv-org-title">TRIO GROUP</h2>
+              <div class="amc-inv-org-sub">FIRE SAFETY &amp; ENGINEERING ASSET MAINTENANCE MANAGEMENT</div>
+              <div class="amc-inv-org-loc">Compliance &amp; Preventive Maintenance Auditing Directorate</div>
+            </div>
+          </div>
+          <div class="amc-inv-ref-block">
+            <div class="amc-inv-badge-stamp" id="amcInvStamp">AUDITED EVALUATION</div>
+            <div class="amc-inv-ref-row"><strong>DOC REF:</strong> <span id="amcInvDocRef">AMC-HIST-INV-2026</span></div>
+            <div class="amc-inv-ref-row"><strong>DATE:</strong> <span id="amcInvDate">28-08-2026</span></div>
+            <div class="amc-inv-ref-row"><strong>SCOPE:</strong> <span id="amcInvScope">Master Assessment</span></div>
+          </div>
+        </div>
+
+        <!-- Invoice Title Banner -->
+        <div class="amc-inv-title-banner">
+          <div>
+            <h3 class="amc-inv-heading" id="amcInvHeading">KPI INTELLIGENCE AUDIT STATEMENT</h3>
+            <p class="amc-inv-subheading" id="amcInvSubheading">Detailed financial breakdown and evaluation of all contributing items</p>
+          </div>
+          <div class="amc-inv-total-pill">
+            <span class="inv-pill-label">TOTAL EVALUATED VALUATION</span>
+            <span class="inv-pill-value" id="amcInvTotalVal">₹0</span>
+          </div>
+        </div>
+
+        <!-- Meta Summary Chips -->
+        <div class="amc-inv-meta-grid" id="amcInvMetaGrid">
+          <!-- Dynamic meta chips -->
+        </div>
+
+        <!-- Line Item Statement Table -->
+        <div class="amc-inv-table-wrap">
+          <table class="amc-inv-table" id="amcInvTable">
+            <thead id="amcInvTableHead">
+              <!-- Dynamic Head -->
+            </thead>
+            <tbody id="amcInvTableBody">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Invoice Calculation Footer Breakdown -->
+        <div class="amc-inv-calc-summary">
+          <div class="amc-inv-calc-notes">
+            <strong>Audit &amp; Apportionment Policy Note:</strong>
+            <p id="amcInvCalcNotes">Multi-unit contracts are apportioned equally across assigned facilities. All scheduled routines and emergency repairs reflect verified technician job logs.</p>
+          </div>
+          <div class="amc-inv-calc-totals">
+            <div class="amc-inv-tot-row">
+              <span>Contract Base Terms Subtotal:</span>
+              <strong id="amcInvSubtotalTerms">₹0</strong>
+            </div>
+            <div class="amc-inv-tot-row">
+              <span>Routine Scheduled Servicing:</span>
+              <strong id="amcInvSubtotalRoutine">₹0</strong>
+            </div>
+            <div class="amc-inv-tot-row">
+              <span>Breakdown &amp; Emergency Repairs:</span>
+              <strong id="amcInvSubtotalBreakdown">₹0</strong>
+            </div>
+            <div class="amc-inv-tot-row grand-total">
+              <span>GRAND TOTAL AUDITED LIFECYCLE:</span>
+              <strong id="amcInvGrandTotal">₹0</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Authorization Signatures & Official Stamp -->
+        <div class="amc-inv-sign-row">
+          <div class="amc-inv-sign-col">
+            <div class="amc-inv-sign-line"></div>
+            <span class="amc-inv-sign-label">Prepared By: Safety Officer</span>
+          </div>
+          <div class="amc-inv-sign-col">
+            <div class="amc-inv-sign-line"></div>
+            <span class="amc-inv-sign-label">Verified By: Engineering Lead</span>
+          </div>
+          <div class="amc-inv-sign-col">
+            <div class="amc-inv-sign-line"></div>
+            <span class="amc-inv-sign-label">Authorized By: General Manager</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2650,7 +3047,7 @@
         <span class="amc-kpi-print-sub" id="amcKpiPrintScheduled">0 Scheduled Visits</span>
       </div>
       <div class="amc-kpi-print-card">
-        <span class="amc-kpi-print-label">Total Repair / Spend</span>
+        <span class="amc-kpi-print-label">Total AMC Cost</span>
         <span class="amc-kpi-print-value" id="amcKpiPrintCost">₹0</span>
         <span class="amc-kpi-print-sub" id="amcKpiPrintExpired">0 Contracts Expired</span>
       </div>
@@ -2669,6 +3066,7 @@
             <th>Vendor</th>
             <th>Start Date</th>
             <th>Expiry Date</th>
+            <th>Contract Cost</th>
             <th>Frequency</th>
             <th>Last Service</th>
             <th>Next Due</th>
@@ -2716,10 +3114,109 @@
         <tbody id="amcPrintBreakdownBody"></tbody>
       </table>
     </div>
+
+    <div class="amc-kpi-print-section amc-kpi-print-break">
+      <h2>Contract Renewal History (Past Vendors &amp; Terms)</h2>
+      <table class="amc-kpi-print-table">
+        <thead>
+          <tr>
+            <th>Record ID</th>
+            <th>Unit</th>
+            <th>Floor</th>
+            <th>Vendor (Past Term)</th>
+            <th>Start Date</th>
+            <th>Expiry Date</th>
+            <th>Contract Cost</th>
+            <th>Renewed To</th>
+          </tr>
+        </thead>
+        <tbody id="amcPrintHistoryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── AMC Month-Wise Expenditure Analysis Modal (Green Theme) ─── -->
+  <div id="amcMonthlyAnalysisModal" class="amc-monthly-modal hidden" onclick="if(event.target===this)closeAmcMonthlyAnalysis()">
+    <div class="amc-monthly-box">
+
+      <!-- Header -->
+      <div class="amc-monthly-header">
+        <div class="amc-monthly-title-block">
+          <div class="amc-monthly-icon-box">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <rect x="3" y="4" width="18" height="18" rx="0" ry="0"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <h3>Month-Wise AMC Expenditure Analysis</h3>
+            <p>Monthly breakdown of contracts started, services performed &amp; total expenditure</p>
+          </div>
+        </div>
+        <div class="amc-monthly-actions">
+          <div class="amc-monthly-year-filter">
+            <label for="amcMonthlyYearSelect">Year:</label>
+            <select id="amcMonthlyYearSelect" onchange="renderAmcMonthlyAnalysis()"></select>
+          </div>
+          <button type="button" class="amc-monthly-close-btn" onclick="closeAmcMonthlyAnalysis()" title="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Strip -->
+      <div class="amc-monthly-kpi-strip" id="amcMonthlyKpiStrip">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Charts + Table layout -->
+      <div class="amc-monthly-content">
+
+        <!-- Left: Pie Chart -->
+        <div class="amc-monthly-chart-panel">
+          <div class="amc-monthly-chart-title">
+            <span class="amc-monthly-chart-title-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span>
+            Category-wise Spend Distribution
+          </div>
+          <canvas id="amcMonthlyPieChart" width="300" height="300"></canvas>
+          <div class="amc-monthly-pie-legend" id="amcMonthlyPieLegend"></div>
+        </div>
+
+        <!-- Right: Bar Chart (Month-wise) -->
+        <div class="amc-monthly-bar-panel">
+          <div class="amc-monthly-chart-title">
+            <span class="amc-monthly-chart-title-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>
+            Month-wise Total Expenditure
+          </div>
+          <canvas id="amcMonthlyBarChart" width="560" height="280"></canvas>
+        </div>
+
+      </div>
+
+      <!-- Month-wise Data Table -->
+      <div class="amc-monthly-table-section">
+        <div class="amc-monthly-table-title">
+          <span class="amc-monthly-chart-title-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          Detailed Monthly Breakdown
+        </div>
+        <div class="amc-monthly-table-wrap">
+          <table class="amc-monthly-table">
+            <thead>
+              <tr id="amcMonthlyTableHead"></tr>
+            </thead>
+            <tbody id="amcMonthlyTableBody"></tbody>
+            <tfoot>
+              <tr id="amcMonthlyTableFoot"></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="main.js" defer></script>
 
