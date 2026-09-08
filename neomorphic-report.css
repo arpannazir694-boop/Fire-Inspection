@@ -130,9 +130,17 @@
 }
 
 @keyframes rpt-live-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(78, 230, 168, 0.65); }
-  70%  { box-shadow: 0 0 0 7px rgba(78, 230, 168, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(78, 230, 168, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(78, 230, 168, 0.65);
+  }
+
+  70% {
+    box-shadow: 0 0 0 7px rgba(78, 230, 168, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(78, 230, 168, 0);
+  }
 }
 
 .rpt-updated-at {
@@ -187,11 +195,15 @@
 }
 
 @keyframes rpt-refresh-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 760px) {
-  .rpt-updated-at { display: none; }
+  .rpt-updated-at {
+    display: none;
+  }
 }
 
 .rpt-filters {
@@ -285,7 +297,9 @@
 
 .rpt-kpi::before {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 5px;
   content: "";
 }
@@ -299,22 +313,34 @@
 .rpt-kpi-total {
   background: var(--report-tint-blue);
 }
-.rpt-kpi-total::before { background: #4e63d2; }
+
+.rpt-kpi-total::before {
+  background: #4e63d2;
+}
 
 .rpt-kpi-pending {
   background: var(--report-tint-amber);
 }
-.rpt-kpi-pending::before { background: #e2a126; }
+
+.rpt-kpi-pending::before {
+  background: #e2a126;
+}
 
 .rpt-kpi-complete {
   background: var(--report-tint-green);
 }
-.rpt-kpi-complete::before { background: #159876; }
+
+.rpt-kpi-complete::before {
+  background: #159876;
+}
 
 .rpt-kpi-elapsed {
   background: var(--report-tint-purple);
 }
-.rpt-kpi-elapsed::before { background: #905be0; }
+
+.rpt-kpi-elapsed::before {
+  background: #905be0;
+}
 
 .rpt-kpi-icon {
   width: 45px;
@@ -350,10 +376,21 @@
   line-height: 1;
 }
 
-.rpt-kpi-total .rpt-kpi-val   { color: #33449c; }
-.rpt-kpi-pending .rpt-kpi-val { color: #a5670a; }
-.rpt-kpi-complete .rpt-kpi-val{ color: #0a7a5c; }
-.rpt-kpi-elapsed .rpt-kpi-val { color: #6c37b5; }
+.rpt-kpi-total .rpt-kpi-val {
+  color: #33449c;
+}
+
+.rpt-kpi-pending .rpt-kpi-val {
+  color: #a5670a;
+}
+
+.rpt-kpi-complete .rpt-kpi-val {
+  color: #0a7a5c;
+}
+
+.rpt-kpi-elapsed .rpt-kpi-val {
+  color: #6c37b5;
+}
 
 .rpt-kpi-lbl {
   margin-top: 7px;
@@ -582,6 +619,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .rpt-kpi,
   .rpt-apply-btn,
   .rpt-reset-btn,
@@ -922,6 +960,7 @@
 }
 
 @media (max-width: 760px) {
+
   .pdf-updated-at,
   .pdf-live-text {
     display: none;
@@ -933,6 +972,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pdf-filter-btn,
   .pdf-download,
   .pdf-delete,
