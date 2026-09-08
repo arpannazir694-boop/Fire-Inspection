@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sign In — FACILIX</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dnrgcigsj/image/upload/v1787810920/ChatGPT_Image_Aug_27_2026_11_38_13_AM_bovvef.png">
+  
+  <!-- Fonts: Plus Jakarta Sans & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+
+  <!-- Ambient Animated Glowing Aurora Mesh Elements -->
+  <div class="ambient-glow-orb orb-1" aria-hidden="true"></div>
+  <div class="ambient-glow-orb orb-2" aria-hidden="true"></div>
+  <div class="ambient-glow-orb orb-3" aria-hidden="true"></div>
+  <div class="interactive-spotlight" id="mouseGlow" aria-hidden="true"></div>
+  <div class="tech-grid-overlay" aria-hidden="true"></div>
+
+  <main class="login-page-container">
+    <div class="login-split-layout">
+      
+      <!-- ─── LEFT COLUMN: Brand Showcase & Live Telemetry ─── -->
+      <section class="brand-hero-col">
+        
+        <!-- Executive FACILIX Brand Badge -->
+        <div class="brand-trio-lockup">
+          <div class="fire-flame-wrapper">
+            <svg class="fire-flame-svg" viewBox="0 0 24 24" width="22" height="22" fill="none">
+              <path d="M12 2C10.5 5 7.5 7.5 5.5 11C3.5 14.5 4.5 18.5 7.5 21C9 22.2 10.5 22.5 12 22.5C13.5 22.5 15 22.2 16.5 21C19.5 18.5 20.5 14.5 18.5 11C16.5 7.5 13.5 5 12 2Z" fill="url(#fireMasterGlow)"/>
+              <path d="M12 11C11 13 9.5 14.5 9 16C8.5 17.5 9.2 19.5 10.5 20.5C11 21 11.5 21.2 12 21.2C12.5 21.2 13 21 13.5 20.5C14.8 19.5 15.5 17.5 15 16C14.5 14.5 13 13 12 11Z" fill="#fff7ed"/>
+              <defs>
+                <linearGradient id="fireMasterGlow" x1="12" y1="2" x2="12" y2="22.5" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#fed7aa"/>
+                  <stop offset="30%" stop-color="#fb923c"/>
+                  <stop offset="70%" stop-color="#ea580c"/>
+                  <stop offset="100%" stop-color="#dc2626"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="brand-trio-content">
+            <span class="brand-trio-title">FACILIX</span>
+            <span class="brand-trio-divider"></span>
+            <span class="brand-trio-sub">TRIO GROUP</span>
+          </div>
+          <div class="brand-live-pill">
+            <span class="live-pulse-dot"></span>
+            <span>Cloud Sync</span>
+          </div>
+        </div>
+
+        <h1 class="hero-main-title">
+          Next-Generation<br>
+          <span class="hero-gradient-text">Facility &amp; Safety</span><br>
+          Operations
+        </h1>
+        
+        <p class="hero-main-desc">
+          Unified equipment audits, predictive AMC lifecycle intelligence, and real-time compliance tracking engineered for zero-incident industrial facilities.
+        </p>
+
+        <!-- ── 3 Core Intelligence Pillars: Smart Analysis, Advanced Level Report, Strong Accuracy ── -->
+        <div class="telemetry-cards-grid">
+          <div class="telemetry-card feature-card-analysis">
+            <div class="telemetry-icon-box orange">
+              <!-- AI Neural / Smart Analysis Icon -->
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </div>
+            <div class="telemetry-content">
+              <div class="telemetry-val">Smart Analysis</div>
+              <div class="telemetry-lbl">Risk &amp; AMC AI Detection</div>
+            </div>
+            <span class="feature-chip chip-orange">Active</span>
+          </div>
+
+          <div class="telemetry-card feature-card-report">
+            <div class="telemetry-icon-box blue">
+              <!-- Advanced Level Report Icon -->
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div class="telemetry-content">
+              <div class="telemetry-val">Advanced Report</div>
+              <div class="telemetry-lbl">Instant PDF &amp; Statements</div>
+            </div>
+            <span class="feature-chip chip-blue">Multi-Tier</span>
+          </div>
+
+          <div class="telemetry-card feature-card-accuracy">
+            <div class="telemetry-icon-box emerald">
+              <!-- Precision Crosshair / Accuracy Icon -->
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="22" y1="12" x2="18" y2="12"/>
+                <line x1="6" y1="12" x2="2" y2="12"/>
+                <line x1="12" y1="6" x2="12" y2="2"/>
+                <line x1="12" y1="22" x2="12" y2="18"/>
+                <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="telemetry-content">
+              <div class="telemetry-val">Strong Accuracy</div>
+              <div class="telemetry-lbl" id="pillarAccuracyLbl">Live Precision Verified</div>
+            </div>
+            <span class="feature-chip chip-emerald" id="pillarAccuracyChip">Live</span>
+          </div>
+        </div>
+
+        <!-- ── SURPRISE LIVE COMPONENT: Real-Time Telemetry Radar & Live Stream ── -->
+        <div class="live-console-card">
+          
+          <div class="live-console-header">
+            <div class="live-console-status">
+              <span class="live-radar-ping">
+                <span class="radar-circle"></span>
+                <span class="radar-dot"></span>
+              </span>
+              <span class="live-status-title">FACILIX LIVE TELEMETRY STREAM</span>
+            </div>
+            <div class="live-status-timestamp">
+              <span class="live-sync-indicator"></span>
+              <span id="liveConsoleTime">LIVE FEED</span>
+            </div>
+          </div>
+
+          <!-- Live Event Feed Carousel -->
+          <div class="live-stream-box">
+            <div class="live-event-pill" id="liveEventPill">
+              <div class="live-event-icon-wrap" id="liveEventIconWrap">
+                <svg id="liveEventIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 14 14"/>
+                </svg>
+              </div>
+              <div class="live-event-details">
+                <div class="live-event-headline" id="liveEventTitle">Connecting FACILIX Live Stream...</div>
+                <div class="live-event-meta" id="liveEventMeta">Syncing real-time records from cloud database</div>
+              </div>
+              <span class="live-event-badge badge-blue" id="liveEventBadge">SYNCING</span>
+            </div>
+          </div>
+
+          <!-- Live Metrics Matrix Bar -->
+          <div class="live-metrics-bar">
+            <div class="live-metric-col">
+              <div class="live-metric-val green">
+                <span id="liveAccuracyVal">--</span>%
+              </div>
+              <span class="live-metric-txt">Audit Accuracy</span>
+            </div>
+            <div class="live-metric-sep"></div>
+            <div class="live-metric-col">
+              <div class="live-metric-val orange" id="liveRiskVal">--</div>
+              <span class="live-metric-txt">Risk Variance</span>
+            </div>
+            <div class="live-metric-sep"></div>
+            <div class="live-metric-col">
+              <div class="live-metric-val blue" id="liveVerticalsVal">--</div>
+              <span class="live-metric-txt">Synchronized</span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ─── RIGHT COLUMN: High-End Glassmorphic Sign in Form ─── -->
+      <section class="form-hero-col">
+        <div class="form-box" id="loginCard">
+          
+          <!-- Card Decorative Top Glow Line -->
+          <div class="card-glow-bar" aria-hidden="true"></div>
+
+          <!-- Card Header -->
+          <div class="form-header-lockup">
+            <div class="form-header-badge">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="form-header-text">
+              <h2 class="form-title">Sign In</h2>
+              <p class="form-subtitle">Enter authorized credentials to access FACILIX</p>
+            </div>
+          </div>
+
+          <!-- Alert Banner -->
+          <div id="authAlert" class="auth-alert" role="alert">
+            <span id="authAlertIcon"></span>
+            <span id="authAlertText"></span>
+          </div>
+
+          <form id="loginForm" class="signin-form" autocomplete="on" novalidate>
+            
+            <!-- Username Input -->
+            <div class="form-group">
+              <label for="usernameInput" class="form-label">Username</label>
+              <div class="input-container">
+                <span class="input-leading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </span>
+                <input 
+                  type="text" 
+                  id="usernameInput" 
+                  name="username" 
+                  class="form-input" 
+                  placeholder="e.g. Arpan Nazir"
+                  required 
+                  autocomplete="username"
+                  autofocus
+                >
+              </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="form-group">
+              <div class="label-row">
+                <label for="passwordInput" class="form-label">Password</label>
+                <a href="javascript:void(0)" id="helpLink" class="lost-pwd-link">Lost password?</a>
+              </div>
+              <div class="input-container">
+                <span class="input-leading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input 
+                  type="password" 
+                  id="passwordInput" 
+                  name="password" 
+                  class="form-input" 
+                  placeholder="••••••••••••••••"
+                  required 
+                  autocomplete="current-password"
+                >
+                <button 
+                  type="button" 
+                  id="togglePwdBtn" 
+                  class="pwd-toggle-btn" 
+                  title="Show password" 
+                  aria-label="Toggle password visibility"
+                >
+                  <svg id="eyeIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Remember Me -->
+            <div class="remember-row">
+              <label class="custom-checkbox-wrap">
+                <input type="checkbox" id="rememberMe" class="native-checkbox">
+                <span class="box-checkbox">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="checkbox-text">Keep session active on this workstation</span>
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn" class="btn-signin-now">
+              <span class="btn-spinner"></span>
+              <span class="btn-content">
+                <span class="btn-text">Sign In to Portal</span>
+                <svg class="btn-arrow" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </span>
+            </button>
+
+          </form>
+
+          <!-- Card Bottom Note -->
+          <div class="card-footer-info">
+            <span class="footer-dot"></span>
+            <span>Trio Group Enterprise Facilities &bull; Authorized Access</span>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Lost Password Admin Notice Modal -->
+  <div id="helpModal" class="help-modal" aria-hidden="true" role="dialog" aria-labelledby="helpTitle">
+    <div class="help-box">
+      <div class="help-icon-wrap">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <path d="M12 8v4"></path>
+          <path d="M12 16h.01"></path>
+        </svg>
+      </div>
+      <h3 id="helpTitle" class="help-title">Lost Your Password?</h3>
+      <p class="help-text">
+        For enterprise safety compliance, password credentials are managed directly by your <strong>FACILIX System Administrator</strong>. Please contact the Operations Directorate to request a password reset.
+      </p>
+      <button type="button" id="closeHelpBtn" class="help-btn-close">Understood</button>
+    </div>
+  </div>
+
+  <!-- Dedicated Login Script -->
+  <script src="login.js"></script>
+</body>
+</html>
