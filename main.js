@@ -926,6 +926,42 @@ if (amcBtn) {
   amcBtn.addEventListener('click', openAmcModal);
 }
 
+const amcReportBtn = document.getElementById('amcReportBtn');
+if (amcReportBtn) {
+  amcReportBtn.addEventListener('click', openAmcReportModal);
+}
+
+// Reminder Mail menu button
+const reminderMailMenuBtn = document.getElementById('reminderMailMenuBtn');
+if (reminderMailMenuBtn) {
+  reminderMailMenuBtn.addEventListener('click', openReminderMailModal);
+}
+
+// Auto Mail menu button
+const autoMailMenuBtn = document.getElementById('autoMailMenuBtn');
+if (autoMailMenuBtn) {
+  autoMailMenuBtn.addEventListener('click', openAutoMailFeedModal);
+}
+
+// Also close header panel when reminder mail / auto mail button is clicked from inside panel
+const initPanelCloseFix = () => {
+  const panel = document.getElementById('headerMorePanel');
+  const closePanel = () => {
+    panel?.classList.remove('open');
+    document.getElementById('headerMoreOverlay')?.classList.remove('visible');
+    panel?.setAttribute('aria-hidden', 'true');
+    document.getElementById('moreBtn')?.setAttribute('aria-expanded', 'false');
+    document.getElementById('moreBtn')?.classList.remove('active');
+  };
+  ['reminderMailMenuBtn', 'autoMailMenuBtn', 'amcReportBtn', 'stockMenuBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && panel) el.addEventListener('click', closePanel);
+  });
+};
+initPanelCloseFix();
+
+
+
 // Live-suggest the "Next Due Date" as soon as Last Service Date /
 // Frequency are filled in, mirroring the same auto-calculation the
 // backend does on save (amcDeriveNextDueDate in Code.gs) — so the user
@@ -2603,8 +2639,8 @@ async function openMailCompose() {
                   </table>
                 </td>
                 <td style="vertical-align:middle;padding-left:14px;text-align:left;">
-                  <div style="color:#ffffff;font-size:17px;font-weight:600;letter-spacing:.1px;">Fire Safety Audit Observation</div>
-                  <div style="color:#deecfb;font-size:11.5px;font-weight:400;letter-spacing:.3px;margin-top:3px;">Trio Group &middot; Fire Audit System</div>
+                  <div style="color:#ffffff;font-size:17px;font-weight:600;letter-spacing:.1px;">FACILIX &mdash; Fire Safety Observation</div>
+                  <div style="color:#deecfb;font-size:11.5px;font-weight:400;letter-spacing:.3px;margin-top:3px;">FACILIX &middot; Trio Group</div>
                 </td>
               </tr>
             </table>
@@ -2650,7 +2686,7 @@ async function openMailCompose() {
 
                   <div style="border-top:1px solid #e1dfdd;padding-top:16px;font-size:12.5px;color:#605e5c;line-height:1.75;">
                     Thanks &amp; Regards,<br>
-                    <strong style="color:#0078D4;font-size:13px;">Fire Audit System</strong><br>
+                    <strong style="color:#0078D4;font-size:13px;">FACILIX</strong><br>
                     Trio Group
                   </div>
                 </td>
@@ -2679,7 +2715,7 @@ async function openMailCompose() {
       'Kindly take the necessary corrective action at the earliest.',
       '',
       'Thanks & Regards,',
-      'Fire Audit System',
+      'FACILIX',
       'Trio Group'
     ];
     currentMailData = {
@@ -2770,6 +2806,2190 @@ async function sendObservationMail() {
       sendBtn.innerHTML = originalLabel;
     }
   }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ─── REMINDER MAIL SYSTEM (EXECUTIVE DIGEST, CHIPS & DISPATCH) ─────────────
+// ═════════════════════════════════════════════════════════════════════════════
+
+let reminderMailToSelected = [];
+let reminderMailCcSelected = [];
+let reminderFilterState = {
+  expired: true,
+  expiring: true,
+  serviceOverdue: true,
+  serviceDue: true
+};
+
+// ── WhatsApp Instant Reminder Helpers ─────────────────────────────────────
+function cleanPhoneForWhatsApp(contactStr) {
+  if (!contactStr) return '';
+  const digits = String(contactStr).replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 10) return '91' + digits; // Default Indian mobile
+  return digits;
+}
+
+function sendAmcWhatsAppAlertById(recordId) {
+  const record = (typeof allAmcData !== 'undefined' ? allAmcData : []).find(r => r.id === recordId);
+  if (!record) {
+    showToast('Record not found.', true);
+    return;
+  }
+  sendAmcRecordWhatsAppAlertDirect(record);
+}
+
+function sendAmcRecordWhatsAppAlert() {
+  if (typeof amcActiveActionRecord !== 'undefined' && amcActiveActionRecord) {
+    sendAmcRecordWhatsAppAlertDirect(amcActiveActionRecord);
+  } else {
+    showToast('No active AMC record selected.', true);
+  }
+}
+
+function sendAmcReminderRecordWhatsAppAlert() {
+  const unitTitle = document.getElementById('amcrdUnitTitle')?.textContent || '';
+  const recId = document.getElementById('amcrdRecordId')?.textContent || '';
+  const record = (typeof allAmcData !== 'undefined' ? allAmcData : []).find(r => r.id === recId);
+  if (record) {
+    sendAmcRecordWhatsAppAlertDirect(record);
+  } else {
+    showToast('Record details not loaded.', true);
+  }
+}
+
+function sendAmcRecordWhatsAppAlertDirect(r) {
+  const phone = cleanPhoneForWhatsApp(r.contactInfo);
+  const cat = r.category || 'Equipment';
+  const unit = r.unit || 'Facility';
+  const floor = r.floor ? ` (${r.floor})` : '';
+  const vendor = r.vendorName ? `\n*Vendor / Agency:* ${r.vendorName}` : '';
+  const status = r.status || 'Alert';
+  
+  let issueText = '';
+  if (r.status === 'Expired') {
+    issueText = `⚠️ *URGENT:* Annual Maintenance Contract (AMC) is *EXPIRED* (was valid till ${fmtAMCDate(r.expiryDate)}). Immediate renewal required.`;
+  } else if (r.status === 'Expiring Soon') {
+    issueText = `⏳ *NOTICE:* AMC contract expires on *${fmtAMCDate(r.expiryDate)}* (${r.contractDaysLeft} days remaining). Please initiate renewal.`;
+  } else if (r.status === 'Service Overdue') {
+    issueText = `🚨 *ATTENTION:* Routine servicing is *OVERDUE* (Scheduled Due: *${fmtAMCDate(r.nextDueDate)}*). Please arrange immediate technician visit.`;
+  } else if (r.status === 'Service Due Soon') {
+    issueText = `📅 *REMINDER:* Routine servicing is due on *${fmtAMCDate(r.nextDueDate)}* (${r.serviceDaysLeft} days left).`;
+  } else {
+    issueText = `✅ *COMPLIANCE NOTICE:* Equipment status is ${status}. Next scheduled maintenance: ${fmtAMCDate(r.nextDueDate)}.`;
+  }
+
+  const msg = 
+`🔔 *FACILIX Compliance Alert • Trio Group*
+━━━━━━━━━━━━━━━━━━━━
+*Asset:* ${cat} — Unit ${unit}${floor}${vendor}
+*Status:* ${status.toUpperCase()}
+
+${issueText}
+
+*Frequency:* ${r.frequency || 'Annual'}
+*Last Serviced:* ${fmtAMCDate(r.lastServiceDate)}
+*Record ID:* ${r.id || '-'}
+
+━━━━━━━━━━━━━━━━━━━━
+_Automated notification via FACILIX Safety Portal_`;
+
+  const waUrl = phone 
+    ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  showToast(phone ? `Opening WhatsApp for ${r.vendorName || 'Vendor'}...` : 'Opening WhatsApp with pre-filled message...');
+}
+
+function sendReminderDigestWhatsApp() {
+  const summary = getFilteredReminderSummary();
+  const totalAlerts = summary.expired.length + summary.expiring.length + summary.serviceOverdue.length + summary.serviceDue.length;
+
+  if (totalAlerts === 0) {
+    showToast('No active reminders matching current filter.', true);
+    return;
+  }
+
+  const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  let listText = '';
+
+  if (summary.expired.length > 0) {
+    listText += `\n🔴 *EXPIRED CONTRACTS (${summary.expired.length}):*\n`;
+    summary.expired.forEach((item, idx) => {
+      listText += ` ${idx + 1}. *${item.category}* (${item.unit}) - Exp: ${fmtAMCDate(item.expiryDate)} | ${item.vendorName || 'No vendor'}\n`;
+    });
+  }
+
+  if (summary.serviceOverdue.length > 0) {
+    listText += `\n🚨 *SERVICE OVERDUE (${summary.serviceOverdue.length}):*\n`;
+    summary.serviceOverdue.forEach((item, idx) => {
+      listText += ` ${idx + 1}. *${item.category}* (${item.unit}) - Due: ${fmtAMCDate(item.nextDueDate)} | ${item.vendorName || 'No vendor'}\n`;
+    });
+  }
+
+  if (summary.expiring.length > 0) {
+    listText += `\n⏳ *CONTRACTS EXPIRING SOON (${summary.expiring.length}):*\n`;
+    summary.expiring.slice(0, 8).forEach((item, idx) => {
+      listText += ` ${idx + 1}. *${item.category}* (${item.unit}) - Exp: ${fmtAMCDate(item.expiryDate)}\n`;
+    });
+    if (summary.expiring.length > 8) listText += ` ... and ${summary.expiring.length - 8} more\n`;
+  }
+
+  if (summary.serviceDue.length > 0) {
+    listText += `\n📅 *SERVICE DUE SOON (${summary.serviceDue.length}):*\n`;
+    summary.serviceDue.slice(0, 8).forEach((item, idx) => {
+      listText += ` ${idx + 1}. *${item.category}* (${item.unit}) - Due: ${fmtAMCDate(item.nextDueDate)}\n`;
+    });
+    if (summary.serviceDue.length > 8) listText += ` ... and ${summary.serviceDue.length - 8} more\n`;
+  }
+
+  const digestMsg = 
+`📊 *FACILIX AMC & Service Reminder Digest*
+*Date:* ${todayStr} • *Total Action Items:* ${totalAlerts}
+━━━━━━━━━━━━━━━━━━━━${listText}
+━━━━━━━━━━━━━━━━━━━━
+_Generated via FACILIX Facility & Safety Management Portal_`;
+
+  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(digestMsg)}`;
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  showToast('Opening WhatsApp with Reminder Digest summary...');
+}
+
+function getReminderSelectedArray(kind) {
+  return kind === 'cc' ? reminderMailCcSelected : reminderMailToSelected;
+}
+
+// Helper: safe date parsing and days difference
+function reminderSafeDate(str) {
+  if (!str) return null;
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function reminderDaysFromNow(dateStr) {
+  const d = reminderSafeDate(dateStr);
+  if (!d) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d - now) / 86400000);
+}
+
+// Opens the Reminder Mail Modal, loads live data, compiles digest, and renders preview
+async function openReminderMailModal() {
+  const overlay = document.getElementById('reminderMailOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+
+  // Load recipients and AMC data if needed
+  try {
+    await Promise.all([
+      loadMailRecipients(),
+      allAmcData && allAmcData.length ? Promise.resolve() : loadAmcData()
+    ]);
+  } catch (e) {
+    console.error('Error preloading data for reminder mail:', e);
+  }
+
+  // Populate recipient panels and chips
+  renderReminderRecipientPanel('to');
+  renderReminderRecipientPanel('cc');
+  renderReminderRecipientChips('to');
+  renderReminderRecipientChips('cc');
+
+  // Update Ribbon filter counts
+  updateReminderFilterCounts();
+
+  // Set default subject if empty or updated
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const summary = getFilteredReminderSummary();
+  const criticalCount = summary.expired.length + summary.serviceOverdue.length;
+  const subjectEl = document.getElementById('reminderMailSubjectInput');
+  if (subjectEl) {
+    subjectEl.value = `[ACTION REQUIRED] FACILIX Reminder Digest – ${dateStr} (${criticalCount} Critical Alert${criticalCount === 1 ? '' : 's'})`;
+  }
+
+  // Render email preview
+  renderReminderMailBodyPreview();
+}
+
+function closeReminderMailModal() {
+  const overlay = document.getElementById('reminderMailOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  document.getElementById('reminderMailToPanel')?.classList.add('hidden');
+  document.getElementById('reminderMailCcPanel')?.classList.add('hidden');
+}
+
+async function refreshReminderMailSummary() {
+  showToast('Refreshing live reminder records...');
+  try {
+    await Promise.all([
+      loadMailRecipients(true),
+      loadAmcData(true)
+    ]);
+    renderReminderRecipientPanel('to');
+    renderReminderRecipientPanel('cc');
+    renderReminderRecipientChips('to');
+    renderReminderRecipientChips('cc');
+    updateReminderFilterCounts();
+    renderReminderMailBodyPreview();
+    showToast('Reminder summary updated with latest records.');
+  } catch (err) {
+    showToast(`Failed to refresh: ${err.message || err}`, true);
+  }
+}
+
+function updateReminderFilterCounts() {
+  const summary = getAllReminderSummary();
+
+  const countExp = document.getElementById('chipCountExpired');
+  const countExpg = document.getElementById('chipCountExpiring');
+  const countSvcO = document.getElementById('chipCountServiceOverdue');
+  const countSvcD = document.getElementById('chipCountServiceDue');
+
+  if (countExp) countExp.textContent = summary.expired.length;
+  if (countExpg) countExpg.textContent = summary.expiring.length;
+  if (countSvcO) countSvcO.textContent = summary.serviceOverdue.length;
+  if (countSvcD) countSvcD.textContent = summary.serviceDue.length;
+
+  // Update topbar badge as well
+  const totalReminders = summary.expired.length + summary.expiring.length + summary.serviceOverdue.length + summary.serviceDue.length;
+  const topBadge = document.getElementById('topbarReminderBadge');
+  if (topBadge) {
+    if (totalReminders > 0) {
+      topBadge.textContent = totalReminders;
+      topBadge.classList.remove('hidden');
+    } else {
+      topBadge.classList.add('hidden');
+    }
+  }
+}
+
+function getAllReminderSummary() {
+  const data = Array.isArray(allAmcData) ? allAmcData : [];
+  return {
+    expired: data.filter(r => r.status === 'Expired').sort((a, b) => (reminderDaysFromNow(a.expiryDate) || 0) - (reminderDaysFromNow(b.expiryDate) || 0)),
+    expiring: data.filter(r => r.status === 'Expiring Soon').sort((a, b) => (reminderDaysFromNow(a.expiryDate) || 999) - (reminderDaysFromNow(b.expiryDate) || 999)),
+    serviceOverdue: data.filter(r => r.status === 'Service Overdue').sort((a, b) => (reminderDaysFromNow(a.nextDueDate) || 0) - (reminderDaysFromNow(b.nextDueDate) || 0)),
+    serviceDue: data.filter(r => r.status === 'Service Due Soon').sort((a, b) => (reminderDaysFromNow(a.nextDueDate) || 999) - (reminderDaysFromNow(b.nextDueDate) || 999))
+  };
+}
+
+function getFilteredReminderSummary() {
+  const all = getAllReminderSummary();
+  return {
+    expired: reminderFilterState.expired ? all.expired : [],
+    expiring: reminderFilterState.expiring ? all.expiring : [],
+    serviceOverdue: reminderFilterState.serviceOverdue ? all.serviceOverdue : [],
+    serviceDue: reminderFilterState.serviceDue ? all.serviceDue : []
+  };
+}
+
+function toggleReminderFilter(type) {
+  if (reminderFilterState[type] !== undefined) {
+    reminderFilterState[type] = !reminderFilterState[type];
+    const btnIdMap = {
+      expired: 'filterToggleExpired',
+      expiring: 'filterToggleExpiring',
+      serviceOverdue: 'filterToggleServiceOverdue',
+      serviceDue: 'filterToggleServiceDue'
+    };
+    const btn = document.getElementById(btnIdMap[type]);
+    if (btn) btn.classList.toggle('active', reminderFilterState[type]);
+    renderReminderMailBodyPreview();
+  }
+}
+
+// ── Recipient Panels and Chips Logic ─────────────────────────────────────────
+
+function toggleReminderRecipientPanel(kind) {
+  const openId = kind === 'cc' ? 'reminderMailCcPanel' : 'reminderMailToPanel';
+  const otherId = kind === 'cc' ? 'reminderMailToPanel' : 'reminderMailCcPanel';
+  const openPanel = document.getElementById(openId);
+  const otherPanel = document.getElementById(otherId);
+  if (!openPanel) return;
+
+  const isHidden = openPanel.classList.contains('hidden');
+  if (otherPanel) otherPanel.classList.add('hidden');
+  openPanel.classList.toggle('hidden', !isHidden);
+  if (isHidden) {
+    const searchInput = document.getElementById(kind === 'cc' ? 'reminderMailCcSearch' : 'reminderMailToSearch');
+    if (searchInput) {
+      searchInput.value = '';
+      filterReminderContacts(kind);
+      searchInput.focus();
+    }
+  }
+}
+
+function renderReminderRecipientPanel(kind) {
+  const listEl = document.getElementById(kind === 'cc' ? 'reminderMailCcContactsList' : 'reminderMailToContactsList');
+  if (!listEl) return;
+  const emails = mailRecipientsCache || [];
+  const selected = getReminderSelectedArray(kind);
+
+  if (!emails.length) {
+    listEl.innerHTML = `<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11.5px;">No dropdown contacts found. You can add custom emails below.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = emails.map(email => {
+    const checked = selected.includes(email) ? 'checked' : '';
+    const safe = escapeHtml(email);
+    return `
+      <label class="reminder-contact-option">
+        <input type="checkbox" ${checked} onchange="toggleReminderRecipient('${kind}', '${safe.replace(/'/g, "\\'")}')">
+        <span>${safe}</span>
+      </label>`;
+  }).join('');
+}
+
+function filterReminderContacts(kind) {
+  const searchInput = document.getElementById(kind === 'cc' ? 'reminderMailCcSearch' : 'reminderMailToSearch');
+  const term = (searchInput?.value || '').toLowerCase().trim();
+  const listEl = document.getElementById(kind === 'cc' ? 'reminderMailCcContactsList' : 'reminderMailToContactsList');
+  if (!listEl) return;
+  const options = listEl.querySelectorAll('.reminder-contact-option');
+  options.forEach(opt => {
+    const text = opt.textContent.toLowerCase();
+    opt.style.display = text.includes(term) ? 'flex' : 'none';
+  });
+}
+
+function toggleSelectAllReminderContacts(kind) {
+  const emails = mailRecipientsCache || [];
+  const arr = getReminderSelectedArray(kind);
+  const allSelected = emails.length > 0 && emails.every(e => arr.includes(e));
+
+  if (allSelected) {
+    // Deselect all dropdown emails (keep custom emails if any)
+    const customOnly = arr.filter(e => !emails.includes(e));
+    if (kind === 'cc') reminderMailCcSelected = customOnly;
+    else reminderMailToSelected = customOnly;
+  } else {
+    // Add all dropdown emails
+    emails.forEach(e => {
+      if (!arr.includes(e)) arr.push(e);
+    });
+  }
+  renderReminderRecipientPanel(kind);
+  renderReminderRecipientChips(kind);
+}
+
+function toggleReminderRecipient(kind, email) {
+  const arr = getReminderSelectedArray(kind);
+  const idx = arr.indexOf(email);
+  if (idx === -1) {
+    arr.push(email);
+  } else {
+    arr.splice(idx, 1);
+  }
+  renderReminderRecipientChips(kind);
+}
+
+function removeReminderRecipient(kind, email, event) {
+  if (event) event.stopPropagation();
+  const arr = getReminderSelectedArray(kind);
+  const idx = arr.indexOf(email);
+  if (idx !== -1) {
+    arr.splice(idx, 1);
+    renderReminderRecipientPanel(kind);
+    renderReminderRecipientChips(kind);
+  }
+}
+
+function addCustomReminderRecipient(kind) {
+  const input = document.getElementById(kind === 'cc' ? 'reminderMailCcCustomInput' : 'reminderMailToCustomInput');
+  if (!input) return;
+  const email = input.value.trim();
+  if (!email) return;
+
+  const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  if (!emailPattern.test(email)) {
+    showToast(`"${email}" is not a valid email address.`, true);
+    return;
+  }
+
+  const arr = getReminderSelectedArray(kind);
+  if (!arr.includes(email)) {
+    arr.push(email);
+    renderReminderRecipientPanel(kind);
+    renderReminderRecipientChips(kind);
+  }
+  input.value = '';
+}
+
+function renderReminderRecipientChips(kind) {
+  const chipsList = document.getElementById(kind === 'cc' ? 'reminderMailCcChipsList' : 'reminderMailToChipsList');
+  if (!chipsList) return;
+  const selected = getReminderSelectedArray(kind);
+  const dropdownEmails = mailRecipientsCache || [];
+
+  if (!selected.length) {
+    chipsList.innerHTML = `<span class="reminder-placeholder">${kind === 'cc' ? 'None (optional)...' : 'Select or add recipient(s)...'}</span>`;
+    return;
+  }
+
+  chipsList.innerHTML = selected.map(email => {
+    const isCustom = !dropdownEmails.includes(email);
+    const safe = escapeHtml(email);
+    return `
+      <span class="reminder-chip-pill ${isCustom ? 'custom-chip' : ''}" title="${safe}">
+        <span>${safe}</span>
+        <button type="button" class="reminder-chip-remove" onclick="removeReminderRecipient('${kind}', '${safe.replace(/'/g, "\\'")}', event)">&times;</button>
+      </span>`;
+  }).join('');
+}
+
+// Close dropdowns on outer click
+document.addEventListener('click', (event) => {
+  const toBox = document.getElementById('reminderMailToMultiselect');
+  const ccBox = document.getElementById('reminderMailCcMultiselect');
+  if (toBox && !toBox.contains(event.target)) {
+    document.getElementById('reminderMailToPanel')?.classList.add('hidden');
+  }
+  if (ccBox && !ccBox.contains(event.target)) {
+    document.getElementById('reminderMailCcPanel')?.classList.add('hidden');
+  }
+});
+
+function updateReminderMailSubjectPreview(val) {
+  // Can live update preview title if desired
+}
+
+// ── HTML Email Digest Builder & Live Preview ─────────────────────────────────
+
+function renderReminderMailBodyPreview() {
+  const container = document.getElementById('reminderMailPreviewContent');
+  if (!container) return;
+
+  const customNote = document.getElementById('reminderMailCustomNote')?.value?.trim() || '';
+  const summary = getFilteredReminderSummary();
+  const html = buildReminderMailHtml(summary, customNote);
+  container.innerHTML = html;
+
+  // Update status footer counter
+  const totalItems = summary.expired.length + summary.expiring.length + summary.serviceOverdue.length + summary.serviceDue.length;
+  const critical = summary.expired.length + summary.serviceOverdue.length;
+  const countTextEl = document.getElementById('reminderMailCountText');
+  if (countTextEl) {
+    countTextEl.textContent = `${totalItems} reminder item${totalItems === 1 ? '' : 's'} queued (${critical} critical)`;
+  }
+}
+
+function buildReminderMailHtml(summary, customNote) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  });
+  const timeStr = now.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', hour12: true
+  });
+
+  const totalExpired = summary.expired.length;
+  const totalExpiring = summary.expiring.length;
+  const totalServiceOverdue = summary.serviceOverdue.length;
+  const totalServiceDue = summary.serviceDue.length;
+  const totalAlerts = totalExpired + totalExpiring + totalServiceOverdue + totalServiceDue;
+
+  // Soft Pastel Category Color Palette
+  const catColorMap = {
+    'Generator': { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+    'Fire': { bg: '#ffe4e6', text: '#e11d48', border: '#fecdd3' },
+    'Lift': { bg: '#ede9fe', text: '#7c3aed', border: '#ddd6fe' },
+    'Air Condition': { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd' },
+    'Water Filter': { bg: '#d1fae5', text: '#059669', border: '#a7f3d0' },
+    'CCTV Camera': { bg: '#cffafe', text: '#0891b2', border: '#a5f3fc' },
+    'Sound System & intercom': { bg: '#fce7f3', text: '#db2777', border: '#fbcfe8' },
+    'Solar Panel Maintenance': { bg: '#fef3c7', text: '#b45309', border: '#fde68a' }
+  };
+
+  function getCatBadge(cat) {
+    const pal = catColorMap[cat] || { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+    return `<span style="display:inline-block;padding:3px 9px;border-radius:12px;font-family:Verdana,Calibri,sans-serif;font-size:10.5px;font-weight:700;background-color:${pal.bg};color:${pal.text};border:1px solid ${pal.border};white-space:nowrap;">${escapeHtml(cat || 'General')}</span>`;
+  }
+
+  // Custom Executive Notice Box
+  let noticeHtml = '';
+  if (customNote) {
+    noticeHtml = `
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:22px;background:#f0fdf4;border:1.5px solid #86efac;border-left:5px solid #16a34a;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 18px;">
+            <div style="font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Executive Notice / Directives:</div>
+            <div style="font-family:Calibri,Verdana,sans-serif;font-size:14px;color:#14532d;line-height:1.55;font-weight:600;">${escapeHtml(customNote)}</div>
+          </td>
+        </tr>
+      </table>`;
+  }
+
+  // 1. Contract Expirations & Renewals Table (Center aligned with full cell borders)
+  let contractsTableHtml = '';
+  const allContracts = [...summary.expired, ...summary.expiring];
+  if (allContracts.length > 0) {
+    const rows = allContracts.map((r, idx) => {
+      const isExpired = r.status === 'Expired';
+      const days = reminderDaysFromNow(r.expiryDate);
+      const daysText = isExpired
+        ? `<span style="color:#b91c1c;font-weight:700;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;">${Math.abs(days || 0)} d overdue</span>`
+        : `<span style="color:#b45309;font-weight:700;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;">${days || 0} d left</span>`;
+      const statusPill = isExpired
+        ? `<span style="display:inline-block;padding:3px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">EXPIRED</span>`
+        : `<span style="display:inline-block;padding:3px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#fef3c7;color:#92400e;border:1px solid #fcd34d;">EXPIRING SOON</span>`;
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+      return `
+        <tr style="background-color:${bg};">
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${getCatBadge(r.category)}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r.unit || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#475569;">${escapeHtml(r.floor || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#334155;font-weight:600;">${escapeHtml(r.vendorName || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#1e293b;">${fmtAMCDate(r.expiryDate)}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${statusPill}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${daysText}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12px;color:#64748b;">${escapeHtml(r.contactPerson || '—')}</td>
+        </tr>`;
+    }).join('');
+
+    contractsTableHtml = `
+      <div style="margin-bottom:26px;">
+        <div style="font-family:Verdana,Calibri,sans-serif;font-size:13px;font-weight:700;color:#991b1b;margin-bottom:10px;padding:6px 12px;background:#fee2e2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:6px;display:flex;align-items:center;">
+          <span>1. AMC Contract Expiration &amp; Renewal Status (${allContracts.length} Records)</span>
+        </div>
+        <table role="presentation" border="1" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #64748b;background-color:#ffffff;border-radius:4px;">
+          <thead>
+            <tr style="background-color:#e2e8f0;color:#0f172a;font-family:Verdana,Calibri,sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Category</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Unit</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Floor</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Vendor</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Expiry Date</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Status</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Timeline</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // 2. Equipment Servicing Overdue & Due Soon Table (Center aligned with full cell borders)
+  let servicesTableHtml = '';
+  const allServices = [...summary.serviceOverdue, ...summary.serviceDue];
+  if (allServices.length > 0) {
+    const rows = allServices.map((r, idx) => {
+      const isOverdue = r.status === 'Service Overdue';
+      const days = reminderDaysFromNow(r.nextDueDate);
+      const daysText = isOverdue
+        ? `<span style="color:#b91c1c;font-weight:700;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;">${Math.abs(days || 0)} d overdue</span>`
+        : `<span style="color:#0369a1;font-weight:700;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;">${days || 0} d left</span>`;
+      const statusPill = isOverdue
+        ? `<span style="display:inline-block;padding:3px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">OVERDUE</span>`
+        : `<span style="display:inline-block;padding:3px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#e0f2fe;color:#075985;border:1px solid #7dd3fc;">DUE SOON</span>`;
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+      return `
+        <tr style="background-color:${bg};">
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${getCatBadge(r.category)}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r.unit || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#475569;">${escapeHtml(r.floor || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#334155;font-weight:600;">${escapeHtml(r.vendorName || '—')}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#1e293b;">${fmtAMCDate(r.nextDueDate)}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${statusPill}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">${daysText}</td>
+          <td style="padding:9px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12px;color:#64748b;">${escapeHtml(r.frequency || 'Quarterly')}</td>
+        </tr>`;
+    }).join('');
+
+    servicesTableHtml = `
+      <div style="margin-bottom:26px;">
+        <div style="font-family:Verdana,Calibri,sans-serif;font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px;padding:6px 12px;background:#e0f2fe;border:1px solid #bae6fd;border-left:4px solid #0284c7;border-radius:6px;display:flex;align-items:center;">
+          <span>2. Equipment Servicing &amp; Preventative Maintenance Schedule (${allServices.length} Records)</span>
+        </div>
+        <table role="presentation" border="1" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #64748b;background-color:#ffffff;border-radius:4px;">
+          <thead>
+            <tr style="background-color:#e0f2fe;color:#0c4a6e;font-family:Verdana,Calibri,sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Category</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Unit</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Floor</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Vendor</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Next Due</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Status</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Timeline</th>
+              <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Frequency</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // All clear fallback if no reminders
+  let emptyFallbackHtml = '';
+  if (totalAlerts === 0) {
+    emptyFallbackHtml = `
+      <div style="padding:28px 20px;text-align:center;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;margin-bottom:22px;">
+        <div style="font-family:Verdana,Calibri,sans-serif;font-size:15px;font-weight:700;color:#15803d;margin-bottom:4px;">All Maintenance Schedules &amp; Contracts Up to Date</div>
+        <p style="font-family:Calibri,Verdana,sans-serif;font-size:13.5px;color:#166534;margin:0;">There are currently no overdue service visits or expired contracts across any factory unit.</p>
+      </div>`;
+  }
+
+  return `
+    <table role="presentation" border="1" cellpadding="0" cellspacing="0" style="width:100%;max-width:740px;margin:0 auto;border-collapse:collapse;font-family:Calibri,Verdana,'Segoe UI',Arial,sans-serif;background-color:#ffffff;border:2px solid #64748b;border-radius:10px;overflow:hidden;box-shadow:0 6px 22px rgba(15,23,42,0.08);">
+      
+      <!-- Top Brand Header with Soft Gradient & Logo -->
+      <tr>
+        <td style="background:linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);padding:22px 26px;border-bottom:3px solid #f59e0b;border-top:none;border-left:none;border-right:none;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="width:50px;vertical-align:middle;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;width:46px;height:46px;border-collapse:collapse;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                  <tr>
+                    <td align="center" valign="middle" style="width:46px;height:46px;">
+                      <img src="${MAIL_LOGO_URL}" alt="Trio Group" width="32" height="32" style="display:block;width:32px;height:32px;object-fit:contain;">
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td style="vertical-align:middle;padding-left:15px;text-align:left;">
+                <div style="color:#ffffff;font-family:Verdana,Calibri,sans-serif;font-size:18px;font-weight:700;letter-spacing:-0.2px;">FACILIX &mdash; Reminder Digest</div>
+                <div style="color:#e0f2fe;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;font-weight:400;margin-top:2px;">FACILIX &middot; Trio Group Operations</div>
+              </td>
+              <td align="right" style="vertical-align:middle;">
+                <div style="display:inline-block;padding:5px 12px;border-radius:14px;font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);color:#ffffff;border:1px solid rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px;">
+                  ${dateStr}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Sub Header Info Strip -->
+      <tr>
+        <td style="background-color:#f8fafc;padding:10px 24px;border-bottom:1px solid #cbd5e1;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#475569;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="text-align:left;">
+                <strong>Generated:</strong> ${dateStr} at ${timeStr} &nbsp;&bull;&nbsp; <strong>Portal:</strong> FACILIX
+              </td>
+              <td style="text-align:right;">
+                <span style="display:inline-block;padding:2px 8px;border-radius:10px;background-color:#fee2e2;color:#b91c1c;font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:800;">${totalAlerts} Alert${totalAlerts === 1 ? '' : 's'} Total</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Body Content -->
+      <tr>
+        <td style="padding:24px 26px 18px;">
+          
+          <p style="font-family:Verdana,Calibri,sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:0 0 8px;">Dear Facility &amp; Maintenance Team,</p>
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:14px;color:#334155;line-height:1.6;margin:0 0 18px;">
+            Please review the consolidated fire safety equipment and Annual Maintenance Contract (AMC) reminder digest below. Immediate follow-up is requested for all items flagged with urgent priority.
+          </p>
+
+          <!-- Colorful Pastel KPI Summary Strip -->
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+            <tr>
+              <td style="width:25%;padding:4px;">
+                <div style="background-color:#fff1f2;border:1.5px solid #fecdd3;border-radius:8px;padding:12px 8px;text-align:center;">
+                  <div style="font-family:Verdana,Calibri,sans-serif;font-size:20px;font-weight:800;color:#be123c;line-height:1;">${totalExpired}</div>
+                  <div style="font-family:Calibri,Verdana,sans-serif;font-size:11.5px;font-weight:700;color:#9f1239;margin-top:4px;">Expired Contracts</div>
+                </div>
+              </td>
+              <td style="width:25%;padding:4px;">
+                <div style="background-color:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;padding:12px 8px;text-align:center;">
+                  <div style="font-family:Verdana,Calibri,sans-serif;font-size:20px;font-weight:800;color:#b45309;line-height:1;">${totalExpiring}</div>
+                  <div style="font-family:Calibri,Verdana,sans-serif;font-size:11.5px;font-weight:700;color:#92400e;margin-top:4px;">Expiring Soon</div>
+                </div>
+              </td>
+              <td style="width:25%;padding:4px;">
+                <div style="background-color:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:12px 8px;text-align:center;">
+                  <div style="font-family:Verdana,Calibri,sans-serif;font-size:20px;font-weight:800;color:#c2410c;line-height:1;">${totalServiceOverdue}</div>
+                  <div style="font-family:Calibri,Verdana,sans-serif;font-size:11.5px;font-weight:700;color:#9a3412;margin-top:4px;">Service Overdue</div>
+                </div>
+              </td>
+              <td style="width:25%;padding:4px;">
+                <div style="background-color:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:12px 8px;text-align:center;">
+                  <div style="font-family:Verdana,Calibri,sans-serif;font-size:20px;font-weight:800;color:#0369a1;line-height:1;">${totalServiceDue}</div>
+                  <div style="font-family:Calibri,Verdana,sans-serif;font-size:11.5px;font-weight:700;color:#075985;margin-top:4px;">Service Due Soon</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Custom Notice if provided -->
+          ${noticeHtml}
+
+          <!-- Centered Tables with Borders -->
+          ${emptyFallbackHtml}
+          ${contractsTableHtml}
+          ${servicesTableHtml}
+
+          <!-- Action Steps Card -->
+          <div style="background-color:#f0f9ff;border:1.5px solid #bae6fd;border-left:5px solid #0284c7;border-radius:8px;padding:14px 18px;margin-top:12px;margin-bottom:20px;">
+            <div style="font-family:Verdana,Calibri,sans-serif;font-size:11.5px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Required Action Items:</div>
+            <ul style="margin:0;padding-left:18px;font-family:Calibri,Verdana,sans-serif;font-size:13px;color:#1e293b;line-height:1.65;">
+              <li>Contact registered vendors immediately for overdue servicing and expiring contracts.</li>
+              <li>Coordinate with factory floor coordinators to ensure vendor access and safety clearance.</li>
+              <li>Record completed service visit dates and upload service slips directly in FACILIX.</li>
+            </ul>
+          </div>
+
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:13.5px;color:#334155;margin:0 0 3px;">Best regards,</p>
+          <p style="font-family:Verdana,Calibri,sans-serif;font-size:13.5px;font-weight:700;color:#0f172a;margin:0 0 2px;">Fire &amp; Safety Compliance Cell</p>
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#64748b;margin:0;">FACILIX &middot; Trio Group Operations</p>
+
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="background-color:#f8fafc;padding:14px 26px;border-top:1.5px solid #cbd5e1;text-align:center;font-family:Calibri,Verdana,sans-serif;font-size:11.5px;color:#64748b;">
+          This is an automated operational reminder generated from FACILIX. Please do not reply directly to this automated email.
+        </td>
+      </tr>
+
+    </table>`;
+}
+
+function buildReminderMailText(summary, customNote) {
+  const allContracts = [...summary.expired, ...summary.expiring];
+  const allServices = [...summary.serviceOverdue, ...summary.serviceDue];
+
+  let text = `FACILIX REMINDER DIGEST\nFACILIX - Trio Group\nDate: ${new Date().toLocaleDateString('en-IN')}\n\n`;
+
+  if (customNote) {
+    text += `EXECUTIVE NOTICE:\n${customNote}\n\n`;
+  }
+
+  text += `SUMMARY:\n`;
+  text += `- Expired Contracts: ${summary.expired.length}\n`;
+  text += `- Contracts Expiring Soon: ${summary.expiring.length}\n`;
+  text += `- Servicing Overdue: ${summary.serviceOverdue.length}\n`;
+  text += `- Servicing Due Soon: ${summary.serviceDue.length}\n\n`;
+
+  if (allContracts.length) {
+    text += `--- 1. CONTRACT EXPIRATIONS & RENEWALS ---\n`;
+    allContracts.forEach(r => {
+      text += `• [${r.category}] ${r.unit} (${r.floor || 'N/A'}) - Vendor: ${r.vendorName || 'N/A'} | Expiry: ${fmtAMCDate(r.expiryDate)} | Status: ${r.status}\n`;
+    });
+    text += `\n`;
+  }
+
+  if (allServices.length) {
+    text += `--- 2. EQUIPMENT SERVICING SCHEDULE ---\n`;
+    allServices.forEach(r => {
+      text += `• [${r.category}] ${r.unit} (${r.floor || 'N/A'}) - Vendor: ${r.vendorName || 'N/A'} | Next Due: ${fmtAMCDate(r.nextDueDate)} | Status: ${r.status}\n`;
+    });
+    text += `\n`;
+  }
+
+  text += `Kindly take the necessary action to renew contracts and complete overdue servicing.\n\nFire & Safety Compliance Cell\nFACILIX - Trio Group`;
+  return text;
+}
+
+// ── Send Reminder Mail Action ────────────────────────────────────────────────
+
+async function sendReminderMail() {
+  if (!reminderMailToSelected.length) {
+    showToast('Please select at least one recipient in the "To" field.', true);
+    document.getElementById('reminderMailToBox')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  const subject = document.getElementById('reminderMailSubjectInput')?.value?.trim() || 'FACILIX Reminder Digest';
+  const customNote = document.getElementById('reminderMailCustomNote')?.value?.trim() || '';
+  const summary = getFilteredReminderSummary();
+  const htmlBody = buildReminderMailHtml(summary, customNote);
+  const plainBody = buildReminderMailText(summary, customNote);
+
+  const sendBtn = document.getElementById('reminderMailSendBtn');
+  const spinner = document.getElementById('reminderMailSpinner');
+  const btnText = document.getElementById('reminderMailSendBtnText');
+
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    if (spinner) spinner.classList.remove('hidden');
+    if (btnText) btnText.textContent = 'Sending Digest...';
+  }
+
+  try {
+    const payload = {
+      action: 'sendReminderMail',
+      to: reminderMailToSelected.join(','),
+      cc: reminderMailCcSelected.join(','),
+      subject: subject,
+      body: plainBody,
+      htmlBody: htmlBody
+    };
+
+    const response = await serverCall('sendReminderMail', payload);
+
+    if (response && response.ok === false) {
+      throw new Error(response.message || 'Server indicated failure sending reminder email.');
+    }
+
+    const recipientCount = reminderMailToSelected.length + reminderMailCcSelected.length;
+    showToast(`Reminder email sent successfully to ${reminderMailToSelected.join(', ')}${reminderMailCcSelected.length ? ' (cc: ' + reminderMailCcSelected.join(', ') + ')' : ''}.`);
+    closeReminderMailModal();
+  } catch (error) {
+    console.error('Failed to send reminder email:', error);
+    showToast(`Could not send reminder email: ${error.message || error}`, true);
+  } finally {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      if (spinner) spinner.classList.add('hidden');
+      if (btnText) btnText.textContent = 'Send Reminder Mail';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO MAIL & OPERATIONS TIMELINE NEWS SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+let autoMailTimelineData = [];
+let autoMailFilterCategory = 'all';
+let autoMailSearchQuery = '';
+let currentAutoMailEvent = null;
+let autoMailToSelected = [];
+let autoMailCcSelected = [];
+
+// Persistent "sent" tracking: read from the "Auto Mail Log" sheet on the
+// server, not the browser's localStorage. localStorage only lives inside
+// one browser/Gmail account, so a mail sent from one account still looked
+// "unsent" everywhere else. The sheet is shared, so every account sees the
+// same remark and the same "already sent" state.
+let autoMailSentIds = new Set();
+let autoMailSentLogsData = [];
+
+async function fetchAutoMailSentIds() {
+  try {
+    const res = await fetchJson(bustCache(`${WEB_APP_URL}?action=autoMailSentIds`), {}, READ_REQUEST_TIMEOUT_MS);
+    autoMailSentIds = new Set((res && res.ids) || []);
+    autoMailSentLogsData = (res && res.logs) || [];
+  } catch (e) {
+    console.warn('Could not load Auto Mail sent status from the sheet:', e);
+  }
+}
+
+// Updates the in-memory set immediately after a successful send, so the
+// feed reflects it right away without waiting for a re-fetch. The sheet
+// itself is already the source of truth — the server writes the remark
+// there as part of sending the mail (see sendObservationMailGas).
+function markAutoMailItemSent(id) {
+  if (id) autoMailSentIds.add(id);
+}
+
+function isAutoMailItemSent(id) {
+  return autoMailSentIds.has(id);
+}
+
+// Helper to calculate days difference for timeline
+function autoSafeDaysFromNow(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - today.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Format date nicely for timeline
+function formatAutoTimelineDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+  } catch (e) {
+    return String(dateStr);
+  }
+}
+
+// Fetch all AMC records, service logs, and contract history to build timeline news
+async function fetchAutoMailTimelineData() {
+  const amcPromise = allAmcData && allAmcData.length ? Promise.resolve(allAmcData) : fetchAmcDataFromBackend();
+  const logsPromise = fetchJson(bustCache(`${WEB_APP_URL}?action=amcServiceLog`), {}, READ_REQUEST_TIMEOUT_MS).catch(() => []);
+  const contractHistPromise = fetchJson(bustCache(`${WEB_APP_URL}?action=amcContractHistory`), {}, READ_REQUEST_TIMEOUT_MS).catch(() => []);
+
+  const [amcList, serviceLogs, contractHistory] = await Promise.all([
+    amcPromise,
+    logsPromise,
+    contractHistPromise,
+    fetchAutoMailSentIds()
+  ]);
+
+  const amcMap = {};
+  if (Array.isArray(amcList)) {
+    amcList.forEach(rec => {
+      const id = String(rec.recordId || rec.id || '').trim();
+      if (id) amcMap[id] = rec;
+    });
+  }
+
+  const events = [];
+
+  // 1. Process Service Logs (Routine Servicing & Breakdown Repairs)
+  if (Array.isArray(serviceLogs)) {
+    serviceLogs.forEach(log => {
+      const parent = amcMap[log.amcId] || {};
+      const isBreakdown = (log.logType === 'Breakdown Repair' || /breakdown|emergency|repair/i.test(log.logType || ''));
+      const eventType = isBreakdown ? 'breakdown' : 'servicing';
+      const eventTitle = isBreakdown ? 'Breakdown Repair Attended' : 'Routine Servicing Completed';
+      
+      events.push({
+        id: String(log.logId || '').trim() || `log-${String(log.amcId || '').trim()}-${String(log.visitDate || log.timestamp || log.rowIndex || '')}`,
+        eventType: eventType,
+        eventTag: eventTitle,
+        date: log.visitDate || log.timestamp || '',
+        sortDate: log.visitDate || log.timestamp || '1970-01-01',
+        category: parent.category || 'General Maintenance',
+        unit: parent.unit || 'Main Unit',
+        floor: parent.floor || '—',
+        vendorName: parent.vendorName || 'Authorized Vendor',
+        technician: log.technician || 'Technician',
+        cost: log.cost ? `₹${Number(log.cost).toLocaleString('en-IN')}` : 'Included in AMC',
+        description: log.description || (isBreakdown ? 'Breakdown attended and equipment restored.' : 'Periodic preventative servicing completed.'),
+        lastServiceDate: log.visitDate || parent.lastServiceDate || '',
+        nextDueDate: parent.nextDueDate || '',
+        expiryDate: parent.expiryDate || '',
+        frequency: parent.frequency || 'Quarterly',
+        contactPerson: parent.contactPerson || 'Facility Coordinator',
+        parentRecord: parent
+      });
+    });
+  }
+
+  // 2. Process Contract History (Renewals & Term Extensions)
+  if (Array.isArray(contractHistory)) {
+    contractHistory.forEach(hist => {
+      events.push({
+        id: 'renewal-' + String(hist.recordId || hist.amcId || '').trim() + '-' + String(hist.startDate || hist.expiryDate || hist.timestamp || hist.rowIndex || ''),
+        eventType: 'renewal',
+        eventTag: 'Contract Renewed & Extended',
+        date: hist.startDate || hist.expiryDate || hist.timestamp || '',
+        sortDate: hist.startDate || hist.expiryDate || '1970-01-01',
+        category: hist.category || 'Equipment Maintenance',
+        unit: hist.unit || 'Main Unit',
+        floor: hist.floor || '—',
+        vendorName: hist.renewedToVendor || hist.vendorName || 'Authorized Vendor',
+        technician: 'Contract Administration',
+        cost: hist.contractCost ? `₹${Number(hist.contractCost).toLocaleString('en-IN')}` : 'Annual Contract',
+        description: hist.remarks ? `Contract renewal logged: ${hist.remarks}` : `Annual maintenance contract renewed with ${hist.renewedToVendor || hist.vendorName || 'vendor'}.`,
+        lastServiceDate: '',
+        nextDueDate: '',
+        expiryDate: hist.expiryDate || '',
+        frequency: hist.frequency || 'Annual',
+        contactPerson: hist.contactInfo || 'Asset Management',
+        parentRecord: hist
+      });
+    });
+  }
+
+  // 3. Process Live AMC Records for Upcoming Schedules / Expiries
+  if (Array.isArray(amcList)) {
+    amcList.forEach(rec => {
+      const daysDue = autoSafeDaysFromNow(rec.nextDueDate);
+      const daysExp = autoSafeDaysFromNow(rec.expiryDate);
+
+      // Add upcoming service or upcoming expiry milestones
+      if (rec.nextDueDate || rec.expiryDate) {
+        events.push({
+          id: 'upcoming-' + String(rec.recordId || rec.id || `${rec.category || ''}-${rec.unit || ''}-${rec.nextDueDate || rec.expiryDate || ''}`).trim(),
+          eventType: 'upcoming',
+          eventTag: (daysDue !== null && daysDue <= 30) ? 'Upcoming Servicing Schedule' : 'Active Equipment Lifecycle',
+          date: rec.nextDueDate || rec.expiryDate || rec.lastServiceDate || '',
+          sortDate: rec.nextDueDate || rec.expiryDate || '2099-12-31',
+          category: rec.category || 'General',
+          unit: rec.unit || 'Main Unit',
+          floor: rec.floor || '—',
+          vendorName: rec.vendorName || 'Service Provider',
+          technician: 'Scheduled Visit',
+          cost: rec.contractCost ? `₹${Number(rec.contractCost).toLocaleString('en-IN')}` : 'Contracted',
+          description: `Scheduled maintenance cycle configured for ${rec.unit || 'unit'} (${rec.frequency || 'Quarterly'}).`,
+          lastServiceDate: rec.lastServiceDate || '',
+          nextDueDate: rec.nextDueDate || '',
+          expiryDate: rec.expiryDate || '',
+          frequency: rec.frequency || 'Quarterly',
+          contactPerson: rec.contactPerson || 'Facility Team',
+          parentRecord: rec
+        });
+      }
+    });
+  }
+
+  // Sort newest first
+  events.sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || ''));
+  autoMailTimelineData = events;
+  updateAutoMailCounts();
+  return events;
+}
+
+// Update filter counts and topbar badge
+function updateAutoMailCounts() {
+  // Only count items that haven't been sent yet
+  const unsent = autoMailTimelineData.filter(e => !isAutoMailItemSent(e.id));
+  const sentCount = autoMailSentIds.size || autoMailSentLogsData.length;
+
+  const counts = {
+    all:       unsent.length,
+    servicing: unsent.filter(e => e.eventType === 'servicing').length,
+    breakdown: unsent.filter(e => e.eventType === 'breakdown').length,
+    renewal:   unsent.filter(e => e.eventType === 'renewal').length,
+    upcoming:  unsent.filter(e => e.eventType === 'upcoming').length,
+    sent:      sentCount
+  };
+
+  const setEl = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setEl('autoCountAll', counts.all);
+  setEl('autoCountServicing', counts.servicing);
+  setEl('autoCountBreakdown', counts.breakdown);
+  setEl('autoCountRenewal', counts.renewal);
+  setEl('autoCountUpcoming', counts.upcoming);
+  setEl('autoCountSent', counts.sent);
+
+  const topBadge = document.getElementById('topbarAutoBadge');
+  if (topBadge) {
+    if (counts.all > 0) {
+      topBadge.textContent = counts.all;
+      topBadge.classList.remove('hidden');
+    } else {
+      topBadge.classList.add('hidden');
+    }
+  }
+}
+
+// Open Timeline News Modal (Card 1)
+async function openAutoMailFeedModal() {
+  const modal = document.getElementById('autoMailFeedOverlay');
+  if (modal) modal.classList.remove('hidden');
+
+  // Load recipients cache in background if not already loaded
+  if (!mailRecipientsCache || !mailRecipientsCache.length) {
+    loadMailRecipients().catch(() => {});
+  }
+
+  // Render initial loading state
+  const listEl = document.getElementById('autoMailTimelineList');
+  if (listEl && (!autoMailTimelineData || !autoMailTimelineData.length)) {
+    listEl.innerHTML = `
+      <div class="auto-mail-loading-box">
+        <div class="auto-mail-spinner"></div>
+        <span>Loading Operations Timeline News...</span>
+      </div>`;
+  }
+
+  try {
+    await fetchAutoMailTimelineData();
+    renderAutoMailTimelineFeed();
+  } catch (err) {
+    console.error('Failed to load Auto Mail timeline:', err);
+    if (listEl) {
+      listEl.innerHTML = `
+        <div class="auto-mail-empty-box">
+          <p style="color:#ef4444;font-weight:700;">Could not load operations timeline.</p>
+          <button class="auto-mail-btn-outline" onclick="fetchAutoMailTimelineData().then(renderAutoMailTimelineFeed)">Retry</button>
+        </div>`;
+    }
+  }
+}
+
+// Close Timeline News Modal
+function closeAutoMailFeedModal() {
+  const modal = document.getElementById('autoMailFeedOverlay');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Refresh Timeline News
+async function refreshAutoMailTimeline() {
+  const listEl = document.getElementById('autoMailTimelineList');
+  if (listEl) {
+    listEl.innerHTML = `
+      <div class="auto-mail-loading-box">
+        <div class="auto-mail-spinner"></div>
+        <span>Refreshing Operations Timeline News...</span>
+      </div>`;
+  }
+  await fetchAutoMailTimelineData();
+  renderAutoMailTimelineFeed();
+  showToast('Operations timeline feed refreshed.');
+}
+
+// Filter timeline by category chip
+function setTimelineFilterCategory(cat) {
+  autoMailFilterCategory = cat;
+  document.querySelectorAll('.auto-filter-chip').forEach(chip => chip.classList.remove('active'));
+  const activeBtn = document.getElementById('autoFilter' + cat.charAt(0).toUpperCase() + cat.slice(1));
+  if (activeBtn) activeBtn.classList.add('active');
+  renderAutoMailTimelineFeed();
+}
+
+// Live search filter for timeline
+function filterAutoMailTimelineBySearch(val) {
+  autoMailSearchQuery = (val || '').trim().toLowerCase();
+  renderAutoMailTimelineFeed();
+}
+
+// Render Timeline News Feed cards
+function renderAutoMailTimelineFeed() {
+  const listEl = document.getElementById('autoMailTimelineList');
+  const summaryTextEl = document.getElementById('autoMailFeedSummaryText');
+  if (!listEl) return;
+
+  if (autoMailFilterCategory === 'sent') {
+    renderAutoMailSentFeed(listEl, summaryTextEl);
+    return;
+  }
+
+  let filtered = autoMailTimelineData;
+
+  // Always hide items that have already been dispatched as mail
+  filtered = filtered.filter(item => !isAutoMailItemSent(item.id));
+
+  // Filter by category
+  if (autoMailFilterCategory !== 'all') {
+    filtered = filtered.filter(item => item.eventType === autoMailFilterCategory);
+  }
+
+  // Filter by search query
+  if (autoMailSearchQuery) {
+    filtered = filtered.filter(item => {
+      const searchStr = `${item.category} ${item.unit} ${item.floor} ${item.vendorName} ${item.technician} ${item.description} ${item.eventTag}`.toLowerCase();
+      return searchStr.includes(autoMailSearchQuery);
+    });
+  }
+
+  if (summaryTextEl) {
+    summaryTextEl.textContent = `Showing ${filtered.length} timeline event${filtered.length === 1 ? '' : 's'} (${autoMailFilterCategory.toUpperCase()})`;
+  }
+
+  if (!filtered.length) {
+    // Distinguish between "all items sent" and "no search/filter match"
+    const totalUnsent = autoMailTimelineData.filter(e => !isAutoMailItemSent(e.id)).length;
+    const allSent = autoMailTimelineData.length > 0 && totalUnsent === 0;
+
+    if (allSent && autoMailFilterCategory === 'all' && !autoMailSearchQuery) {
+      listEl.innerHTML = `
+        <div class="auto-mail-empty-box">
+          <div style="width:56px;height:56px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div style="font-weight:700;color:#059669;font-size:15px;margin-top:6px;">All Mails Dispatched</div>
+          <p style="color:#64748b;font-size:12.5px;margin:0;max-width:320px;text-align:center;">
+            Every pending operation in the current timeline has been mailed out. New entries will appear here as AMC records update.
+          </p>
+        </div>`;
+    } else {
+      listEl.innerHTML = `
+        <div class="auto-mail-empty-box">
+          <div style="width:48px;height:48px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div style="font-weight:700;color:#334155;font-size:15px;margin-top:6px;">No events match your filter</div>
+          <p style="color:#64748b;font-size:12.5px;margin:0;">Try switching categories or clearing the search keywords.</p>
+        </div>`;
+    }
+    return;
+  }
+
+
+  const categoryPalettes = {
+    'Generator': { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+    'Fire': { bg: '#ffe4e6', text: '#e11d48', border: '#fecdd3' },
+    'Lift': { bg: '#ede9fe', text: '#7c3aed', border: '#ddd6fe' },
+    'Air Condition': { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd' },
+    'Water Filter': { bg: '#d1fae5', text: '#059669', border: '#a7f3d0' },
+    'CCTV Camera': { bg: '#cffafe', text: '#0891b2', border: '#a5f3fc' },
+    'Sound System & intercom': { bg: '#fce7f3', text: '#db2777', border: '#fbcfe8' },
+    'Solar Panel Maintenance': { bg: '#fef3c7', text: '#b45309', border: '#fde68a' }
+  };
+
+  listEl.innerHTML = filtered.map(item => {
+    const pal = categoryPalettes[item.category] || { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+    
+    // Node icon based on type
+    let nodeClass = 'node-servicing';
+    let nodeIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+    let tagClass = 'tag-servicing';
+
+    if (item.eventType === 'breakdown') {
+      nodeClass = 'node-breakdown';
+      nodeIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+      tagClass = 'tag-breakdown';
+    } else if (item.eventType === 'renewal') {
+      nodeClass = 'node-renewal';
+      nodeIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+      tagClass = 'tag-renewal';
+    } else if (item.eventType === 'upcoming') {
+      nodeClass = 'node-upcoming';
+      nodeIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      tagClass = 'tag-upcoming';
+    }
+
+    // `item.date` is the timeline/sort date. For an upcoming item it is the
+    // next due date, so it must never be reused as a completed service date.
+    const formattedDate = formatAutoTimelineDate(item.date);
+    const formattedLastService = item.lastServiceDate
+      ? formatAutoTimelineDate(item.lastServiceDate)
+      : 'Not logged';
+    const formattedNextDue = item.nextDueDate
+      ? formatAutoTimelineDate(item.nextDueDate)
+      : 'Not scheduled';
+    const daysUntilNext = item.nextDueDate ? autoSafeDaysFromNow(item.nextDueDate) : null;
+    
+    let countdownBadge = '';
+    if (daysUntilNext !== null) {
+      if (daysUntilNext < 0) {
+        countdownBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:#fee2e2;color:#b91c1c;">${Math.abs(daysUntilNext)}d overdue</span>`;
+      } else if (daysUntilNext <= 15) {
+        countdownBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:#fef3c7;color:#b45309;">${daysUntilNext}d left</span>`;
+      } else {
+        countdownBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:#e0f2fe;color:#0369a1;">in ${daysUntilNext}d</span>`;
+      }
+    }
+
+    const escapedId = escapeHtml(item.id);
+
+    return `
+      <div class="auto-timeline-item" data-id="${escapedId}">
+        <div class="auto-timeline-node ${nodeClass}">
+          ${nodeIcon}
+        </div>
+        <div class="auto-news-card">
+          <div class="auto-news-card-header">
+            <div class="auto-news-badges-wrap">
+              <span class="auto-tag-pill ${tagClass}">${escapeHtml(item.eventTag)}</span>
+              <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10.5px;font-weight:700;background:${pal.bg};color:${pal.text};border:1px solid ${pal.border};">
+                ${escapeHtml(item.category)}
+              </span>
+            </div>
+            <div class="auto-news-date-badge">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>${formattedDate}</span>
+            </div>
+          </div>
+
+          <div class="auto-news-title">
+            ${escapeHtml(item.unit)} &bull; ${escapeHtml(item.floor || 'All Floors')}
+          </div>
+
+          <div class="auto-news-desc">
+            ${escapeHtml(item.description)}
+          </div>
+
+          <!-- Milestones and Next Due Date Box -->
+          <div class="auto-news-milestones">
+            <div class="auto-milestone-col">
+              <span class="auto-milestone-label">Action / Visit Logged</span>
+              <span class="auto-milestone-val">${formattedLastService} &bull; ${escapeHtml(item.technician || item.vendorName)}</span>
+            </div>
+            <div class="auto-milestone-col auto-milestone-due">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span class="auto-milestone-label">Next Scheduled Visit</span>
+                ${countdownBadge}
+              </div>
+              <span class="auto-milestone-val" style="color:#0369a1;">${formattedNextDue} (${escapeHtml(item.frequency)})</span>
+            </div>
+          </div>
+
+          <!-- Footer & Action Button -->
+          <div class="auto-news-footer">
+            <span class="auto-news-vendor-info">Vendor: <strong>${escapeHtml(item.vendorName)}</strong> &bull; Cost: ${escapeHtml(item.cost)}</span>
+            <div style="display:inline-flex;align-items:center;gap:8px;">
+              <button class="auto-btn-wa-icon" type="button" onclick="sendAutoMailItemWhatsApp('${escapedId}')" title="Share this timeline event on WhatsApp">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+                </svg>
+              </button>
+              <button class="auto-btn-mail-icon" type="button" onclick="openAutoMailComposeById('${escapedId}')" title="Generate Auto Mail (Gmail dispatch)">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Render Sent Mail Feed cards
+function renderAutoMailSentFeed(listEl, summaryTextEl) {
+  const sentItems = [];
+  const seenIds = new Set();
+
+  // 1. Process items from autoMailSentLogsData (from Google Sheet)
+  if (Array.isArray(autoMailSentLogsData)) {
+    autoMailSentLogsData.forEach(log => {
+      const id = String(log.id || '').trim();
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+
+      const fullItem = autoMailTimelineData.find(e => e.id === id);
+      sentItems.push({
+        id: id,
+        eventType: fullItem ? fullItem.eventType : 'sent',
+        eventTag: fullItem ? fullItem.eventTag : (log.eventTag || 'Mail Dispatched'),
+        date: log.sentAt || (fullItem ? fullItem.date : ''),
+        sentAt: log.sentAt || '',
+        to: log.to || '',
+        cc: log.cc || '',
+        subject: log.subject || (fullItem ? `[Auto Mail] ${fullItem.eventTag} - ${fullItem.category} (${fullItem.unit})` : ''),
+        remarks: log.remarks || '',
+        category: (fullItem && fullItem.category) || log.category || 'General',
+        unit: (fullItem && fullItem.unit) || log.unit || 'Main Unit',
+        floor: (fullItem && fullItem.floor) || 'All Floors',
+        vendorName: (fullItem && fullItem.vendorName) || log.vendorName || 'Authorized Vendor',
+        technician: (fullItem && fullItem.technician) || 'Technician',
+        cost: (fullItem && fullItem.cost) || log.cost || 'Included in AMC',
+        description: (fullItem && fullItem.description) || log.description || log.remarks || 'Auto Mail dispatch recorded in Google Sheet.',
+        lastServiceDate: fullItem ? fullItem.lastServiceDate : '',
+        nextDueDate: fullItem ? fullItem.nextDueDate : '',
+        frequency: (fullItem && fullItem.frequency) || 'Quarterly',
+        parentRecord: fullItem ? fullItem.parentRecord : null
+      });
+    });
+  }
+
+  // 2. Also check autoMailTimelineData for any item marked sent not yet in sentItems
+  autoMailTimelineData.forEach(item => {
+    if (isAutoMailItemSent(item.id) && !seenIds.has(item.id)) {
+      seenIds.add(item.id);
+      sentItems.push({
+        ...item,
+        sentAt: 'Recently Dispatched',
+        to: 'Recipient',
+        cc: '',
+        subject: `[Auto Mail] ${item.eventTag} - ${item.category} (${item.unit})`,
+        remarks: 'Recorded in Google Sheet'
+      });
+    }
+  });
+
+  let filtered = sentItems;
+
+  // Filter by search query
+  if (autoMailSearchQuery) {
+    filtered = filtered.filter(item => {
+      const searchStr = `${item.category} ${item.unit} ${item.floor} ${item.vendorName} ${item.technician} ${item.description} ${item.eventTag} ${item.to} ${item.cc} ${item.subject} ${item.sentAt} ${item.remarks}`.toLowerCase();
+      return searchStr.includes(autoMailSearchQuery);
+    });
+  }
+
+  if (summaryTextEl) {
+    summaryTextEl.textContent = `Showing ${filtered.length} sent mail${filtered.length === 1 ? '' : 's'} (Stored in Google Sheet)`;
+  }
+
+  if (!filtered.length) {
+    if (sentItems.length === 0) {
+      listEl.innerHTML = `
+        <div class="auto-mail-empty-box">
+          <div style="width:56px;height:56px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z"/>
+              <path d="M22 2 11 13"/>
+            </svg>
+          </div>
+          <div style="font-weight:700;color:#059669;font-size:15px;margin-top:6px;">No Sent Mails Recorded</div>
+          <p style="color:#64748b;font-size:12.5px;margin:0;max-width:320px;text-align:center;">
+            Mails dispatched from the operations timeline will be permanently recorded in Google Sheet and listed here.
+          </p>
+        </div>`;
+    } else {
+      listEl.innerHTML = `
+        <div class="auto-mail-empty-box">
+          <div style="width:48px;height:48px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div style="font-weight:700;color:#334155;font-size:15px;margin-top:6px;">No sent mails match your filter</div>
+          <p style="color:#64748b;font-size:12.5px;margin:0;">Try clearing the search box to view all dispatched mails.</p>
+        </div>`;
+    }
+    return;
+  }
+
+  const categoryPalettes = {
+    'Generator': { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+    'Fire': { bg: '#ffe4e6', text: '#e11d48', border: '#fecdd3' },
+    'Lift': { bg: '#ede9fe', text: '#7c3aed', border: '#ddd6fe' },
+    'Air Condition': { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd' },
+    'Water Filter': { bg: '#d1fae5', text: '#059669', border: '#a7f3d0' },
+    'CCTV Camera': { bg: '#cffafe', text: '#0891b2', border: '#a5f3fc' },
+    'Sound System & intercom': { bg: '#fce7f3', text: '#db2777', border: '#fbcfe8' },
+    'Solar Panel Maintenance': { bg: '#fef3c7', text: '#b45309', border: '#fde68a' }
+  };
+
+  listEl.innerHTML = filtered.map(item => {
+    const pal = categoryPalettes[item.category] || { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+    const escapedId = escapeHtml(item.id);
+    const sentDisplayDate = item.sentAt || formatAutoTimelineDate(item.date);
+
+    return `
+      <div class="auto-timeline-item" data-id="${escapedId}">
+        <div class="auto-timeline-node node-sent">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div class="auto-news-card" style="border-left: 3px solid #059669;">
+          <div class="auto-news-card-header">
+            <div class="auto-news-badges-wrap">
+              <span class="auto-tag-pill tag-sent">Mail Dispatched</span>
+              <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10.5px;font-weight:700;background:${pal.bg};color:${pal.text};border:1px solid ${pal.border};">
+                ${escapeHtml(item.category)}
+              </span>
+            </div>
+            <div class="auto-news-date-badge" title="Dispatched timestamp">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>${escapeHtml(sentDisplayDate)}</span>
+            </div>
+          </div>
+
+          <div class="auto-news-title">
+            ${escapeHtml(item.unit)} &bull; ${escapeHtml(item.floor || 'All Floors')}
+          </div>
+
+          <!-- Sent Metadata Card (Recipients, Subject, Remarks) -->
+          <div class="auto-sent-meta-box">
+            <div class="auto-sent-meta-row">
+              <span class="auto-sent-meta-label">Sent To:</span>
+              <span class="auto-sent-meta-val" style="font-weight:600;">${escapeHtml(item.to || '—')}</span>
+            </div>
+            ${item.cc ? `
+            <div class="auto-sent-meta-row">
+              <span class="auto-sent-meta-label">CC:</span>
+              <span class="auto-sent-meta-val">${escapeHtml(item.cc)}</span>
+            </div>` : ''}
+            ${item.subject ? `
+            <div class="auto-sent-meta-row">
+              <span class="auto-sent-meta-label">Subject:</span>
+              <span class="auto-sent-meta-val" style="color:#0369a1;font-weight:600;">${escapeHtml(item.subject)}</span>
+            </div>` : ''}
+            ${item.remarks ? `
+            <div class="auto-sent-meta-row">
+              <span class="auto-sent-meta-label">Log Note:</span>
+              <span class="auto-sent-meta-val" style="color:#059669;">${escapeHtml(item.remarks)}</span>
+            </div>` : ''}
+          </div>
+
+          <div class="auto-news-desc">
+            ${escapeHtml(item.description)}
+          </div>
+
+          <!-- Footer & Resend Button -->
+          <div class="auto-news-footer">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="auto-sent-status-badge">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Saved in Sheet
+              </span>
+              <span class="auto-news-vendor-info">Vendor: <strong>${escapeHtml(item.vendorName)}</strong> &bull; Cost: ${escapeHtml(item.cost)}</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;">
+              <button class="auto-btn-wa-icon" type="button" onclick="sendAutoMailItemWhatsApp('${escapedId}')" title="Share on WhatsApp">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+                </svg>
+              </button>
+              <button class="auto-btn-mail-icon" type="button" onclick="openAutoMailComposeById('${escapedId}')" title="Resend Auto Mail (Gmail dispatch)">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Find item and trigger Card 2 composer (with fallback to Sent Mail logs)
+function openAutoMailComposeById(id) {
+  let item = autoMailTimelineData.find(e => e.id === id);
+  if (!item && Array.isArray(autoMailSentLogsData)) {
+    const log = autoMailSentLogsData.find(l => l.id === id);
+    if (log) {
+      item = {
+        id: log.id,
+        eventType: 'servicing',
+        eventTag: log.eventTag || 'Dispatched Mail',
+        category: log.category || 'General',
+        unit: log.unit || 'Main Unit',
+        floor: '—',
+        vendorName: log.vendorName || 'Authorized Vendor',
+        technician: 'Technician',
+        cost: log.cost || 'Included in AMC',
+        description: log.description || log.remarks || '',
+        lastServiceDate: '',
+        nextDueDate: '',
+        expiryDate: '',
+        frequency: '',
+        contactPerson: ''
+      };
+    }
+  }
+  if (item) {
+    openAutoMailComposeModal(item);
+  }
+}
+
+// Open Auto Mail Composer (Card 2)
+function openAutoMailComposeModal(eventItem) {
+  currentAutoMailEvent = eventItem;
+  closeAutoMailFeedModal();
+
+  const composeModal = document.getElementById('autoMailComposeOverlay');
+  if (composeModal) composeModal.classList.remove('hidden');
+
+  // Smart subject generation
+  const subjectInput = document.getElementById('autoMailSubjectInput');
+  if (subjectInput) {
+    const formattedDate = formatAutoTimelineDate(eventItem.date);
+    subjectInput.value = `[Auto Mail] ${eventItem.eventTag} - ${eventItem.category} (${eventItem.unit})`;
+  }
+
+  // Pre-populate recipients if empty
+  if (!autoMailToSelected.length && Array.isArray(mailRecipientsCache) && mailRecipientsCache.length) {
+    autoMailToSelected = mailRecipientsCache.slice(0, 2);
+  }
+
+  renderAutoRecipientChips('to');
+  renderAutoRecipientChips('cc');
+  renderAutoMailBodyPreview();
+}
+
+// Return from Card 2 back to Card 1
+function backToAutoMailFeed() {
+  closeAutoMailComposeModal();
+  openAutoMailFeedModal();
+}
+
+// Close Card 2 Composer
+function closeAutoMailComposeModal() {
+  const modal = document.getElementById('autoMailComposeOverlay');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ── Auto Mail Recipient Multi-Select Controls ────────────────────────────────
+
+function toggleAutoRecipientPanel(kind) {
+  const panel = document.getElementById(kind === 'to' ? 'autoMailToPanel' : 'autoMailCcPanel');
+  if (!panel) return;
+  const isHidden = panel.classList.contains('hidden');
+  document.querySelectorAll('.auto-mail-dropdown-panel').forEach(p => p.classList.add('hidden'));
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    renderAutoRecipientPanel(kind);
+    const searchInput = document.getElementById(kind === 'to' ? 'autoMailToSearch' : 'autoMailCcSearch');
+    if (searchInput) {
+      searchInput.value = '';
+      setTimeout(() => searchInput.focus(), 50);
+    }
+  }
+}
+
+function renderAutoRecipientPanel(kind) {
+  const listEl = document.getElementById(kind === 'to' ? 'autoMailToContactsList' : 'autoMailCcContactsList');
+  if (!listEl) return;
+  const emails = Array.isArray(mailRecipientsCache) ? mailRecipientsCache : [];
+  const selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+
+  if (!emails.length) {
+    listEl.innerHTML = `<div style="padding:10px;color:#94a3b8;font-size:12px;text-align:center;">No saved contacts found. Add email below.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = emails.map(email => {
+    const checked = selected.includes(email) ? 'checked' : '';
+    const safe = escapeHtml(email);
+    return `
+      <label class="auto-mail-contact-option">
+        <input type="checkbox" ${checked} onchange="toggleAutoRecipient('${kind}', '${safe.replace(/'/g, "\\'")}')">
+        <span>${safe}</span>
+      </label>`;
+  }).join('');
+}
+
+function filterAutoContacts(kind) {
+  const searchInput = document.getElementById(kind === 'to' ? 'autoMailToSearch' : 'autoMailCcSearch');
+  const q = (searchInput?.value || '').trim().toLowerCase();
+  const listEl = document.getElementById(kind === 'to' ? 'autoMailToContactsList' : 'autoMailCcContactsList');
+  if (!listEl) return;
+
+  const emails = (Array.isArray(mailRecipientsCache) ? mailRecipientsCache : []).filter(e => e.toLowerCase().includes(q));
+  const selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+
+  if (!emails.length) {
+    listEl.innerHTML = `<div style="padding:10px;color:#94a3b8;font-size:12px;text-align:center;">No contacts match "${escapeHtml(q)}"</div>`;
+    return;
+  }
+
+  listEl.innerHTML = emails.map(email => {
+    const checked = selected.includes(email) ? 'checked' : '';
+    const safe = escapeHtml(email);
+    return `
+      <label class="auto-mail-contact-option">
+        <input type="checkbox" ${checked} onchange="toggleAutoRecipient('${kind}', '${safe.replace(/'/g, "\\'")}')">
+        <span>${safe}</span>
+      </label>`;
+  }).join('');
+}
+
+function toggleSelectAllAutoContacts(kind) {
+  const emails = Array.isArray(mailRecipientsCache) ? mailRecipientsCache : [];
+  let selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+  const allSelected = emails.length > 0 && emails.every(e => selected.includes(e));
+
+  if (allSelected) {
+    if (kind === 'to') autoMailToSelected = [];
+    else autoMailCcSelected = [];
+  } else {
+    const merged = Array.from(new Set([...selected, ...emails]));
+    if (kind === 'to') autoMailToSelected = merged;
+    else autoMailCcSelected = merged;
+  }
+
+  renderAutoRecipientPanel(kind);
+  renderAutoRecipientChips(kind);
+}
+
+function toggleAutoRecipient(kind, email) {
+  let selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+  const idx = selected.indexOf(email);
+  if (idx > -1) {
+    selected.splice(idx, 1);
+  } else {
+    selected.push(email);
+  }
+  renderAutoRecipientChips(kind);
+}
+
+function removeAutoRecipient(kind, email, event) {
+  if (event) event.stopPropagation();
+  let selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+  const idx = selected.indexOf(email);
+  if (idx > -1) {
+    selected.splice(idx, 1);
+    renderAutoRecipientChips(kind);
+    renderAutoRecipientPanel(kind);
+  }
+}
+
+function addCustomAutoRecipient(kind) {
+  const input = document.getElementById(kind === 'to' ? 'autoMailToCustomInput' : 'autoMailCcCustomInput');
+  const val = (input?.value || '').trim();
+  if (!val) return;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(val)) {
+    showToast('Please enter a valid email address.', true);
+    return;
+  }
+  let selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+  if (!selected.includes(val)) {
+    selected.push(val);
+    renderAutoRecipientChips(kind);
+    renderAutoRecipientPanel(kind);
+  }
+  if (input) input.value = '';
+}
+
+function renderAutoRecipientChips(kind) {
+  const chipsList = document.getElementById(kind === 'to' ? 'autoMailToChips' : 'autoMailCcChips');
+  const placeholder = document.getElementById(kind === 'to' ? 'autoMailToPlaceholder' : 'autoMailCcPlaceholder');
+  if (!chipsList || !placeholder) return;
+
+  const selected = kind === 'to' ? autoMailToSelected : autoMailCcSelected;
+  const cached = Array.isArray(mailRecipientsCache) ? mailRecipientsCache : [];
+
+  if (!selected.length) {
+    chipsList.innerHTML = '';
+    placeholder.style.display = 'inline';
+    return;
+  }
+
+  placeholder.style.display = 'none';
+  chipsList.innerHTML = selected.map(email => {
+    const isCustom = !cached.includes(email);
+    const safe = escapeHtml(email);
+    return `
+      <span class="auto-mail-chip-pill ${isCustom ? 'custom-chip' : ''}">
+        <span>${safe}</span>
+        <button type="button" class="auto-mail-chip-remove" onclick="removeAutoRecipient('${kind}', '${safe.replace(/'/g, "\\'")}', event)">&times;</button>
+      </span>`;
+  }).join('');
+}
+
+// Close recipient dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#autoMailToBox') && !e.target.closest('#autoMailToPanel')) {
+    document.getElementById('autoMailToPanel')?.classList.add('hidden');
+  }
+  if (!e.target.closest('#autoMailCcBox') && !e.target.closest('#autoMailCcPanel')) {
+    document.getElementById('autoMailCcPanel')?.classList.add('hidden');
+  }
+});
+
+// Render Live Preview in Card 2
+function renderAutoMailBodyPreview() {
+  const previewBox = document.getElementById('autoMailPreviewContent');
+  if (!previewBox || !currentAutoMailEvent) return;
+  const customNote = document.getElementById('autoMailCustomNote')?.value?.trim() || '';
+  previewBox.innerHTML = buildAutoMailHtml(currentAutoMailEvent, customNote);
+}
+
+// Build Formal, Stylish HTML Email (Verdana & Calibri, Soft Pastel, Center-aligned tables with cell borders, zero emojis)
+function buildAutoMailHtml(item, customNote) {
+  if (!item) return '';
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  });
+  const timeStr = now.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', hour12: true
+  });
+
+  // Keep lifecycle dates semantically separate. `item.date` is the
+  // timeline's display date (the next due date for upcoming events), not the
+  // date a service was actually completed.
+  const formattedLastService = item.lastServiceDate
+    ? formatAutoTimelineDate(item.lastServiceDate)
+    : 'Not logged';
+  const formattedNextDue = item.nextDueDate
+    ? formatAutoTimelineDate(item.nextDueDate)
+    : 'Not scheduled';
+  const daysUntilNext = item.nextDueDate ? autoSafeDaysFromNow(item.nextDueDate) : null;
+
+  let milestoneStatusPill = '';
+  if (daysUntilNext !== null) {
+    if (daysUntilNext < 0) {
+      milestoneStatusPill = `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">${Math.abs(daysUntilNext)} DAYS OVERDUE</span>`;
+    } else if (daysUntilNext <= 15) {
+      milestoneStatusPill = `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#fef3c7;color:#92400e;border:1px solid #fcd34d;">DUE IN ${daysUntilNext} DAYS</span>`;
+    } else {
+      milestoneStatusPill = `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10px;font-weight:800;background-color:#e0f2fe;color:#075985;border:1px solid #7dd3fc;">SCHEDULED (${daysUntilNext} DAYS)</span>`;
+    }
+  }
+
+  // Soft Pastel Category Palette
+  const catColorMap = {
+    'Generator': { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+    'Fire': { bg: '#ffe4e6', text: '#e11d48', border: '#fecdd3' },
+    'Lift': { bg: '#ede9fe', text: '#7c3aed', border: '#ddd6fe' },
+    'Air Condition': { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd' },
+    'Water Filter': { bg: '#d1fae5', text: '#059669', border: '#a7f3d0' },
+    'CCTV Camera': { bg: '#cffafe', text: '#0891b2', border: '#a5f3fc' },
+    'Sound System & intercom': { bg: '#fce7f3', text: '#db2777', border: '#fbcfe8' },
+    'Solar Panel Maintenance': { bg: '#fef3c7', text: '#b45309', border: '#fde68a' }
+  };
+  const pal = catColorMap[item.category] || { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+
+  // Executive Notice Box
+  let noticeHtml = '';
+  if (customNote) {
+    noticeHtml = `
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:22px;background-color:#f0fdf4;border:1.5px solid #86efac;border-left:5px solid #16a34a;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 18px;">
+            <div style="font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;">Executive Notice / Directives:</div>
+            <div style="font-family:Calibri,Verdana,sans-serif;font-size:14px;color:#14532d;line-height:1.55;font-weight:600;">${escapeHtml(customNote)}</div>
+          </td>
+        </tr>
+      </table>`;
+  }
+
+  return `
+    <table role="presentation" border="1" cellpadding="0" cellspacing="0" style="width:100%;max-width:740px;margin:0 auto;border-collapse:collapse;font-family:Calibri,Verdana,'Segoe UI',Arial,sans-serif;background-color:#ffffff;border:2px solid #64748b;border-radius:10px;overflow:hidden;box-shadow:0 6px 22px rgba(15,23,42,0.08);">
+      
+      <!-- Top Brand Header with Soft Gradient & Logo -->
+      <tr>
+        <td style="background:linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%);padding:22px 26px;border-bottom:3px solid #818cf8;border-top:none;border-left:none;border-right:none;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="width:50px;vertical-align:middle;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;width:46px;height:46px;border-collapse:collapse;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                  <tr>
+                    <td align="center" valign="middle" style="width:46px;height:46px;">
+                      <img src="${MAIL_LOGO_URL}" alt="Trio Group" width="32" height="32" style="display:block;width:32px;height:32px;object-fit:contain;">
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td style="vertical-align:middle;padding-left:15px;text-align:left;">
+                <div style="color:#ffffff;font-family:Verdana,Calibri,sans-serif;font-size:18px;font-weight:700;letter-spacing:-0.2px;">Operational Maintenance &amp; Lifecycle Notification</div>
+                <div style="color:#e0e7ff;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;font-weight:400;margin-top:2px;">FACILIX &middot; Auto Mail System &amp; Compliance Audit Record</div>
+              </td>
+              <td align="right" style="vertical-align:middle;">
+                <div style="display:inline-block;padding:5px 12px;border-radius:14px;font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);color:#ffffff;border:1px solid rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px;">
+                  ${dateStr}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Sub Header Info Strip -->
+      <tr>
+        <td style="background-color:#f8fafc;padding:10px 24px;border-bottom:1px solid #cbd5e1;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#475569;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="text-align:left;">
+                <strong>Notification Type:</strong> ${escapeHtml(item.eventTag)} &nbsp;&bull;&nbsp; <strong>Generated:</strong> ${dateStr} at ${timeStr}
+              </td>
+              <td style="text-align:right;">
+                <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-family:Verdana,Calibri,sans-serif;font-size:10.5px;font-weight:700;background-color:${pal.bg};color:${pal.text};border:1px solid ${pal.border};">
+                  ${escapeHtml(item.category)}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Body Content -->
+      <tr>
+        <td style="padding:24px 26px 18px;">
+          
+          <p style="font-family:Verdana,Calibri,sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:0 0 8px;">Dear Facility &amp; Safety Operations Team,</p>
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:14px;color:#334155;line-height:1.6;margin:0 0 18px;">
+            Please find the formal equipment servicing and operational lifecycle status report for <strong>${escapeHtml(item.unit)}</strong> (${escapeHtml(item.category)}) below. All details and subsequent milestone schedules have been synchronized with FACILIX.
+          </p>
+
+          <!-- Custom Notice if provided -->
+          ${noticeHtml}
+
+          <!-- Highlighted Next Milestone Banner -->
+          <div style="background-color:#f0f9ff;border:1.5px solid #bae6fd;border-left:5px solid #0284c7;border-radius:8px;padding:14px 18px;margin-bottom:22px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="text-align:left;vertical-align:middle;">
+                  <div style="font-family:Verdana,Calibri,sans-serif;font-size:11px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px;">Upcoming Operational Milestone:</div>
+                  <div style="font-family:Calibri,Verdana,sans-serif;font-size:14.5px;font-weight:700;color:#0c4a6e;margin-top:3px;">Next Scheduled Date: ${formattedNextDue} (${escapeHtml(item.frequency)})</div>
+                </td>
+                <td style="text-align:right;vertical-align:middle;">
+                  ${milestoneStatusPill}
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Centered Lifecycle Summary Table with 2px Outer Border and Full Cell Borders -->
+          <div style="margin-bottom:24px;">
+            <div style="font-family:Verdana,Calibri,sans-serif;font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:10px;padding:6px 12px;background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:6px;">
+              <span>Equipment Lifecycle &amp; Maintenance Details</span>
+            </div>
+            <table role="presentation" border="1" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #64748b;background-color:#ffffff;border-radius:4px;">
+              <thead>
+                <tr style="background-color:#e2e8f0;color:#0f172a;font-family:Verdana,Calibri,sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Category</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Unit &amp; Location</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Event / Action Done</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Last Service Date</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Next Scheduled Visit</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Vendor &amp; Staff</th>
+                  <th style="padding:9px 8px;border:1px solid #64748b;text-align:center;vertical-align:middle;">Cost / Terms</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="background-color:#ffffff;">
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;">
+                    <span style="display:inline-block;padding:3px 8px;border-radius:10px;font-family:Verdana,Calibri,sans-serif;font-size:10.5px;font-weight:700;background-color:${pal.bg};color:${pal.text};border:1px solid ${pal.border};">
+                      ${escapeHtml(item.category)}
+                    </span>
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:13px;font-weight:700;color:#0f172a;">
+                    ${escapeHtml(item.unit)}<br><span style="font-size:11.5px;color:#64748b;font-weight:normal;">${escapeHtml(item.floor || 'All Floors')}</span>
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#334155;font-weight:600;">
+                    ${escapeHtml(item.eventTag)}<br><span style="font-size:11.5px;color:#64748b;font-weight:normal;">${escapeHtml(item.description)}</span>
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#0f172a;font-weight:700;">
+                    ${formattedLastService}
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#0369a1;font-weight:700;">
+                    ${formattedNextDue}
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#334155;">
+                    ${escapeHtml(item.vendorName)}<br><span style="font-size:11.5px;color:#64748b;">${escapeHtml(item.technician)}</span>
+                  </td>
+                  <td style="padding:10px 8px;border:1px solid #cbd5e1;text-align:center;vertical-align:middle;font-family:Calibri,Verdana,sans-serif;font-size:12px;color:#475569;font-weight:600;">
+                    ${escapeHtml(item.cost)}<br><span style="font-size:11px;color:#64748b;">${escapeHtml(item.frequency)}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Action Items Card -->
+          <div style="background-color:#f8fafc;border:1.5px solid #cbd5e1;border-left:5px solid #4338ca;border-radius:8px;padding:14px 18px;margin-bottom:20px;">
+            <div style="font-family:Verdana,Calibri,sans-serif;font-size:11.5px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Required Next Steps:</div>
+            <ul style="margin:0;padding-left:18px;font-family:Calibri,Verdana,sans-serif;font-size:13px;color:#1e293b;line-height:1.65;">
+              <li>Ensure vendor service documentation and warranty slips are safely archived in compliance registers.</li>
+              <li>Schedule calendar reminders in advance of the upcoming next due date (<strong>${formattedNextDue}</strong>).</li>
+              <li>Inspect machinery operation post-maintenance to verify optimal performance and safety readiness.</li>
+            </ul>
+          </div>
+
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:13.5px;color:#334155;margin:0 0 3px;">Best regards,</p>
+          <p style="font-family:Verdana,Calibri,sans-serif;font-size:13.5px;font-weight:700;color:#0f172a;margin:0 0 2px;">Fire &amp; Safety Compliance Cell</p>
+          <p style="font-family:Calibri,Verdana,sans-serif;font-size:12.5px;color:#64748b;margin:0;">FACILIX &middot; Trio Group Operations</p>
+
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="background-color:#f8fafc;padding:14px 26px;border-top:1.5px solid #cbd5e1;text-align:center;font-family:Calibri,Verdana,sans-serif;font-size:11.5px;color:#64748b;">
+          This is an automated operational lifecycle dispatch generated from FACILIX.
+        </td>
+      </tr>
+
+    </table>`;
+}
+
+// Plain Text Fallback for Auto Mail
+function buildAutoMailText(item, customNote) {
+  if (!item) return '';
+  let text = `OPERATIONAL MAINTENANCE & LIFECYCLE NOTIFICATION\nFACILIX - Trio Group\nDate: ${new Date().toLocaleDateString('en-IN')}\n\n`;
+
+  if (customNote) {
+    text += `EXECUTIVE DIRECTIVE:\n${customNote}\n\n`;
+  }
+
+  text += `EVENT SUMMARY:\n`;
+  text += `- Event Type: ${item.eventTag}\n`;
+  text += `- Category: ${item.category}\n`;
+  text += `- Unit: ${item.unit} (${item.floor || 'All Floors'})\n`;
+  text += `- Last Service Date: ${item.lastServiceDate ? formatAutoTimelineDate(item.lastServiceDate) : 'Not logged'}\n`;
+  text += `- Next Scheduled Visit: ${item.nextDueDate ? formatAutoTimelineDate(item.nextDueDate) : 'Not scheduled'}\n`;
+  text += `- Vendor: ${item.vendorName} (${item.technician})\n`;
+  text += `- Cost / Terms: ${item.cost} (${item.frequency})\n`;
+  text += `- Description: ${item.description}\n\n`;
+
+  text += `Please record this entry in your local maintenance register.\n\nFire & Safety Compliance Cell\nFACILIX - Trio Group`;
+  return text;
+}
+
+// ── Send Auto Mail Dispatcher ────────────────────────────────────────────────
+
+async function sendAutoMail() {
+  if (!autoMailToSelected.length) {
+    showToast('Please select at least one recipient in the "To" field.', true);
+    document.getElementById('autoMailToBox')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  if (!currentAutoMailEvent) {
+    showToast('No timeline event selected for dispatch.', true);
+    return;
+  }
+
+  const subject = document.getElementById('autoMailSubjectInput')?.value?.trim() || `[Auto Mail] ${currentAutoMailEvent.eventTag} - ${currentAutoMailEvent.category}`;
+  const customNote = document.getElementById('autoMailCustomNote')?.value?.trim() || '';
+  const htmlBody = buildAutoMailHtml(currentAutoMailEvent, customNote);
+  const plainBody = buildAutoMailText(currentAutoMailEvent, customNote);
+
+  const sendBtn = document.getElementById('autoMailSendBtn');
+  const spinner = document.getElementById('autoMailSpinner');
+  const btnText = document.getElementById('autoMailSendBtnText');
+
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    if (spinner) spinner.classList.remove('hidden');
+    if (btnText) btnText.textContent = 'Sending Auto Mail...';
+  }
+
+  try {
+    const payload = {
+      action: 'sendAutoMail',
+      // Identifies the timeline event so the server can write a "sent"
+      // remark for it into the shared Auto Mail Log sheet — this is what
+      // makes the sent status visible from any account/browser, not just
+      // this one.
+      id: currentAutoMailEvent.id,
+      category: currentAutoMailEvent.category,
+      unit: currentAutoMailEvent.unit,
+      floor: currentAutoMailEvent.floor || '',
+      eventTag: currentAutoMailEvent.eventTag,
+      // Keep the two lifecycle milestones unambiguous for any server-side
+      // logging or future mail template: completed service vs. next visit.
+      lastServiceDate: currentAutoMailEvent.lastServiceDate || '',
+      nextDueDate: currentAutoMailEvent.nextDueDate || '',
+      expiryDate: currentAutoMailEvent.expiryDate || '',
+      frequency: currentAutoMailEvent.frequency || '',
+      vendorName: currentAutoMailEvent.vendorName || '',
+      technician: currentAutoMailEvent.technician || '',
+      cost: currentAutoMailEvent.cost || '',
+      description: currentAutoMailEvent.description || '',
+      customNote: customNote,
+      to: autoMailToSelected.join(','),
+      cc: autoMailCcSelected.join(','),
+      subject: subject,
+      body: plainBody,
+      htmlBody: htmlBody
+    };
+
+    const response = await serverCall('sendAutoMail', payload);
+
+    if (response && response.ok === false) {
+      throw new Error(response.message || 'Server indicated failure sending auto email.');
+    }
+
+    // The server already wrote the "sent" remark into the Auto Mail Log
+    // sheet as part of sending the mail. Update the local set and logs array
+    // so this browser's feed reflects it immediately without a re-fetch.
+    if (currentAutoMailEvent && currentAutoMailEvent.id) {
+      markAutoMailItemSent(currentAutoMailEvent.id);
+      const nowStr = new Date().toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      autoMailSentLogsData.unshift({
+        id: currentAutoMailEvent.id,
+        category: currentAutoMailEvent.category,
+        unit: currentAutoMailEvent.unit,
+        floor: currentAutoMailEvent.floor || '',
+        eventTag: currentAutoMailEvent.eventTag,
+        sentAt: nowStr,
+        to: autoMailToSelected.join(', '),
+        cc: autoMailCcSelected.join(', '),
+        subject: subject,
+        vendorName: currentAutoMailEvent.vendorName || '',
+        cost: currentAutoMailEvent.cost || '',
+        description: currentAutoMailEvent.description || '',
+        remarks: `Mail sent on ${nowStr} to ${autoMailToSelected.join(', ')}`
+      });
+    }
+
+    const toList = autoMailToSelected.join(', ');
+    const ccPart = autoMailCcSelected.length ? ` (cc: ${autoMailCcSelected.join(', ')})` : '';
+    showToast(`Auto mail sent with PDF attachment to ${toList}${ccPart}.`);
+
+    // Reset selection for next use
+    autoMailToSelected = [];
+    autoMailCcSelected = [];
+    currentAutoMailEvent = null;
+
+    closeAutoMailComposeModal();
+    updateAutoMailCounts();
+    renderAutoMailTimelineFeed();
+    openAutoMailFeedModal();
+
+  } catch (error) {
+    console.error('Failed to send auto email:', error);
+    showToast(`Could not send auto email: ${error.message || error}`, true);
+  } finally {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      if (spinner) spinner.classList.add('hidden');
+      if (btnText) btnText.textContent = 'Send Auto Mail';
+    }
+  }
+}
+
+// ── Auto Mail WhatsApp Instant Dispatch Handlers ──────────────────────────
+function formatAutoMailWhatsAppMessage(item) {
+  const cat = item.category || 'Asset';
+  const unit = item.unit || 'General';
+  const floor = item.floor ? ` (${item.floor})` : '';
+  const vendor = item.vendorName ? `\n*Vendor / Agency:* ${item.vendorName}` : '';
+  const tech = item.technician ? `\n*Technician:* ${item.technician}` : '';
+  const cost = item.cost ? `\n*Cost:* ${item.cost}` : '';
+  const tag = item.eventTag || 'Operations Update';
+
+  let eventHeadline = '🔔 *FACILIX Operations Timeline Update*';
+  if (item.eventType === 'breakdown') {
+    eventHeadline = '🚨 *FACILIX EMERGENCY BREAKDOWN ALERT*';
+  } else if (item.eventType === 'servicing') {
+    eventHeadline = '🛠️ *FACILIX ROUTINE SERVICING RECORDED*';
+  } else if (item.eventType === 'renewal') {
+    eventHeadline = '📜 *FACILIX CONTRACT RENEWAL NOTICE*';
+  } else if (item.eventType === 'upcoming') {
+    eventHeadline = '⏳ *FACILIX UPCOMING SERVICE SCHEDULE*';
+  }
+
+  const dateDisplay = formatAutoTimelineDate(item.date);
+  const nextDueDisplay = item.nextDueDate ? formatAutoTimelineDate(item.nextDueDate) : 'Not scheduled';
+
+  return `${eventHeadline}
+━━━━━━━━━━━━━━━━━━━━
+*Asset:* ${cat} — Unit ${unit}${floor}${vendor}${tech}
+*Category:* ${tag.toUpperCase()}
+*Event Date:* ${dateDisplay}
+
+*Description / Scope:*
+_${item.description || 'Facility maintenance action completed.'}_
+
+*Next Due Date:* ${nextDueDisplay} (${item.frequency || 'Annual'})${cost}
+*Record Ref:* ${item.id || '-'}
+━━━━━━━━━━━━━━━━━━━━
+_Automated dispatch via FACILIX Operations Hub • Trio Group_`;
+}
+
+function sendAutoMailItemWhatsApp(itemId) {
+  const item = (typeof autoMailTimelineData !== 'undefined' ? autoMailTimelineData : []).find(e => e.id === itemId);
+  if (!item) {
+    showToast('Timeline event not found.', true);
+    return;
+  }
+
+  const phone = cleanPhoneForWhatsApp(item.contactInfo);
+  const text = formatAutoMailWhatsAppMessage(item);
+  const waUrl = phone 
+    ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  showToast(phone ? `Opening WhatsApp for ${item.vendorName || 'Vendor'}...` : 'Opening WhatsApp with pre-filled message...');
+}
+
+function sendCurrentAutoMailWhatsApp() {
+  if (!currentAutoMailEvent) {
+    showToast('No active Auto Mail event loaded.', true);
+    return;
+  }
+
+  // Include any custom note added by the user in composer
+  const customNote = (document.getElementById('autoMailCustomNoteInput')?.value || '').trim();
+  let text = formatAutoMailWhatsAppMessage(currentAutoMailEvent);
+  if (customNote) {
+    text += `\n\n📌 *Special Instructions / Note:*\n${customNote}`;
+  }
+
+  const phone = cleanPhoneForWhatsApp(currentAutoMailEvent.contactInfo);
+  const waUrl = phone 
+    ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  showToast(phone ? `Opening WhatsApp for ${currentAutoMailEvent.vendorName || 'Vendor'}...` : 'Opening WhatsApp with pre-filled message...');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3019,6 +5239,13 @@ function updateAmcOverviewBadges() {
       el.style.color = '#15803d';
     }
   });
+
+  if (typeof updateReminderFilterCounts === 'function') {
+    updateReminderFilterCounts();
+  }
+  if (typeof fetchAutoMailTimelineData === 'function') {
+    fetchAutoMailTimelineData().catch(() => {});
+  }
 }
 
 // Fills the "Auto Alert & Warning Banner" at the top of the AMC overview
@@ -3452,12 +5679,19 @@ function renderAmcTable() {
         <td>${docsHtml}</td>
         <td style="max-width:180px;font-size:12px;color:#475569;white-space:normal;">${escapeHtml(r.remarks || '—')}</td>
         <td>
-          <button class="amc-take-action-btn" type="button" onclick="openAmcActionModal('${escapeHtml(r.id)}')" title="Take actions & view details for this AMC record">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-            Take Actions
-          </button>
+          <div style="display:inline-flex;align-items:center;gap:6px;">
+            <button class="amc-take-action-btn" type="button" onclick="openAmcActionModal('${escapeHtml(r.id)}')" title="Take actions & view details for this AMC record">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              Take Actions
+            </button>
+            <button class="amc-table-wa-btn" type="button" onclick="sendAmcWhatsAppAlertById('${escapeHtml(r.id)}')" title="Send WhatsApp alert to vendor (${escapeHtml(r.contactInfo || 'No phone')})">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+              </svg>
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -8463,12 +10697,12 @@ function fallbackJsPdfDownload() {
   doc.setTextColor(254, 215, 170);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('TRIO GROUP', 32, 24);
+  doc.text('FACILIX — TRIO GROUP', 32, 24);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(255, 237, 213);
-  doc.text('FIRE & SAFETY ENGINEERING ASSET MANAGEMENT - AUDIT STATEMENT', 32, 38);
+  doc.text('FACILIX ASSET MANAGEMENT & AUDIT STATEMENT', 32, 38);
 
   // Doc Details Bar (Safely within margins)
   doc.setFontSize(8);
@@ -8530,7 +10764,7 @@ function fallbackJsPdfDownload() {
       didDrawPage: function(dataPage) {
         doc.setFontSize(7);
         doc.setTextColor(120, 113, 108);
-        doc.text(`TRIO GROUP · Official AMC Audit Statement · Page ${dataPage.pageNumber}`, 32, pageHeight - 14);
+        doc.text(`FACILIX · Trio Group · Official AMC Audit Statement · Page ${dataPage.pageNumber}`, 32, pageHeight - 14);
       }
     });
 
@@ -9195,3 +11429,761 @@ function renderAmcMonthlyTable(months, year) {
       <td>₹${months.reduce((s, m) => s + m.total, 0).toLocaleString('en-IN')}</td>`;
   }
 }
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// STOCK LEDGER & ELECTRICAL INVENTORY SYSTEM (SHARP NON-ROUNDED ARCHITECTURE)
+// ═════════════════════════════════════════════════════════════════════════════
+
+let stockLedgerData = [];
+let stockPendingDeleteId = null;
+let currentStockSubview = 'electric';
+let stockFilterUnit = 'all';
+let stockFilterFloor = 'all';
+let stockFilterStatus = 'all';
+let stockSearchQuery = '';
+let isStockLoading = false;
+
+
+// Open Stock Modal
+async function openStockModal() {
+  const modal = document.getElementById('stockModalOverlay');
+  if (modal) modal.classList.remove('hidden');
+
+  populateStockUnitDropdowns();
+
+  if (!stockLedgerData || !stockLedgerData.length) {
+    await fetchStockDataFromBackend();
+  } else {
+    // Rebuild item name combo from fresh stock data
+    rebuildStockCombo('stockItemComboWrap', getStockItemNames(), 'item-history');
+    renderStockDashboard();
+  }
+}
+
+// Close Stock Modal
+function closeStockModal() {
+  const modal = document.getElementById('stockModalOverlay');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Subview switcher
+function switchStockSubview(subview) {
+  currentStockSubview = subview;
+  document.querySelectorAll('.stock-subview-tab').forEach(t => t.classList.remove('active'));
+  if (subview === 'electric') {
+    document.getElementById('stockSubElectric')?.classList.add('active');
+  }
+  renderStockDashboard();
+}
+
+// Populate Unit select dropdowns with available units in system
+function populateStockUnitDropdowns() {
+  const unitSelect = document.getElementById('stockFilterUnitSelect');
+  if (!unitSelect) return;
+
+  const currentVal = unitSelect.value || 'all';
+
+  // Collect units from state.factories, allAmcData, and stockLedgerData — NO hardcoded fallback
+  const unitSet = new Set();
+  if (Array.isArray(state?.factories)) {
+    state.factories.forEach(f => { if (f) unitSet.add(String(f).trim()); });
+  }
+  if (Array.isArray(allAmcData)) {
+    allAmcData.forEach(a => { if (a.unit) unitSet.add(String(a.unit).trim()); });
+  }
+  if (Array.isArray(stockLedgerData)) {
+    stockLedgerData.forEach(s => { if (s.unit) unitSet.add(String(s.unit).trim()); });
+  }
+
+  const sortedUnits = Array.from(unitSet).filter(Boolean).sort();
+
+  // Populate Filter Select dropdown (Unit filter at top of ledger)
+  unitSelect.innerHTML = `<option value="all">All Units</option>` +
+    sortedUnits.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+  unitSelect.value = currentVal;
+
+  // Populate Unit <select> in Add/Edit modal form
+  const formUnitSelect = document.getElementById('stockFormUnit');
+  if (formUnitSelect) {
+    const prevVal = formUnitSelect.value;
+    formUnitSelect.innerHTML = sortedUnits.length
+      ? sortedUnits.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('')
+      : `<option value="">-- No Units Found --</option>`;
+    if (prevVal && sortedUnits.includes(prevVal)) formUnitSelect.value = prevVal;
+  }
+}
+
+// Build and store unique electrical item names from all saved stock entries
+function getStockItemNames() {
+  const nameSet = new Set();
+  if (Array.isArray(stockLedgerData)) {
+    stockLedgerData.forEach(s => {
+      if (s.itemName && s.itemName.trim()) nameSet.add(s.itemName.trim());
+    });
+  }
+  return Array.from(nameSet).sort();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOM COMBO DROPDOWN ENGINE (Sharp, no native datalist/select)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// All options for each combo, keyed by wrap ID
+const stockComboOptions = {};
+
+// Build / refresh a combo's option list
+function rebuildStockCombo(wrapId, options, _type) {
+  stockComboOptions[wrapId] = options.filter(Boolean);
+}
+
+// Highlight matching substring
+function stockHighlightMatch(text, query) {
+  if (!query) return escapeHtml(text);
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return escapeHtml(text);
+  return (
+    escapeHtml(text.slice(0, idx)) +
+    `<span class="stock-combo-match">${escapeHtml(text.slice(idx, idx + query.length))}</span>` +
+    escapeHtml(text.slice(idx + query.length))
+  );
+}
+
+// Render the dropdown panel with filtered options
+function renderStockComboDropdown(wrapId, query) {
+  const listEl = document.getElementById(
+    wrapId === 'stockUnitComboWrap' ? 'stockUnitComboList' : 'stockItemComboList'
+  );
+  if (!listEl) return;
+
+  const all = stockComboOptions[wrapId] || [];
+  const q = (query || '').trim();
+  const filtered = q
+    ? all.filter(o => o.toLowerCase().includes(q.toLowerCase()))
+    : all;
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="stock-combo-empty-hint">${
+      q
+        ? `No match for "<strong>${escapeHtml(q)}</strong>". This will be saved as a new entry.`
+        : 'No entries yet. Type a new name to add it.'
+    }</div>`;
+    return;
+  }
+
+  const icon = wrapId === 'stockUnitComboWrap'
+    ? `<svg class="stock-combo-option-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="0"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>`
+    : `<svg class="stock-combo-option-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+
+  listEl.innerHTML =
+    (all.length > 0 ? `<div class="stock-combo-divider">${wrapId === 'stockUnitComboWrap' ? 'SELECT UNIT' : 'PREVIOUSLY SAVED ITEMS'}</div>` : '') +
+    filtered.map(opt =>
+      `<div class="stock-combo-option" data-wrap="${escapeHtml(wrapId)}" data-val="${escapeHtml(opt)}">${icon}<span class="stock-combo-option-text">${stockHighlightMatch(opt, q)}</span></div>`
+    ).join('');
+
+  // Attach click handlers via event delegation (avoids JSON.stringify breaking HTML attrs)
+  listEl.querySelectorAll('.stock-combo-option').forEach(el => {
+    el.addEventListener('mousedown', function(e) {
+      e.preventDefault(); // prevent blur from firing before selection
+      const wrap = this.dataset.wrap;
+      const val = this.dataset.val;
+      selectStockComboOption(wrap, val);
+    });
+  });
+}
+
+// Open dropdown
+function openStockComboDropdown(wrapId) {
+  const inputEl = document.querySelector(`#${wrapId} .stock-combo-input`);
+  const listEl = document.getElementById(
+    wrapId === 'stockUnitComboWrap' ? 'stockUnitComboList' : 'stockItemComboList'
+  );
+  if (!listEl) return;
+  renderStockComboDropdown(wrapId, inputEl?.value || '');
+  listEl.classList.remove('hidden');
+}
+
+// Toggle dropdown open/close
+function toggleStockComboDropdown(wrapId) {
+  const listEl = document.getElementById(
+    wrapId === 'stockUnitComboWrap' ? 'stockUnitComboList' : 'stockItemComboList'
+  );
+  if (!listEl) return;
+  if (listEl.classList.contains('hidden')) {
+    openStockComboDropdown(wrapId);
+  } else {
+    listEl.classList.add('hidden');
+  }
+}
+
+// Filter as user types
+function onStockComboInput(wrapId, value) {
+  openStockComboDropdown(wrapId);
+}
+
+// Select an option from the dropdown
+function selectStockComboOption(wrapId, value) {
+  const inputEl = document.querySelector(`#${wrapId} .stock-combo-input`);
+  const listEl = document.getElementById(
+    wrapId === 'stockUnitComboWrap' ? 'stockUnitComboList' : 'stockItemComboList'
+  );
+  if (inputEl) {
+    inputEl.value = value;
+    inputEl.dispatchEvent(new Event('change'));
+  }
+  if (listEl) listEl.classList.add('hidden');
+  // Return focus to input after selection
+  if (inputEl) inputEl.focus();
+}
+
+// Delay close so click on option fires first
+function delayCloseStockCombo(wrapId) {
+  setTimeout(() => {
+    const listEl = document.getElementById(
+      wrapId === 'stockUnitComboWrap' ? 'stockUnitComboList' : 'stockItemComboList'
+    );
+    if (listEl) listEl.classList.add('hidden');
+  }, 180);
+}
+
+
+
+// Fetch Stock Data from Google Sheet
+async function fetchStockDataFromBackend() {
+  isStockLoading = true;
+  const loadingBox = document.getElementById('stockTableLoading');
+  const emptyBox = document.getElementById('stockTableEmpty');
+  const tbody = document.getElementById('stockLedgerTableBody');
+
+  if (loadingBox) loadingBox.classList.remove('hidden');
+  if (emptyBox) emptyBox.classList.add('hidden');
+
+  try {
+    const res = await fetchJson(bustCache(`${WEB_APP_URL}?action=stockData`), {}, READ_REQUEST_TIMEOUT_MS);
+    stockLedgerData = Array.isArray(res) ? res : [];
+
+    const syncEl = document.getElementById('stockSyncTimestamp');
+    if (syncEl) {
+      const now = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      syncEl.textContent = `Sync: ${now} (Sheet)`;
+    }
+  } catch (err) {
+    console.warn('Could not fetch stock data from Google Sheets:', err);
+    if (!stockLedgerData) stockLedgerData = [];
+    const syncEl = document.getElementById('stockSyncTimestamp');
+    if (syncEl) syncEl.textContent = 'Sync: Sheet Offline';
+  } finally {
+    isStockLoading = false;
+    if (loadingBox) loadingBox.classList.add('hidden');
+    populateStockUnitDropdowns();
+    renderStockDashboard();
+  }
+}
+
+// Refresh / Sync button
+async function refreshStockData() {
+  showToast('Syncing Stock Ledger with Google Sheet...');
+  await fetchStockDataFromBackend();
+  showToast('Stock Ledger synced successfully.');
+}
+
+// Filter changes
+function onStockFilterChange() {
+  stockFilterUnit = document.getElementById('stockFilterUnitSelect')?.value || 'all';
+  stockFilterFloor = document.getElementById('stockFilterFloorSelect')?.value || 'all';
+  stockFilterStatus = document.getElementById('stockFilterStatusSelect')?.value || 'all';
+  renderStockDashboard();
+}
+
+// Search changes
+function onStockSearchChange(val) {
+  stockSearchQuery = (val || '').trim().toLowerCase();
+  renderStockDashboard();
+}
+
+// Render Dashboard: KPIs + High-density Ledger Table
+function renderStockDashboard() {
+  const tbody = document.getElementById('stockLedgerTableBody');
+  const emptyBox = document.getElementById('stockTableEmpty');
+  const summaryEl = document.getElementById('stockFooterSummary');
+  if (!tbody) return;
+
+  // Filter items (only Electric subview for now)
+  let items = (stockLedgerData || []).filter(item => {
+    return (item.category || 'Electric').toLowerCase() === currentStockSubview.toLowerCase();
+  });
+
+  // Calculate Overall KPIs for Electric Subview before filters
+  let totalReceived = 0;
+  let totalInUse = 0;
+  let totalClosing = 0;
+  let totalLowAlerts = 0;
+
+  items.forEach(item => {
+    const rec = Number(item.qtyReceived) || 0;
+    const use = Number(item.qtyInUse) || 0;
+    const closing = rec - use;
+    const minAlert = Number(item.minAlert) || 5;
+
+    totalReceived += rec;
+    totalInUse += use;
+    totalClosing += closing;
+    if (closing <= minAlert) totalLowAlerts++;
+  });
+
+  const setEl = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = Number(val).toLocaleString('en-IN');
+  };
+
+  setEl('stockKpiReceived', totalReceived);
+  setEl('stockKpiInUse', totalInUse);
+  setEl('stockKpiClosing', totalClosing);
+  setEl('stockKpiLowAlerts', totalLowAlerts);
+  
+  const badgeEl = document.getElementById('stockBadgeElectric');
+  if (badgeEl) badgeEl.textContent = items.length;
+
+  // Apply Unit Filter
+  if (stockFilterUnit !== 'all') {
+    items = items.filter(item => (item.unit || '').toLowerCase() === stockFilterUnit.toLowerCase());
+  }
+
+  // Apply Floor Filter
+  if (stockFilterFloor !== 'all') {
+    items = items.filter(item => (item.floor || '').toLowerCase() === stockFilterFloor.toLowerCase());
+  }
+
+  // Apply Health Status Filter
+  if (stockFilterStatus !== 'all') {
+    items = items.filter(item => {
+      const closing = (Number(item.qtyReceived) || 0) - (Number(item.qtyInUse) || 0);
+      const minAlert = Number(item.minAlert) || 5;
+      if (stockFilterStatus === 'depleted') return closing <= 0;
+      if (stockFilterStatus === 'low') return closing > 0 && closing <= minAlert;
+      if (stockFilterStatus === 'healthy') return closing > minAlert;
+      return true;
+    });
+  }
+
+  // Apply Search Query
+  if (stockSearchQuery) {
+    items = items.filter(item => {
+      const q = stockSearchQuery;
+      const str = `${item.unit} ${item.floor} ${item.itemName} ${item.specification} ${item.remarks} ${item.uom}`.toLowerCase();
+      return str.includes(q);
+    });
+  }
+
+  if (summaryEl) {
+    summaryEl.textContent = `Showing ${items.length} of ${stockLedgerData.length} total inventory items (Unit: ${stockFilterUnit.toUpperCase()} | Floor: ${stockFilterFloor.toUpperCase()})`;
+  }
+
+  if (!items.length) {
+    tbody.innerHTML = '';
+    if (emptyBox) emptyBox.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyBox) emptyBox.classList.add('hidden');
+
+  // Render High Density Ledger Table
+  tbody.innerHTML = items.map(item => {
+    const rec = Number(item.qtyReceived) || 0;
+    const use = Number(item.qtyInUse) || 0;
+    const closing = rec - use;
+    const minAlert = Number(item.minAlert) || 5;
+    const escapedId = escapeHtml(item.id);
+
+    // Health class and tag
+    let closingClass = 'stock-closing-good';
+    let statusTag = `<span class="stock-tag-sharp stock-tag-normal">[IN STOCK]</span>`;
+
+    if (closing <= 0) {
+      closingClass = 'stock-closing-zero';
+      statusTag = `<span class="stock-tag-sharp stock-tag-depleted">[DEPLETED]</span>`;
+    } else if (closing <= minAlert) {
+      closingClass = 'stock-closing-low';
+      statusTag = `<span class="stock-tag-sharp stock-tag-low">[LOW: &le;${minAlert}]</span>`;
+    }
+
+    return `
+      <tr data-id="${escapedId}">
+        <td class="stock-unit-cell">
+          <strong>${escapeHtml(item.unit || '—')}</strong>
+          <span class="stock-floor-tag">${escapeHtml(item.floor || 'All Floors')}</span>
+        </td>
+        <td class="stock-item-cell">
+          <span class="stock-item-name">${escapeHtml(item.itemName || 'Unnamed Item')}</span>
+          <span class="stock-item-spec">${escapeHtml(item.specification || 'Standard Spec')}</span>
+          ${item.remarks ? `<span style="font-size:10.5px;color:#94a3b8;font-style:italic;">Note: ${escapeHtml(item.remarks)}</span>` : ''}
+        </td>
+        <td style="text-align:center;font-weight:700;color:#64748b;font-size:11px;">
+          ${escapeHtml(item.uom || 'Nos')}
+        </td>
+        <td class="stock-num-cell stock-store-val">
+          ${rec.toLocaleString('en-IN')}
+        </td>
+        <td class="stock-num-cell stock-inuse-val">
+          ${use.toLocaleString('en-IN')}
+        </td>
+        <td class="stock-num-cell stock-closing-val ${closingClass}">
+          ${closing.toLocaleString('en-IN')}
+        </td>
+        <td style="text-align:center;">
+          ${statusTag}
+        </td>
+        <td>
+          <div class="stock-action-group">
+            <button class="stock-mini-btn" type="button" onclick="quickAdjustStock('${escapedId}', 'use', 1)" title="Issue +1 into floor usage (decreases closing stock)">+1 Use</button>
+            <button class="stock-mini-btn" type="button" onclick="quickAdjustStock('${escapedId}', 'use', -1)" title="Return 1 from floor usage to store">-1 Use</button>
+            <button class="stock-mini-btn" type="button" onclick="openStockItemModal('${escapedId}')" title="Edit full stock details">Edit</button>
+            <button class="stock-mini-btn stock-mini-del" type="button" onclick="deleteStockItemById('${escapedId}')" title="Delete stock entry">&times;</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Quick adjust quantity in use (+1 / -1) with instant recalculation
+async function quickAdjustStock(id, field, delta) {
+  const item = stockLedgerData.find(s => s.id === id);
+  if (!item) return;
+
+  if (field === 'use') {
+    const currentUse = Number(item.qtyInUse) || 0;
+    const rec = Number(item.qtyReceived) || 0;
+    const newUse = Math.max(0, currentUse + delta);
+
+    if (delta > 0 && newUse > rec) {
+      showToast(`Cannot issue more than available stock in store (${rec} ${item.uom}). Restock first.`, true);
+      return;
+    }
+
+    item.qtyInUse = newUse;
+    item.closingStock = rec - newUse;
+  }
+
+  renderStockDashboard();
+
+  try {
+    await fetchJson(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveStockItem', ...item })
+    }, 20000);
+  } catch (err) {
+    console.warn('Could not sync stock adjustment to sheet:', err);
+  }
+}
+
+// Open Add / Edit Stock Modal
+function openStockItemModal(id) {
+  // Populate Unit <select> and filter dropdowns from system factories
+  populateStockUnitDropdowns();
+
+  // Populate Item Name combo from previously entered item names (real data only)
+  rebuildStockCombo('stockItemComboWrap', getStockItemNames(), 'item-history');
+
+  const modal = document.getElementById('stockItemModalOverlay');
+  const form = document.getElementById('stockItemForm');
+  const title = document.getElementById('stockItemModalTitle');
+  const submitText = document.getElementById('stockFormSubmitText');
+  if (!modal || !form) return;
+
+  if (id) {
+    // Edit Mode
+    const item = stockLedgerData.find(s => s.id === id);
+    if (!item) return;
+
+    if (title) title.textContent = 'EDIT ELECTRICAL STOCK ENTRY';
+    if (submitText) submitText.textContent = 'Update Ledger';
+
+    document.getElementById('stockFormId').value = item.id;
+    document.getElementById('stockFormCategory').value = item.category || 'Electric';
+    document.getElementById('stockFormUnit').value = item.unit || '';
+    document.getElementById('stockFormFloor').value = item.floor || 'Ground Floor';
+    document.getElementById('stockFormItemName').value = item.itemName || '';
+    document.getElementById('stockFormSpec').value = item.specification || '';
+    document.getElementById('stockFormUom').value = item.uom || 'Nos';
+    document.getElementById('stockFormQtyReceived').value = item.qtyReceived ?? 10;
+    document.getElementById('stockFormQtyInUse').value = item.qtyInUse ?? 0;
+    document.getElementById('stockFormMinAlert').value = item.minAlert ?? 5;
+    document.getElementById('stockFormRemarks').value = item.remarks || '';
+  } else {
+    // Add New Mode
+    if (title) title.textContent = 'RECORD ELECTRICAL STOCK ENTRY';
+    if (submitText) submitText.textContent = 'Save to Ledger';
+
+    form.reset();
+    document.getElementById('stockFormId').value = '';
+    document.getElementById('stockFormCategory').value = 'Electric';
+    // Pre-select unit filter value if active, else first option
+    const unitSelEl = document.getElementById('stockFormUnit');
+    if (unitSelEl) {
+      if (stockFilterUnit !== 'all' && [...unitSelEl.options].some(o => o.value === stockFilterUnit)) {
+        unitSelEl.value = stockFilterUnit;
+      } else if (unitSelEl.options.length > 0) {
+        unitSelEl.selectedIndex = 0;
+      }
+    }
+    document.getElementById('stockFormFloor').value = stockFilterFloor !== 'all' ? stockFilterFloor : 'Ground Floor';
+    document.getElementById('stockFormQtyReceived').value = '';
+    document.getElementById('stockFormQtyInUse').value = '';
+    document.getElementById('stockFormMinAlert').value = 5;
+    document.getElementById('stockFormUom').value = 'Nos';
+  }
+
+  onStockQtyInputChange();
+  modal.classList.remove('hidden');
+}
+
+// Close Add / Edit Stock Modal
+function closeStockItemModal() {
+  const modal = document.getElementById('stockItemModalOverlay');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Live auto-calculation in Add/Edit modal as user types
+function onStockQtyInputChange() {
+  const storeInput = document.getElementById('stockFormQtyReceived');
+  const inUseInput = document.getElementById('stockFormQtyInUse');
+  const alertInput = document.getElementById('stockFormMinAlert');
+
+  const store = Math.max(0, parseInt(storeInput?.value, 10) || 0);
+  const inUse = Math.max(0, parseInt(inUseInput?.value, 10) || 0);
+  const minAlert = Math.max(1, parseInt(alertInput?.value, 10) || 5);
+  const closing = store - inUse;
+
+  const storePreview = document.getElementById('previewStoreVal');
+  const inUsePreview = document.getElementById('previewInUseVal');
+  const closingPreview = document.getElementById('previewClosingVal');
+  const badgePreview = document.getElementById('previewClosingBadge');
+
+  if (storePreview) storePreview.textContent = store;
+  if (inUsePreview) inUsePreview.textContent = inUse;
+  if (closingPreview) {
+    closingPreview.textContent = closing;
+    closingPreview.style.color = closing <= 0 ? '#f87171' : (closing <= minAlert ? '#fbbf24' : '#34d399');
+  }
+
+  if (badgePreview) {
+    if (closing < 0) {
+      badgePreview.textContent = 'DEFICIT (IN USE > STORE)';
+      badgePreview.style.background = '#7f1d1d';
+      badgePreview.style.color = '#fca5a5';
+      badgePreview.style.borderColor = '#dc2626';
+    } else if (closing === 0) {
+      badgePreview.textContent = 'DEPLETED';
+      badgePreview.style.background = '#7f1d1d';
+      badgePreview.style.color = '#fca5a5';
+      badgePreview.style.borderColor = '#dc2626';
+    } else if (closing <= minAlert) {
+      badgePreview.textContent = `LOW STOCK (≤${minAlert})`;
+      badgePreview.style.background = '#78350f';
+      badgePreview.style.color = '#fde68a';
+      badgePreview.style.borderColor = '#b45309';
+    } else {
+      badgePreview.textContent = 'HEALTHY STOCK';
+      badgePreview.style.background = '#064e3b';
+      badgePreview.style.color = '#6ee7b7';
+      badgePreview.style.borderColor = '#059669';
+    }
+  }
+}
+
+// Save Stock Item Form
+async function saveStockItemForm() {
+  const id = document.getElementById('stockFormId')?.value?.trim() || ('STK-' + Date.now().toString(36).toUpperCase());
+  const category = document.getElementById('stockFormCategory')?.value?.trim() || 'Electric';
+  const unit = document.getElementById('stockFormUnit')?.value?.trim() || 'P-35';
+  const floor = document.getElementById('stockFormFloor')?.value?.trim() || 'Ground Floor';
+  const itemName = document.getElementById('stockFormItemName')?.value?.trim();
+  const specification = document.getElementById('stockFormSpec')?.value?.trim() || '';
+  const uom = document.getElementById('stockFormUom')?.value?.trim() || 'Nos';
+  const qtyReceived = Math.max(0, parseInt(document.getElementById('stockFormQtyReceived')?.value, 10) || 0);
+  const qtyInUse = Math.max(0, parseInt(document.getElementById('stockFormQtyInUse')?.value, 10) || 0);
+  const closingStock = qtyReceived - qtyInUse;
+  const minAlert = Math.max(1, parseInt(document.getElementById('stockFormMinAlert')?.value, 10) || 5);
+  const remarks = document.getElementById('stockFormRemarks')?.value?.trim() || '';
+
+  if (!itemName) {
+    showToast('Electrical Item Name is required.', true);
+    return;
+  }
+
+  if (qtyInUse > qtyReceived) {
+    showToast('Warning: Installed quantity exceeds Stock Received. Please verify numbers.', true);
+  }
+
+  const payload = {
+    id: id,
+    category: category,
+    unit: unit,
+    floor: floor,
+    itemName: itemName,
+    specification: specification,
+    uom: uom,
+    qtyReceived: qtyReceived,
+    qtyInUse: qtyInUse,
+    closingStock: closingStock,
+    minAlert: minAlert,
+    remarks: remarks,
+    lastUpdated: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  };
+
+  // Upsert local state immediately
+  const existingIdx = stockLedgerData.findIndex(s => s.id === id);
+  if (existingIdx !== -1) {
+    stockLedgerData[existingIdx] = payload;
+  } else {
+    stockLedgerData.unshift(payload);
+  }
+
+  closeStockItemModal();
+  showToast(`Saving "${itemName}" to Google Sheet...`);
+
+  // POST directly to Web App URL with action field (same pattern as other saves in this app)
+  try {
+    const result = await fetchJson(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveStockItem', ...payload })
+    }, 20000);
+    if (result && result.ok) {
+      showToast(`"${itemName}" saved to Google Sheet successfully.`);
+    } else {
+      showToast(`Sheet error: ${result?.message || 'Unknown error'}`, true);
+    }
+    await fetchStockDataFromBackend();
+  } catch (err) {
+    console.error('Failed to save to Google Sheet:', err);
+    showToast(`Error saving to Google Sheet: ${err.message || err}`, true);
+    renderStockDashboard();
+  }
+}
+
+// Delete Stock Item — opens password confirmation modal
+function deleteStockItemById(id) {
+  const item = stockLedgerData.find(s => s.id === id);
+  if (!item) return;
+
+  stockPendingDeleteId = id;
+
+  // Set preview text
+  const preview = document.getElementById('stockDelItemPreview');
+  if (preview) {
+    preview.textContent = `${item.itemName}  |  ${item.unit}  —  ${item.floor}`;
+  }
+
+  // Clear previous password & error
+  const pwInput = document.getElementById('stockDelPassword');
+  if (pwInput) { pwInput.value = ''; pwInput.type = 'password'; }
+  const errEl = document.getElementById('stockDelPwError');
+  if (errEl) errEl.classList.add('hidden');
+
+  // Show modal
+  const overlay = document.getElementById('stockDeleteConfirmOverlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    setTimeout(() => pwInput && pwInput.focus(), 80);
+  }
+}
+
+// Close delete confirm modal
+function closeStockDeleteModal() {
+  document.getElementById('stockDeleteConfirmOverlay')?.classList.add('hidden');
+  stockPendingDeleteId = null;
+}
+
+// Toggle password eye
+function toggleStockDelPwVisibility() {
+  const input = document.getElementById('stockDelPassword');
+  const icon = document.getElementById('stockDelEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>`;
+  } else {
+    input.type = 'password';
+    if (icon) icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  }
+}
+
+// Confirm delete with password check
+async function confirmStockDelete() {
+  const STOCK_DELETE_PASSWORD = 'Stock@2026';
+  const pwInput = document.getElementById('stockDelPassword');
+  const errEl = document.getElementById('stockDelPwError');
+
+  const entered = (pwInput?.value || '').trim();
+  if (entered !== STOCK_DELETE_PASSWORD) {
+    if (errEl) errEl.classList.remove('hidden');
+    if (pwInput) { pwInput.value = ''; pwInput.focus(); }
+    return;
+  }
+
+  const id = stockPendingDeleteId;
+  if (!id) { closeStockDeleteModal(); return; }
+
+  const item = stockLedgerData.find(s => s.id === id);
+  const itemName = item?.itemName || 'Entry';
+
+  closeStockDeleteModal();
+
+  stockLedgerData = stockLedgerData.filter(s => s.id !== id);
+  renderStockDashboard();
+  showToast(`"${itemName}" deleted from ledger.`);
+
+  try {
+    await fetchJson(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'deleteStockItem', id: id })
+    }, 15000);
+  } catch (err) {
+    console.warn('Could not delete stock item from Google Sheet:', err);
+  }
+}
+
+// Export Stock Ledger to CSV
+function exportStockLedgerCsv() {
+  if (!stockLedgerData || !stockLedgerData.length) {
+    showToast('No stock ledger data available to export.', true);
+    return;
+  }
+
+  let items = stockLedgerData.filter(item => (item.category || 'Electric').toLowerCase() === currentStockSubview.toLowerCase());
+  if (stockFilterUnit !== 'all') items = items.filter(i => i.unit === stockFilterUnit);
+  if (stockFilterFloor !== 'all') items = items.filter(i => i.floor === stockFilterFloor);
+
+  const headers = ['ID', 'Category', 'Unit', 'Floor', 'Item Name', 'Specification', 'UOM', 'Qty Received', 'Qty In Use', 'Closing Stock', 'Min Alert', 'Remarks'];
+  const rows = items.map(item => [
+    item.id,
+    item.category,
+    item.unit,
+    item.floor,
+    `"${(item.itemName || '').replace(/"/g, '""')}"`,
+    `"${(item.specification || '').replace(/"/g, '""')}"`,
+    item.uom,
+    item.qtyReceived,
+    item.qtyInUse,
+    (Number(item.qtyReceived) || 0) - (Number(item.qtyInUse) || 0),
+    item.minAlert,
+    `"${(item.remarks || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `Stock_Ledger_Electric_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Stock Ledger CSV exported.');
+}
+
