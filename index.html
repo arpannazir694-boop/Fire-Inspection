@@ -5,7 +5,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fire Safety-Application</title>
+  <title>FACILIX — Fire Safety &amp; Facility Audit Portal</title>
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dnrgcigsj/image/upload/v1787810920/ChatGPT_Image_Aug_27_2026_11_38_13_AM_bovvef.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,7 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet">
   </noscript>
+  <script src="auth.js"></script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="neomorphic-report.css">
 </head>
@@ -1248,15 +1249,23 @@
               <span id="amcSummaryRemarks">—</span>
             </div>
             <div class="amc-summary-docs" id="amcSummaryDocs"></div>
-            <button type="button" class="amc-toggle-full-details-btn" id="amcToggleFullDetailsBtn" onclick="toggleAmcFullDetails()">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-              <span>View Full Details &amp; History</span>
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="amc-whatsapp-reminder-btn" id="amcSummaryWhatsappBtn" onclick="sendAmcRecordWhatsAppAlert()" title="Send Instant WhatsApp Reminder to Vendor/Technician">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+                </svg>
+                <span>WhatsApp Vendor</span>
+              </button>
+              <button type="button" class="amc-toggle-full-details-btn" id="amcToggleFullDetailsBtn" onclick="toggleAmcFullDetails()">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                <span>View Full Details &amp; History</span>
+              </button>
+            </div>
           </div>
 
           <!-- Collapsible Full Details / Audit History -->
@@ -1572,11 +1581,20 @@
             <p class="amc-reminder-subtitle"><span class="amcr-live-dot"></span>Live AMC alerts — contracts &amp; servicing at a glance</p>
           </div>
         </div>
-        <button class="amc-reminder-close-btn" onclick="closeAmcReminderDashboard()" title="Close">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+        <div class="amc-reminder-head-actions">
+          <button class="amc-reminder-mail-trigger-btn" type="button" onclick="openReminderMailModal()" title="Compose & Send Reminder Mail">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <span>Reminder Mail</span>
+          </button>
+          <button class="amc-reminder-close-btn" onclick="closeAmcReminderDashboard()" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Summary bar -->
@@ -1714,6 +1732,12 @@
       </div>
 
       <div class="amcrd-footer">
+        <button class="amcrd-whatsapp-btn" type="button" id="amcrdWhatsappBtn" onclick="sendAmcReminderRecordWhatsAppAlert()" title="Send WhatsApp alert to vendor">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+          </svg>
+          WhatsApp Vendor
+        </button>
         <button class="amcrd-manage-btn" type="button" id="amcrdManageBtn">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1721,7 +1745,7 @@
             <line x1="16" y1="13" x2="8" y2="13"/>
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
-          Manage This Record
+          Manage Record
         </button>
       </div>
     </div>
@@ -2271,8 +2295,8 @@
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
             </div>
             <div>
-              <h2 class="amc-inv-org-title">TRIO GROUP</h2>
-              <div class="amc-inv-org-sub">FIRE SAFETY &amp; ENGINEERING ASSET MAINTENANCE MANAGEMENT</div>
+              <h2 class="amc-inv-org-title">FACILIX &middot; TRIO GROUP</h2>
+              <div class="amc-inv-org-sub">FACILIX &mdash; FIRE SAFETY &amp; ENGINEERING ASSET MAINTENANCE</div>
               <div class="amc-inv-org-loc">Compliance &amp; Preventive Maintenance Auditing Directorate</div>
             </div>
           </div>
@@ -2752,7 +2776,7 @@
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4m0 4h.01" />
             </svg>
-            Sent securely via Fire Audit System
+            Sent securely via FACILIX System
           </span>
         </div>
         <div class="mail-compose-footer-right">
@@ -2769,7 +2793,829 @@
     </div>
   </div>
 
-  <div class="daily-kpi-drill hidden" id="kpiDrillModal" onclick="if(event.target===this) closeKpiDrill()">
+  <!-- ─── Modern Reminder Mail Composer Card ─────────────────────────── -->
+  <div class="reminder-mail-overlay hidden" id="reminderMailOverlay" onclick="if(event.target===this)closeReminderMailModal()">
+    <div class="reminder-mail-card" role="dialog" aria-labelledby="reminderMailHeaderTitle">
+      
+      <!-- Card Header -->
+      <div class="reminder-mail-header">
+        <div class="reminder-mail-header-left">
+          <div class="reminder-mail-logo-wrap">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </div>
+          <div>
+            <div class="reminder-mail-title-row">
+              <span class="reminder-mail-header-title" id="reminderMailHeaderTitle">FACILIX &amp; AMC Reminder Digest</span>
+              <span class="reminder-mail-badge-draft">Live Summary</span>
+            </div>
+            <p class="reminder-mail-header-sub">Review aggregated alerts, select TO/CC recipients &amp; dispatch reminder email</p>
+          </div>
+        </div>
+        <div class="reminder-mail-header-right">
+          <button class="reminder-mail-refresh-btn" type="button" onclick="refreshReminderMailSummary()" title="Re-scan &amp; refresh live data">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            <span>Refresh</span>
+          </button>
+          <button class="reminder-mail-close-btn" type="button" onclick="closeReminderMailModal()" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Filter / Section Ribbon -->
+      <div class="reminder-mail-ribbon">
+        <span class="reminder-ribbon-label">Include in Digest:</span>
+        <button type="button" class="reminder-filter-chip active" id="filterToggleExpired" onclick="toggleReminderFilter('expired')">
+          <span class="dot dot-danger"></span>
+          <span>Expired Contracts</span>
+          <span class="chip-count" id="chipCountExpired">0</span>
+        </button>
+        <button type="button" class="reminder-filter-chip active" id="filterToggleExpiring" onclick="toggleReminderFilter('expiring')">
+          <span class="dot dot-warning"></span>
+          <span>Expiring Soon</span>
+          <span class="chip-count" id="chipCountExpiring">0</span>
+        </button>
+        <button type="button" class="reminder-filter-chip active" id="filterToggleServiceOverdue" onclick="toggleReminderFilter('serviceOverdue')">
+          <span class="dot dot-critical"></span>
+          <span>Service Overdue</span>
+          <span class="chip-count" id="chipCountServiceOverdue">0</span>
+        </button>
+        <button type="button" class="reminder-filter-chip active" id="filterToggleServiceDue" onclick="toggleReminderFilter('serviceDue')">
+          <span class="dot dot-info"></span>
+          <span>Service Due Soon</span>
+          <span class="chip-count" id="chipCountServiceDue">0</span>
+        </button>
+      </div>
+
+      <!-- Mail Fields Section -->
+      <div class="reminder-mail-fields">
+        <!-- TO field -->
+        <div class="reminder-field-row">
+          <span class="reminder-field-label">To <span class="required-star">*</span></span>
+          <div class="reminder-field-wrap">
+            <div class="reminder-multiselect" id="reminderMailToMultiselect">
+              <div class="reminder-chips-box" id="reminderMailToBox" onclick="toggleReminderRecipientPanel('to')">
+                <div class="reminder-chips-list" id="reminderMailToChipsList">
+                  <span class="reminder-placeholder">Select or add recipient(s)...</span>
+                </div>
+                <button type="button" class="reminder-caret-btn" title="Toggle recipient list">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="reminder-dropdown-panel hidden" id="reminderMailToPanel">
+                <div class="reminder-dropdown-search-wrap">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" class="reminder-dropdown-search" id="reminderMailToSearch" placeholder="Search contacts..." oninput="filterReminderContacts('to')">
+                  <button type="button" class="reminder-select-all-btn" onclick="toggleSelectAllReminderContacts('to')">Select All</button>
+                </div>
+                <div class="reminder-contacts-list" id="reminderMailToContactsList"></div>
+                <div class="reminder-custom-email-bar">
+                  <input type="email" id="reminderMailToCustomInput" placeholder="Add custom email..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomReminderRecipient('to');}">
+                  <button type="button" onclick="addCustomReminderRecipient('to')">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CC field -->
+        <div class="reminder-field-row">
+          <span class="reminder-field-label">CC</span>
+          <div class="reminder-field-wrap">
+            <div class="reminder-multiselect" id="reminderMailCcMultiselect">
+              <div class="reminder-chips-box" id="reminderMailCcBox" onclick="toggleReminderRecipientPanel('cc')">
+                <div class="reminder-chips-list" id="reminderMailCcChipsList">
+                  <span class="reminder-placeholder">None (optional)...</span>
+                </div>
+                <button type="button" class="reminder-caret-btn" title="Toggle recipient list">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="reminder-dropdown-panel hidden" id="reminderMailCcPanel">
+                <div class="reminder-dropdown-search-wrap">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" class="reminder-dropdown-search" id="reminderMailCcSearch" placeholder="Search contacts..." oninput="filterReminderContacts('cc')">
+                  <button type="button" class="reminder-select-all-btn" onclick="toggleSelectAllReminderContacts('cc')">Select All</button>
+                </div>
+                <div class="reminder-contacts-list" id="reminderMailCcContactsList"></div>
+                <div class="reminder-custom-email-bar">
+                  <input type="email" id="reminderMailCcCustomInput" placeholder="Add custom email..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomReminderRecipient('cc');}">
+                  <button type="button" onclick="addCustomReminderRecipient('cc')">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject field -->
+        <div class="reminder-field-row">
+          <span class="reminder-field-label">Subject</span>
+          <div class="reminder-field-wrap">
+            <input class="reminder-subject-input" id="reminderMailSubjectInput" type="text" placeholder="Reminder Subject..." oninput="updateReminderMailSubjectPreview(this.value)">
+          </div>
+        </div>
+
+        <!-- Optional Manager Note -->
+        <div class="reminder-field-row reminder-note-row">
+          <span class="reminder-field-label">Notice</span>
+          <div class="reminder-field-wrap">
+            <input class="reminder-note-input" id="reminderMailCustomNote" type="text" placeholder="Optional executive remark / directive (e.g. Please expedite before audit next week)..." oninput="renderReminderMailBodyPreview()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Email Body Preview -->
+      <div class="reminder-mail-body-wrap">
+        <div class="reminder-preview-header-bar">
+          <span class="preview-tag">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Email Digest Live Preview
+          </span>
+          <span class="preview-note">Exact email template sent to inboxes</span>
+        </div>
+        <div class="reminder-mail-preview-scroller" id="reminderMailPreviewContent">
+          <!-- Dynamically filled by buildReminderMailHtml() -->
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="reminder-mail-footer">
+        <div class="reminder-mail-footer-left">
+          <span class="reminder-footer-counter" id="reminderMailFooterCount">
+            <span class="pulse-indicator"></span>
+            <span id="reminderMailCountText">Scanning reminders...</span>
+          </span>
+        </div>
+        <div class="reminder-mail-footer-right">
+          <button class="reminder-btn-cancel" type="button" onclick="closeReminderMailModal()">Cancel</button>
+          <button class="reminder-btn-whatsapp" id="reminderMailWhatsAppBtn" type="button" onclick="sendReminderDigestWhatsApp()" title="Share complete reminder digest summary on WhatsApp">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+            </svg>
+            <span>Share on WhatsApp</span>
+          </button>
+          <button class="reminder-btn-send" id="reminderMailSendBtn" type="button" onclick="sendReminderMail()">
+            <span class="send-btn-icon">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m22 2-7 20-4-9-9-4Z"/>
+                <path d="M22 2 11 13"/>
+              </svg>
+            </span>
+            <span class="send-btn-spinner hidden" id="reminderMailSpinner"></span>
+            <span id="reminderMailSendBtnText">Send Reminder Mail</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AUTO MAIL: CARD 1 — OPERATIONS TIMELINE NEWS FEED MODAL -->
+  <div class="auto-mail-feed-overlay hidden" id="autoMailFeedOverlay" onclick="if(event.target===this)closeAutoMailFeedModal()">
+    <div class="auto-mail-feed-card" role="dialog" aria-modal="true" aria-labelledby="autoMailFeedTitle">
+      
+      <!-- Card 1 Header -->
+      <div class="auto-mail-header">
+        <div class="auto-mail-header-left">
+          <div class="auto-mail-header-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div>
+            <div class="auto-mail-header-title-row">
+              <h2 id="autoMailFeedTitle">Auto Mail &amp; Operations Timeline</h2>
+              <span class="auto-mail-live-badge">Live Feed</span>
+            </div>
+            <p class="auto-mail-header-sub">Chronological feed of servicing, breakdown repairs, contract renewals &amp; next upcoming schedules</p>
+          </div>
+        </div>
+        <div class="auto-mail-header-actions">
+          <button class="auto-mail-btn-icon" type="button" onclick="refreshAutoMailTimeline()" title="Refresh Feed" aria-label="Refresh Feed">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
+          <button class="auto-mail-btn-close" type="button" onclick="closeAutoMailFeedModal()" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Category Filters Ribbon -->
+      <div class="auto-mail-filter-toolbar">
+        <div class="auto-mail-search-box">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="autoMailTimelineSearch" placeholder="Search by Unit, Vendor, Equipment, Technician or Remarks..." oninput="filterAutoMailTimelineBySearch(this.value)">
+        </div>
+        <div class="auto-mail-filter-chips">
+          <button type="button" class="auto-filter-chip active" id="autoFilterAll" onclick="setTimelineFilterCategory('all')">
+            <span>All Timeline News</span>
+            <span class="chip-count" id="autoCountAll">0</span>
+          </button>
+          <button type="button" class="auto-filter-chip" id="autoFilterServicing" onclick="setTimelineFilterCategory('servicing')">
+            <span class="dot dot-success"></span>
+            <span>Servicing Done</span>
+            <span class="chip-count" id="autoCountServicing">0</span>
+          </button>
+          <button type="button" class="auto-filter-chip" id="autoFilterBreakdown" onclick="setTimelineFilterCategory('breakdown')">
+            <span class="dot dot-danger"></span>
+            <span>Breakdown Repairs</span>
+            <span class="chip-count" id="autoCountBreakdown">0</span>
+          </button>
+          <button type="button" class="auto-filter-chip" id="autoFilterRenewal" onclick="setTimelineFilterCategory('renewal')">
+            <span class="dot dot-purple"></span>
+            <span>Contract Renewals</span>
+            <span class="chip-count" id="autoCountRenewal">0</span>
+          </button>
+          <button type="button" class="auto-filter-chip" id="autoFilterUpcoming" onclick="setTimelineFilterCategory('upcoming')">
+            <span class="dot dot-info"></span>
+            <span>Upcoming Schedules</span>
+            <span class="chip-count" id="autoCountUpcoming">0</span>
+          </button>
+          <button type="button" class="auto-filter-chip" id="autoFilterSent" onclick="setTimelineFilterCategory('sent')">
+            <span class="dot dot-sent"></span>
+            <span>Sent Mail</span>
+            <span class="chip-count" id="autoCountSent">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Timeline News Stream Body -->
+      <div class="auto-mail-timeline-scroller" id="autoMailTimelineScroller">
+        <div class="auto-mail-timeline-stream" id="autoMailTimelineList">
+          <div class="auto-mail-loading-box">
+            <div class="auto-mail-spinner"></div>
+            <span>Loading Operations Timeline News...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="auto-mail-feed-footer">
+        <div class="auto-mail-feed-footer-left">
+          <span class="auto-mail-summary-text" id="autoMailFeedSummaryText">Showing timeline operations</span>
+        </div>
+        <div class="auto-mail-feed-footer-right">
+          <button class="auto-mail-btn-outline" type="button" onclick="closeAutoMailFeedModal()">Close</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AUTO MAIL: CARD 2 — EMAIL COMPOSER & DISPATCHER MODAL -->
+  <div class="auto-mail-compose-overlay hidden" id="autoMailComposeOverlay" onclick="if(event.target===this)closeAutoMailComposeModal()">
+    <div class="auto-mail-compose-card" role="dialog" aria-modal="true" aria-labelledby="autoMailComposeTitle">
+      
+      <!-- Card 2 Header -->
+      <div class="auto-mail-compose-header">
+        <div class="auto-mail-header-left">
+          <button class="auto-mail-back-btn" type="button" onclick="backToAutoMailFeed()" title="Back to Timeline">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Back to Timeline</span>
+          </button>
+          <div>
+            <h2 id="autoMailComposeTitle">Auto Mail Composer</h2>
+            <p class="auto-mail-header-sub">Review auto-generated lifecycle notification and dispatch to stakeholders</p>
+          </div>
+        </div>
+        <div class="auto-mail-header-actions">
+          <button class="auto-mail-btn-close" type="button" onclick="closeAutoMailComposeModal()" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recipient Selectors & Form Details -->
+      <div class="auto-mail-fields-wrap">
+        
+        <!-- TO Recipient Row -->
+        <div class="auto-mail-field-row">
+          <div class="auto-mail-field-label">
+            <span class="label-req">To</span>
+          </div>
+          <div class="auto-mail-field-input-wrap">
+            <div class="auto-mail-chips-box" id="autoMailToBox" onclick="toggleAutoRecipientPanel('to')">
+              <div class="auto-mail-chips-list" id="autoMailToChips"></div>
+              <span class="auto-mail-chips-placeholder" id="autoMailToPlaceholder">Select or add recipient(s)...</span>
+              <button type="button" class="auto-mail-caret-btn" tabindex="-1">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="auto-mail-dropdown-panel hidden" id="autoMailToPanel">
+              <div class="auto-mail-dropdown-search-wrap">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" class="auto-mail-dropdown-search" id="autoMailToSearch" placeholder="Search contacts..." oninput="filterAutoContacts('to')">
+                <button type="button" class="auto-mail-select-all-btn" onclick="toggleSelectAllAutoContacts('to')">Select All</button>
+              </div>
+              <div class="auto-mail-contacts-list" id="autoMailToContactsList"></div>
+              <div class="auto-mail-custom-email-bar">
+                <input type="email" id="autoMailToCustomInput" placeholder="Add custom email..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomAutoRecipient('to');}">
+                <button type="button" onclick="addCustomAutoRecipient('to')">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CC Recipient Row -->
+        <div class="auto-mail-field-row">
+          <div class="auto-mail-field-label">
+            <span>CC</span>
+          </div>
+          <div class="auto-mail-field-input-wrap">
+            <div class="auto-mail-chips-box" id="autoMailCcBox" onclick="toggleAutoRecipientPanel('cc')">
+              <div class="auto-mail-chips-list" id="autoMailCcChips"></div>
+              <span class="auto-mail-chips-placeholder" id="autoMailCcPlaceholder">Optional CC recipient(s)...</span>
+              <button type="button" class="auto-mail-caret-btn" tabindex="-1">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="auto-mail-dropdown-panel hidden" id="autoMailCcPanel">
+              <div class="auto-mail-dropdown-search-wrap">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" class="auto-mail-dropdown-search" id="autoMailCcSearch" placeholder="Search contacts..." oninput="filterAutoContacts('cc')">
+                <button type="button" class="auto-mail-select-all-btn" onclick="toggleSelectAllAutoContacts('cc')">Select All</button>
+              </div>
+              <div class="auto-mail-contacts-list" id="autoMailCcContactsList"></div>
+              <div class="auto-mail-custom-email-bar">
+                <input type="email" id="autoMailCcCustomInput" placeholder="Add custom email..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomAutoRecipient('cc');}">
+                <button type="button" onclick="addCustomAutoRecipient('cc')">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject Row -->
+        <div class="auto-mail-field-row">
+          <div class="auto-mail-field-label">
+            <span class="label-req">Subject</span>
+          </div>
+          <div class="auto-mail-field-input-wrap">
+            <input class="auto-mail-subject-input" id="autoMailSubjectInput" type="text" placeholder="Auto Mail Subject...">
+          </div>
+        </div>
+
+        <!-- Executive Directives / Notice Row -->
+        <div class="auto-mail-field-row">
+          <div class="auto-mail-field-label">
+            <span>Notice</span>
+          </div>
+          <div class="auto-mail-field-input-wrap">
+            <input class="auto-mail-note-input" id="autoMailCustomNote" type="text" placeholder="Optional directive or note (e.g. Please file the signed service slip in compliance folder)..." oninput="renderAutoMailBodyPreview()">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Email Body Preview -->
+      <div class="auto-mail-body-wrap">
+        <div class="auto-mail-preview-header-bar">
+          <span class="preview-tag">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Auto Mail Live Preview
+          </span>
+          <span class="preview-note">Please verify before sending</span>
+        </div>
+        <div class="auto-mail-preview-scroller" id="autoMailPreviewContent">
+          <!-- Rendered Email HTML injected here -->
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="auto-mail-compose-footer">
+        <div class="auto-mail-compose-footer-left">
+          <button class="auto-mail-btn-outline" type="button" onclick="backToAutoMailFeed()">Back to Timeline</button>
+        </div>
+        <div class="auto-mail-compose-footer-right">
+          <button class="auto-mail-btn-cancel" type="button" onclick="closeAutoMailComposeModal()">Cancel</button>
+          <button class="auto-btn-whatsapp" id="autoMailWhatsAppBtn" type="button" onclick="sendCurrentAutoMailWhatsApp()" title="Share this Auto Mail lifecycle alert via WhatsApp">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82a8.197 8.197 0 0 1-5.82 2.42c-1.48 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.216 8.216 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.32z"/>
+            </svg>
+            <span>Share on WhatsApp</span>
+          </button>
+          <button class="auto-mail-btn-send" id="autoMailSendBtn" type="button" onclick="sendAutoMail()">
+            <span class="send-btn-icon">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m22 2-7 20-4-9-9-4Z"/>
+                <path d="M22 2 11 13"/>
+              </svg>
+            </span>
+            <span class="send-btn-spinner hidden" id="autoMailSpinner"></span>
+            <span id="autoMailSendBtnText">Send Auto Mail</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- STOCK LEDGER: LARGE DASHBOARD MODAL (SHARP INDUSTRIAL ARCHITECTURE)  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="stock-modal-overlay hidden" id="stockModalOverlay" onclick="if(event.target===this)closeStockModal()">
+    <div class="stock-modal-card" role="dialog" aria-modal="true" aria-labelledby="stockModalTitle">
+      
+      <!-- Top Industrial Header -->
+      <div class="stock-header">
+        <div class="stock-header-left">
+          <div class="stock-header-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stock-title-row">
+              <h2 id="stockModalTitle">STOCK LEDGER &amp; INVENTORY CONTROL</h2>
+              <span class="stock-status-pill-sharp">ACTIVE LEDGER</span>
+            </div>
+            <p class="stock-header-sub">Unit &amp; Floor-wise Electrical &amp; Electronics Inventory, In-Use Equipment &amp; Closing Stock Ledger</p>
+          </div>
+        </div>
+        <div class="stock-header-actions">
+          <button class="stock-btn-sharp stock-btn-primary" type="button" onclick="openStockItemModal()" title="Add New Stock Item">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>+ Add Stock Entry</span>
+          </button>
+          <button class="stock-btn-sharp stock-btn-ghost" type="button" onclick="refreshStockData()" title="Sync from Sheet">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            <span>Sync</span>
+          </button>
+          <button class="stock-btn-sharp stock-btn-ghost" type="button" onclick="exportStockLedgerCsv()" title="Export CSV Ledger">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Export</span>
+          </button>
+          <button class="stock-btn-close-sharp" type="button" onclick="closeStockModal()" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Subview Selection Ribbon (Sharp & Architectural) -->
+      <div class="stock-subview-ribbon">
+        <button type="button" class="stock-subview-tab active" id="stockSubElectric" onclick="switchStockSubview('electric')">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>⚡ Electric (Electronics)</span>
+          <span class="stock-subview-badge" id="stockBadgeElectric">0</span>
+        </button>
+        <div class="stock-subview-info">
+          <span id="stockSyncTimestamp">Sync: Ready</span>
+        </div>
+      </div>
+
+      <!-- Subview 1: Electric View Container -->
+      <div class="stock-subview-container" id="stockElectricContainer">
+        
+        <!-- Sharp Industrial KPI Metric Ribbon -->
+        <div class="stock-kpi-grid">
+          <div class="stock-kpi-box stock-kpi-blue">
+            <div class="stock-kpi-label">TOTAL STOCK RECEIVED</div>
+            <div class="stock-kpi-val" id="stockKpiReceived">0</div>
+            <div class="stock-kpi-desc">Total units logged in store across all units</div>
+          </div>
+          <div class="stock-kpi-box stock-kpi-amber">
+            <div class="stock-kpi-label">INSTALLED / IN USE</div>
+            <div class="stock-kpi-val" id="stockKpiInUse">0</div>
+            <div class="stock-kpi-desc">Active equipment mounted on floors</div>
+          </div>
+          <div class="stock-kpi-box stock-kpi-emerald">
+            <div class="stock-kpi-label">CLOSING STOCK (BALANCE)</div>
+            <div class="stock-kpi-val" id="stockKpiClosing">0</div>
+            <div class="stock-kpi-desc">Auto calculated: Store Qty &minus; In Use Qty</div>
+          </div>
+          <div class="stock-kpi-box stock-kpi-rose">
+            <div class="stock-kpi-label">LOW STOCK ALERTS</div>
+            <div class="stock-kpi-val" id="stockKpiLowAlerts">0</div>
+            <div class="stock-kpi-desc">Items at or below critical threshold</div>
+          </div>
+        </div>
+
+        <!-- Ledger Filter & Search Toolbar -->
+        <div class="stock-filter-toolbar">
+          <div class="stock-filter-group">
+            <label class="stock-filter-lbl" for="stockFilterUnitSelect">UNIT:</label>
+            <select class="stock-select-sharp" id="stockFilterUnitSelect" onchange="onStockFilterChange()">
+              <option value="all">All Units (ALL)</option>
+            </select>
+          </div>
+          <div class="stock-filter-group">
+            <label class="stock-filter-lbl" for="stockFilterFloorSelect">FLOOR:</label>
+            <select class="stock-select-sharp" id="stockFilterFloorSelect" onchange="onStockFilterChange()">
+              <option value="all">All Floors</option>
+              <option value="Ground Floor">Ground Floor</option>
+              <option value="1st Floor">1st Floor</option>
+              <option value="2nd Floor">2nd Floor</option>
+              <option value="3rd Floor">3rd Floor</option>
+              <option value="4th Floor">4th Floor</option>
+              <option value="5th Floor">5th Floor</option>
+              <option value="Roof / Terrace">Roof / Terrace</option>
+              <option value="Basement">Basement</option>
+            </select>
+          </div>
+          <div class="stock-filter-group">
+            <label class="stock-filter-lbl" for="stockFilterStatusSelect">STOCK HEALTH:</label>
+            <select class="stock-select-sharp" id="stockFilterStatusSelect" onchange="onStockFilterChange()">
+              <option value="all">All Levels</option>
+              <option value="healthy">In Stock (Normal)</option>
+              <option value="low">Low Stock Warning</option>
+              <option value="depleted">Depleted (0 Balance)</option>
+            </select>
+          </div>
+          <div class="stock-search-group">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="stock-search-input" id="stockSearchInput" name="stockSearchNoFill_2024" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search electrical item, spec, unit, floor, remarks..." oninput="onStockSearchChange(this.value)">
+          </div>
+        </div>
+
+        <!-- Ledger Table Section (Sharp Industrial Table) -->
+        <div class="stock-table-wrapper" id="stockTableWrapper">
+          <table class="stock-ledger-table" id="stockLedgerTable">
+            <thead>
+              <tr>
+                <th style="width: 140px;">UNIT &amp; FLOOR</th>
+                <th style="min-width: 220px;">ELECTRICAL ITEM &amp; SPECS</th>
+                <th style="width: 70px; text-align:center;">UOM</th>
+                <th style="width: 120px; text-align:right;">IN STORE</th>
+                <th style="width: 120px; text-align:right;">IN USE</th>
+                <th style="width: 140px; text-align:right;">CLOSING STOCK</th>
+                <th style="width: 120px; text-align:center;">STATUS</th>
+                <th style="width: 150px; text-align:center;">LEDGER ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="stockLedgerTableBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+          <div class="stock-loading-box hidden" id="stockTableLoading">
+            <div class="stock-spinner-sharp"></div>
+            <span>Calculating electrical inventory &amp; stock ledger...</span>
+          </div>
+          <div class="stock-empty-box hidden" id="stockTableEmpty">
+            <div class="stock-empty-icon">⚡</div>
+            <div class="stock-empty-title">No Electrical Stock Items Found</div>
+            <p class="stock-empty-desc">No entries match your Unit, Floor or Search criteria. Click "+ Add Stock Entry" to record electrical equipment.</p>
+            <button class="stock-btn-sharp stock-btn-primary" style="margin-top:10px;" type="button" onclick="openStockItemModal()">+ Add New Electrical Item</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Bar -->
+      <div class="stock-footer">
+        <div class="stock-footer-left">
+          <span id="stockFooterSummary">Showing 0 ledger entries</span>
+        </div>
+        <div class="stock-footer-right">
+          <button class="stock-btn-sharp stock-btn-ghost" type="button" onclick="closeStockModal()">Close Ledger</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- STOCK DELETE CONFIRMATION MODAL (PASSWORD PROTECTED)                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="stock-del-overlay hidden" id="stockDeleteConfirmOverlay">
+    <div class="stock-del-card" role="dialog" aria-modal="true">
+      <div class="stock-del-header">
+        <div class="stock-del-header-left">
+          <span class="stock-del-warn-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="10.29 3.86 1.82 18 22.18 18 13.71 3.86 10.29 3.86"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </span>
+          <span class="stock-del-title">DELETE STOCK ENTRY</span>
+        </div>
+        <button class="stock-btn-close-sharp" type="button" onclick="closeStockDeleteModal()" title="Cancel">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="stock-del-body">
+        <p class="stock-del-item-preview" id="stockDelItemPreview">— item name —</p>
+        <p class="stock-del-warn-text">This entry will be permanently removed from the ledger and cannot be recovered.</p>
+        <div class="stock-del-pw-row">
+          <label class="stock-field-lbl" for="stockDelPassword">ENTER PASSWORD TO CONFIRM</label>
+          <div class="stock-del-pw-input-wrap">
+            <input type="password" class="stock-input-sharp" id="stockDelPassword"
+              placeholder="Enter delete password..."
+              onkeydown="if(event.key==='Enter') confirmStockDelete()"
+              autocomplete="off">
+            <button type="button" class="stock-del-pw-eye" onclick="toggleStockDelPwVisibility()" title="Show/Hide">
+              <svg id="stockDelEyeIcon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <span class="stock-del-pw-error hidden" id="stockDelPwError">❌ Incorrect password. Please try again.</span>
+        </div>
+      </div>
+      <div class="stock-del-footer">
+        <button class="stock-btn-sharp stock-btn-ghost" type="button" onclick="closeStockDeleteModal()">Cancel</button>
+        <button class="stock-btn-sharp stock-del-confirm-btn" type="button" onclick="confirmStockDelete()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+          <span>Delete Entry</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- ADD / EDIT STOCK ITEM MODAL (SHARP TECHNICAL FORM)                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="stock-item-modal-overlay hidden" id="stockItemModalOverlay" onclick="if(event.target===this)closeStockItemModal()">
+    <div class="stock-item-card" role="dialog" aria-modal="true" aria-labelledby="stockItemModalTitle">
+      <div class="stock-item-header">
+        <div class="stock-item-title-wrap">
+          <h3 id="stockItemModalTitle">RECORD ELECTRICAL STOCK ENTRY</h3>
+          <p class="stock-item-sub">Configure stock in store and in-use quantity for unit and floor ledger</p>
+        </div>
+        <button class="stock-btn-close-sharp" type="button" onclick="closeStockItemModal()" title="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <form class="stock-form" id="stockItemForm" onsubmit="event.preventDefault(); saveStockItemForm();">
+        <input type="hidden" id="stockFormId" value="">
+        <input type="hidden" id="stockFormCategory" value="Electric">
+
+        <div class="stock-form-grid">
+          <!-- Unit -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormUnit">UNIT / FACTORY <span class="req">*</span></label>
+            <select class="stock-input-sharp" id="stockFormUnit" required>
+              <!-- Dynamically populated from state.factories -->
+            </select>
+          </div>
+
+          <!-- Floor -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormFloor">FLOOR / LOCATION <span class="req">*</span></label>
+            <select class="stock-input-sharp" id="stockFormFloor" required>
+              <option value="Ground Floor">Ground Floor</option>
+              <option value="1st Floor">1st Floor</option>
+              <option value="2nd Floor">2nd Floor</option>
+              <option value="3rd Floor">3rd Floor</option>
+              <option value="4th Floor">4th Floor</option>
+              <option value="5th Floor">5th Floor</option>
+              <option value="Roof / Terrace">Roof / Terrace</option>
+              <option value="Basement">Basement</option>
+              <option value="All Floors">All Floors</option>
+            </select>
+          </div>
+
+          <!-- Item Name -->
+          <div class="stock-form-field stock-field-full">
+            <label class="stock-field-lbl" for="stockFormItemName">ELECTRICAL ITEM NAME <span class="req">*</span></label>
+            <div class="stock-custom-combo-wrap" id="stockItemComboWrap">
+              <input type="text" class="stock-input-sharp stock-combo-input" id="stockFormItemName"
+                autocomplete="off" required placeholder="Type item name or select from previously entered items..."
+                oninput="onStockComboInput('stockItemComboWrap', this.value)"
+                onfocus="openStockComboDropdown('stockItemComboWrap')"
+                onblur="delayCloseStockCombo('stockItemComboWrap')">
+              <button type="button" class="stock-combo-arrow" tabindex="-1"
+                onclick="toggleStockComboDropdown('stockItemComboWrap')">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              <div class="stock-combo-dropdown hidden" id="stockItemComboList">
+                <div class="stock-combo-empty-hint">No previous items yet. Type a new electrical item name above.</div>
+              </div>
+            </div>
+            <span class="stock-field-hint">Previously saved items appear in the dropdown. You can also type any new item name freely.</span>
+          </div>
+
+          <!-- Specification / Technical Rating -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormSpec">SPECIFICATION / RATING</label>
+            <input type="text" class="stock-input-sharp" id="stockFormSpec" placeholder="e.g. 10kA, 415V, 4000K, Single Core">
+          </div>
+
+          <!-- UOM -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormUom">UNIT OF MEASURE (UOM) <span class="req">*</span></label>
+            <select class="stock-input-sharp" id="stockFormUom" required>
+              <option value="Nos">Nos (Pieces)</option>
+              <option value="Pcs">Pcs</option>
+              <option value="Mtr">Mtr (Meters)</option>
+              <option value="Roll">Roll (Coil)</option>
+              <option value="Sets">Sets</option>
+              <option value="Box">Box</option>
+            </select>
+          </div>
+
+          <!-- Ledger Math: Store Qty -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormQtyReceived">QTY IN STORE (TOTAL RECEIVED) <span class="req">*</span></label>
+            <input type="number" class="stock-input-sharp stock-calc-input" id="stockFormQtyReceived" min="0" step="1" required placeholder="0" value="" oninput="onStockQtyInputChange()">
+            <span class="stock-field-hint">Physical stock available or received</span>
+          </div>
+
+          <!-- Ledger Math: In Use Qty -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormQtyInUse">QTY IN USE (INSTALLED ON FLOOR) <span class="req">*</span></label>
+            <input type="number" class="stock-input-sharp stock-calc-input" id="stockFormQtyInUse" min="0" step="1" required placeholder="0" value="" oninput="onStockQtyInputChange()">
+            <span class="stock-field-hint">Quantity mounted / consumed on this floor</span>
+          </div>
+
+          <!-- Auto-Calculated Closing Stock Display -->
+          <div class="stock-form-field stock-field-full">
+            <div class="stock-calc-preview-box">
+              <div class="stock-calc-preview-left">
+                <span class="stock-calc-lbl">AUTO CALCULATED CLOSING STOCK:</span>
+                <span class="stock-calc-formula">(Qty in Store: <strong id="previewStoreVal">0</strong>) &minus; (Qty in Use: <strong id="previewInUseVal">0</strong>)</span>
+              </div>
+              <div class="stock-calc-preview-right">
+                <span class="stock-calc-result-val" id="previewClosingVal">0</span>
+                <span class="stock-calc-status-badge" id="previewClosingBadge">BALANCE: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reorder Alert Threshold -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormMinAlert">LOW STOCK ALERT LEVEL</label>
+            <input type="number" class="stock-input-sharp" id="stockFormMinAlert" min="1" step="1" value="5" oninput="onStockQtyInputChange()">
+            <span class="stock-field-hint">Trigger warning when closing stock &le; this</span>
+          </div>
+
+          <!-- Remarks / Floor Details -->
+          <div class="stock-form-field">
+            <label class="stock-field-lbl" for="stockFormRemarks">REMARKS &amp; LOCATION NOTES</label>
+            <input type="text" class="stock-input-sharp" id="stockFormRemarks" placeholder="e.g. Sub-panel A, machine line 3, spare rack">
+          </div>
+        </div>
+
+        <div class="stock-item-footer">
+          <button class="stock-btn-sharp stock-btn-ghost" type="button" onclick="closeStockItemModal()">Cancel</button>
+          <button class="stock-btn-sharp stock-btn-primary" type="submit" id="stockFormSubmitBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="stockFormSubmitText">Save to Ledger</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<div class="daily-kpi-drill hidden" id="kpiDrillModal" onclick="if(event.target===this) closeKpiDrill()">
     <div class="daily-kpi-drill-box">
       <div class="daily-kpi-drill-head">
         <h4 id="kpiDrillTitle">Details</h4>
@@ -2798,7 +3644,7 @@
   <div class="header-more-overlay" id="headerMoreOverlay"></div>
   <aside class="header-more-panel" id="headerMorePanel" aria-hidden="true">
     <div class="header-more-panel-head">
-      <span>Menu</span>
+      <span>FACILIX Menu</span>
       <button type="button" class="header-more-close" id="headerMoreClose" aria-label="Close menu">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -2912,6 +3758,36 @@
       </span>
       <span class="header-more-label">AMC Report &amp; Analysis</span>
     </button>
+    <button class="header-more-item item-reminder-mail" id="reminderMailMenuBtn" type="button" onclick="openReminderMailModal()" aria-label="Reminder Mail">
+      <span class="header-more-icon" style="color:#d97706;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </span>
+      <span class="header-more-label">Reminder Mail</span>
+    </button>
+    <button class="header-more-item item-auto-mail" id="autoMailMenuBtn" type="button" onclick="openAutoMailFeedModal()" aria-label="Auto Mail">
+      <span class="header-more-icon" style="color:#7c3aed;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </span>
+      <span class="header-more-label">Auto Mail</span>
+    </button>
+    <button class="header-more-item item-stock" id="stockMenuBtn" type="button" onclick="openStockModal()" aria-label="Stock Ledger">
+      <span class="header-more-icon" style="color:#0284c7;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </span>
+      <span class="header-more-label">Stock Ledger</span>
+    </button>
   </aside>
 
   <main class="shell">
@@ -2920,11 +3796,11 @@
         <div class="logo-box">
           <img
             src="https://res.cloudinary.com/dnrgcigsj/image/upload/v1776343593/Screenshot_2026-03-06_181454-removebg-preview_hixdkx.png"
-            alt="Company logo">
+            alt="FACILIX logo">
         </div>
         <div>
-
-          <h1>Fire Safety Inspection Form</h1>
+          <div class="eyebrow" style="background:linear-gradient(135deg,#059669,#047857);box-shadow:0 2px 8px rgba(5,150,105,0.35);letter-spacing:0.14em;font-size:11px;padding:3px 10px;margin-bottom:6px;">FACILIX APP</div>
+          <h1>FACILIX &mdash; Fire Safety Inspection</h1>
           <p class="subtitle">A compact and efficient audit app designed for equipment inspection, emergency
             preparedness, electrical safety checks, compliance monitoring, risk observations, and final assessment
             reporting.</p>
@@ -2933,6 +3809,30 @@
       <div class="hero-actions">
 
         <div class="header-controls">
+          <button class="topbar-stock-btn" id="topbarStockBtn" type="button" onclick="openStockModal()" title="Stock - Electrical &amp; Electronics Ledger">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <span>Stock</span>
+          </button>
+          <button class="topbar-auto-mail-btn" id="topbarAutoMailBtn" type="button" onclick="openAutoMailFeedModal()" title="Auto Mail - Operations Timeline &amp; Auto Dispatch">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Auto Mail</span>
+            <span class="topbar-auto-badge hidden" id="topbarAutoBadge">0</span>
+          </button>
+          <button class="topbar-reminder-mail-btn" id="topbarReminderMailBtn" type="button" onclick="openReminderMailModal()" title="Reminder Mail - Send aggregated alerts">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <span>Reminder Mail</span>
+            <span class="topbar-reminder-badge hidden" id="topbarReminderBadge">0</span>
+          </button>
           <button class="more-toggle-btn" id="moreBtn" type="button" title="Menu" aria-label="Open menu"
             aria-haspopup="true" aria-expanded="false" aria-controls="headerMorePanel">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
@@ -3052,7 +3952,7 @@
         <span class="amc-kpi-print-sub" id="amcKpiPrintExpired">0 Contracts Expired</span>
       </div>
     </div>
-    <div class="amc-kpi-print-footer-note">Generated from the Fire Safety Audit &mdash; AMC Report &amp; Analysis dashboard.</div>
+    <div class="amc-kpi-print-footer-note">Generated from FACILIX &mdash; AMC Report &amp; Analysis dashboard.</div>
 
     <div class="amc-kpi-print-section">
       <h2>AMC Master Equipment &amp; Contract Records</h2>
